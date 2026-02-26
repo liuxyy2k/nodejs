@@ -2,6 +2,10 @@ import duoduo from "./spider/video/duoduo.js";
 import miss from "./spider/video/miss.js";
 import kanav from "./spider/video/kanav.js";
 import jable from "./spider/video/jable.js";
+import rou from "./spider/video/rou.js";
+import taiav from "./spider/video/taiav.js";
+import hanime from "./spider/video/hanime.js";
+import javxx from "./spider/video/jav.js";
 import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -22,7 +26,7 @@ import {getCache as getCMS} from "./website/cms.js";
 import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
-    const spiders = [douban, miss, kanav, jable, duoduo, mogg, leijing, panta, wogg, zhizhen, tgchannel, tgsou, baseset, push];
+    const spiders = [douban, miss, kanav, jable, rou, taiav, hanime, javxx, duoduo, mogg, leijing, panta, wogg, zhizhen, tgchannel, tgsou, baseset, push];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
         spiders.push(T4Factory(item.name, item.address))
@@ -165,28 +169,28 @@ export default async function router(fastify, {db, config: serverConfig}) {
                             anime: name
                         }
                     })
-                      .then(async res => {
-                          console.log('searchResult', name, res.data)
-                          const anime = res.data.animes[0]
-                          const episode = anime.episodes.find(item => findEpisodeNumber(item.episodeTitle) === episodeNumber) || anime.episodes[0]
-                          if (!matched) {
-                              matched = true
-                              messageToDart({
-                                  action: 'toast',
-                                  opt: {
-                                      message: `匹配弹幕：${anime.animeTitle} ${episode.episodeTitle}`,
-                                      duration: 3
-                                  }
-                              })
-                              resolve(`${url.address}/api/v2/comment/${episode.episodeId}?format=xml`)
-                          }
-                      })
-                      .finally(() => {
-                          count++
-                          if (count === danmuSetting.urls.length && !matched) {
-                              resolve()
-                          }
-                      })
+                        .then(async res => {
+                            console.log('searchResult', name, res.data)
+                            const anime = res.data.animes[0]
+                            const episode = anime.episodes.find(item => findEpisodeNumber(item.episodeTitle) === episodeNumber) || anime.episodes[0]
+                            if (!matched) {
+                                matched = true
+                                messageToDart({
+                                    action: 'toast',
+                                    opt: {
+                                        message: `匹配弹幕：${anime.animeTitle} ${episode.episodeTitle}`,
+                                        duration: 3
+                                    }
+                                })
+                                resolve(`${url.address}/api/v2/comment/${episode.episodeId}?format=xml`)
+                            }
+                        })
+                        .finally(() => {
+                            count++
+                            if (count === danmuSetting.urls.length && !matched) {
+                                resolve()
+                            }
+                        })
                 }
             })
             if (danmuUrl) {
