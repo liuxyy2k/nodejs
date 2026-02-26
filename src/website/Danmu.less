@@ -1,0 +1,136 @@
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; // Prevent scrolling on the root elements
+}
+
+.danmu-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; // Use 100% to fill the parent (#app)
+  padding: 20px;
+  box-sizing: border-box;
+
+  .main-title {
+    text-align: center;
+    transition: all 0.3s ease-out;
+    max-height: 50px;
+    opacity: 1;
+    margin-bottom: 20px;
+    overflow: hidden;
+
+    &.hidden {
+      max-height: 0;
+      opacity: 0;
+      margin: 0;
+    }
+  }
+
+  .search-input {
+    margin-bottom: 20px;
+  }
+
+  .result-container {
+    flex-grow: 1;
+    overflow: hidden; // 防止内容溢出
+    display: flex;
+    flex-direction: column;
+
+    .spin-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    & >.ant-tabs {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      .ant-tabs-content-holder {
+        overflow-y: auto;
+        flex-grow: 1;
+      }
+    }
+  }
+}
+
+.drawer {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+
+  .ant-drawer-mask {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  .ant-drawer-content-wrapper {
+    left: 0;
+    right: 0;
+  }
+
+  .ant-drawer-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ant-list-item {
+    padding: 16px 24px;
+  }
+}
+
+// 移动端适配
+@media (max-width: 768px) {
+  .danmu-container {
+    padding: 10px;
+
+    .search-input {
+      margin-bottom: 8px;
+    }
+
+    .ant-tabs-left > .ant-tabs-nav {
+      width: 80px; // 减小移动端左侧Tab的宽度
+    }
+
+    .ant-tabs-nav {
+      margin: 0;
+    }
+
+    .ant-tabs-tab {
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+
+    .anime-episode-container {
+      flex-direction: column;
+
+      .anime-list-col,
+      .episode-list-col {
+        width: 100%;
+        border-right: none;
+        max-height: 50vh; // 在移动端限制高度
+      }
+
+      .anime-list-col {
+        border-bottom: 1px solid #f0f0f0;
+      }
+    }
+  }
+
+  .drawer {
+    .ant-drawer-header {
+      padding: 16px 12px;
+    }
+
+    .ant-list-item {
+      padding: 12px;
+    }
+  }
+}
