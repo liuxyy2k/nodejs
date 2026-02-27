@@ -11,6 +11,7 @@ import supjav from "./spider/video/supjav.js";
 import pron91 from "./spider/video/porn91.js";
 import jav91 from "./spider/video/jav91.js";
 import haose from "./spider/video/haosetv.js";
+import pronlulu from "./spider/video/pronlulu.js";
 import kore from "./spider/video/kore.js";
 import ai from "./spider/video/ai.js";
 import baseset from "./spider/video/baseset.js";
@@ -33,7 +34,7 @@ import {getCache as getCMS} from "./website/cms.js";
 import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
-    const spiders = [douban, miss, kanav, jable, youtube, rou, taiav, supjav, hanime, javxx, pron91, jav91, haose, ai, kore, duoduo, mogg, leijing, panta, wogg, zhizhen, tgchannel, tgsou, baseset, push];
+    const spiders = [douban, miss, kanav, jable, youtube, rou, taiav, supjav, hanime, javxx, pron91, jav91, haose, ai, pronlulu, kore, duoduo, mogg, leijing, panta, wogg, zhizhen, tgchannel, tgsou, baseset, push];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
         spiders.push(T4Factory(item.name, item.address))
