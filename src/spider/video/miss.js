@@ -2,7 +2,7 @@ import axios from 'axios';
 import { load } from 'cheerio';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
-const site = 'https://missav.ai';
+const site = 'https://missav.ws';
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
@@ -17,36 +17,14 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: 'dm265/cn/chinese-subtitle',  type_name: '中文字幕' },
-        { type_id: 'dm513/cn/new',               type_name: '最近更新' },
-        { type_id: 'dm509/cn/release',           type_name: '新作上市' },
-        { type_id: 'dm561/cn/uncensored-leak',   type_name: '无码流出' },
-        { type_id: 'dm2091/cn/genres/VR',        type_name: 'VR' },
-        { type_id: 'dm242/cn/today-hot',         type_name: '今日热门' },
-        { type_id: 'dm168/cn/weekly-hot',        type_name: '本週热门' },
-        { type_id: 'dm207/cn/monthly-hot',       type_name: '本月热门' },
-        { type_id: 'dm23/cn/siro',               type_name: 'SIRO' },
-        { type_id: 'dm20/cn/luxu',               type_name: 'LUXU' },
-        { type_id: 'dm17/cn/gana',               type_name: 'GANA' },
-        { type_id: 'dm14/cn/maan',               type_name: 'PRESTIGE PREMIUM' },
-        { type_id: 'dm23/cn/scute',              type_name: 'S-CUTE' },
-        { type_id: 'dm19/cn/ara',                type_name: 'ARA' },
-        { type_id: 'dm95/cn/fc2',                type_name: 'FC2' },
-        { type_id: 'dm628/cn/heyzo',             type_name: 'HEYZO' },
-        { type_id: 'dm29/cn/tokyohot',           type_name: '东京热' },
-        { type_id: 'dm58345/cn/1pondo',          type_name: '一本道' },
-        { type_id: 'dm124158/cn/caribbeancom',   type_name: 'Caribbeancom' },
-        { type_id: 'dm1442/cn/caribbeancompr',   type_name: 'Caribbeancompr' },
-        { type_id: 'dm58632/cn/10musume',        type_name: '10musume' },
-        { type_id: 'dm668/cn/pacopacomama',      type_name: 'pacopacomama' },
-        { type_id: 'dm135/cn/gachinco',          type_name: 'Gachinco' },
-        { type_id: 'dm26/cn/xxxav',              type_name: 'XXX-AV' },
-        { type_id: 'dm24/cn/marriedslash',       type_name: '人妻斩' },
-        { type_id: 'dm19/cn/naughty4610',        type_name: '顽皮 4610' },
-        { type_id: 'dm22/cn/naughty0930',        type_name: '顽皮 0930' },
-        { type_id: 'dm34/cn/madou',              type_name: '麻豆传媒' },
-        { type_id: 'dm17/cn/twav',               type_name: 'TWAV AV' },
-        { type_id: 'dm15/cn/furuke',             type_name: 'Furuke AV' },
+        { type_id: 'dm265/cn/chinese-subtitle', type_name: '中文字幕' },
+        { type_id: 'dm513/cn/new',              type_name: '最近更新' },
+        { type_id: 'dm509/cn/release',          type_name: '新作上市' },
+        { type_id: 'dm561/cn/uncensored-leak',  type_name: '无码流出' },
+        { type_id: 'dm168/cn/weekly-hot',       type_name: '本週热门' },
+        { type_id: 'dm207/cn/monthly-hot',      type_name: '本月热门' },
+        { type_id: 'dm95/cn/fc2',               type_name: 'FC2' },
+        { type_id: 'dm34/cn/madou',             type_name: '麻豆传媒' },
     ];
     return { class: classes, filters: {} };
 }
