@@ -45,7 +45,7 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const typeIdList =   ['list', 'top7_list', 'top_list', '5min_list', 'long_list'];
-    const typeNameList = ['视频/Video list', '周榜/Weekly top', '月榜/Monthly top', '5分钟+/5min+', '10分钟+/10min+'];
+    const typeNameList = ['视频/Video', '周榜/Weekly', '月榜/Monthly', '5分钟+', '10分钟+'];
 
     const classes = typeIdList.map((id, i) => ({
         type_id: id,
