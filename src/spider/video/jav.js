@@ -153,7 +153,6 @@ export default {
         key: 'javmove',
         name: 'JavMove',
         type: 3,
-        indexs: 1,
     },
     api: async (fastify) => {
         fastify.post('/init', init);

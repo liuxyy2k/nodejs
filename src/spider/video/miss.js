@@ -163,7 +163,6 @@ export default {
         key: 'missav',
         name: 'MissAV',
         type: 3,
-        indexs: 1,
     },
     api: async (fastify) => {
         fastify.post('/init', init);

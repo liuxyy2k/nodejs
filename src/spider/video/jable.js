@@ -74,7 +74,7 @@ async function detail(inReq, _outResp) {
         playUrl = script.match(/var hlsUrl = '(.*)';/)[1];
     } catch (e) {}
 
-    const title = $('h1').first().text().trim();
+    const title = $('h4').first().text().trim();
     const pic = $('.detail-header img').attr('src') || '';
 
     return {
@@ -82,8 +82,8 @@ async function detail(inReq, _outResp) {
             vod_id: url,
             vod_name: title,
             vod_pic: pic,
-            vod_play_from: '默认',
-            vod_play_url: `播放$${playUrl}`,
+            vod_play_from: 'Jable',
+            vod_play_url: '播放$' + playUrl
         }],
     };
 }
@@ -128,7 +128,6 @@ export default {
         key: 'jable',
         name: 'Jable',
         type: 3,
-        indexs: 1,
     },
     api: async (fastify) => {
         fastify.post('/init', init);

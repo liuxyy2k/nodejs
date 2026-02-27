@@ -45,7 +45,7 @@ async function category(inReq, _outResp) {
         const hdinfo = $(element).find('.relative a > div:first').text();
         if (href) {
             videos.push({
-                vod_id: site + href,
+                vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
                 vod_remarks: subTitle || hdinfo,
@@ -53,33 +53,39 @@ async function category(inReq, _outResp) {
         }
     });
 
-    return { page: parseInt(page), list: videos };
+    return { 
+        page: parseInt(page), 
+        list: videos
+    };
 }
 
 async function detail(inReq, _outResp) {
-    const url = inReq.body.id;
-    const html = await request(url);
-    const $ = load(html);
+    const ids = !Array.isArray(inReq.body.id) ? [inReq.body.id] : inReq.body.id;
+    const videos = [];
+    for (const id of ids) {
+        const html = await request(site + id);
+        const $ = load(html);
+        let playUrl = '';
+        try {
+            const scriptContent = $('#__NEXT_DATA__').html();
+            const jsonData = JSON.parse(scriptContent);
+            const ev = jsonData.props.pageProps.ev;
+            playUrl = decodeEv(ev).videoUrl;
+        } catch (e) {}
 
-    let playUrl = '';
-    try {
-        const scriptContent = $('#__NEXT_DATA__').html();
-        const jsonData = JSON.parse(scriptContent);
-        const ev = jsonData.props.pageProps.ev;
-        playUrl = decodeEv(ev).videoUrl;
-    } catch (e) {}
-
-    const title = $('h1').first().text().trim();
-    const pic = $('meta[property="og:image"]').attr('content') || '';
-
+        const title = $('h1').first().text().trim();
+        const pic = $('meta[property="og:image"]').attr('content') || '';
+        let vod = {
+             vod_id: id,
+             vod_name: title,
+             vod_pic: pic,
+             vod_play_from: '肉视频',
+             vod_play_url: '播放$' + playUrl,
+        };
+        videos.push(vod);
+    }
     return {
-        list: [{
-            vod_id: url,
-            vod_name: title,
-            vod_pic: pic,
-            vod_play_from: '默认',
-            vod_play_url: `播放$${playUrl}`,
-        }],
+        list: videos,
     };
 }
 
@@ -109,7 +115,7 @@ async function search(inReq, _outResp) {
         const hdinfo = $(element).find('.relative a > div:first').text();
         if (href) {
             videos.push({
-                vod_id: site + href,
+                vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
                 vod_remarks: subTitle || hdinfo,
@@ -166,7 +172,6 @@ export default {
         key: 'rouvideo',
         name: '肉视频',
         type: 3,
-        indexs: 1,
     },
     api: async (fastify) => {
         fastify.post('/init', init);

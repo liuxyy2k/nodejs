@@ -154,7 +154,6 @@ export default {
         key: 'kanav',
         name: 'KanAV',
         type: 3,
-        indexs: 1,
     },
     api: async (fastify) => {
         fastify.post('/init', init);
