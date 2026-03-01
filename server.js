@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import jable from "./src/spider/video/qstv.js"; // 你的文件名
+import jable from "./src/spider/video/18av.js"; // 你的文件名
 
 const fastify = Fastify({
     logger: true

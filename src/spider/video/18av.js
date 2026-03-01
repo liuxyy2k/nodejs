@@ -2,12 +2,12 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const site    = 'https://18av.mm-cg.com/zh/';
+const site    = 'https://18av.mm-cg.com/zh';
 const cateUrl = site + '/best/';
 
 async function request(url) {
     const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA },
+        headers: { 'User-Agent': UA }
     });
     return resp.data;
 }
@@ -76,9 +76,10 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    const url  = `${site}${tid}/all/${page}.html`;
+    const url  = `${site}/${tid}/all/${page}.html`;
+     console.log(url)
     const html = await request(url);
+    console.log(html)
     const $    = load(html);
     const list = parseCards($);
 
