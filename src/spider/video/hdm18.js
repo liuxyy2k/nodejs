@@ -1,12 +1,11 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://18hdm.com';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
+        headers: { 'User-Agent': UA, ...headers }
     });
     return resp.data;
 }
@@ -39,11 +38,12 @@ async function category(inReq, _outResp) {
     const html = await request(url);
     const $ = load(html);
     let videos = [];
-    $('.video-item').each((_, element) => {
+    
+    $('.flex').each((_, element) => {
         try {
             const pic = $(element).find('.w-full').attr('data-src') || '';
-            const id = $(element).find('a').eq(0).attr('href') || '';
-            const name = $(element).find('h2').text().trim() || '';
+            const id = $(element).attr('href') || '';
+            const name = $(element).find('.w-full').attr('alt') || '';
             const remark = $(element).find('.text-sm').eq(0).text().trim() || '';
             if (!id || !name) return;
             videos.push({
