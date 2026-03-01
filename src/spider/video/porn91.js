@@ -63,9 +63,13 @@ async function detail(inReq, _outResp) {
     const url = inReq.body.id;
     const html = await request(url);
 
-    const mp4Match = html.match(/<source src="(https?:\/\/[^"]+\.mp4[^"]*)"/);
-    const playUrl = mp4Match ? mp4Match[1] : '';
-
+    const encodeMatch = html.match(/strencode2\(['"]([^'"]+)['"]\)/);
+    let playUrl = '';
+    if (encodeMatch) {
+        const decoded = decodeURIComponent(encodeMatch[1]);
+        const mp4Match = decoded.match(/src=['"](https?:\/\/[^'"]+\.mp4[^'"]*)['"]/);
+        playUrl = mp4Match ? mp4Match[1] : '';
+    }
     const $ = load(html);
     const title = $('h4').first().text().trim() || $('title').text().trim();
     const pic = $('meta[property="og:image"]').attr('content') || '';

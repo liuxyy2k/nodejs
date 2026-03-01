@@ -1,12 +1,14 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
 const site = 'https://koreanpornmovie.com';
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
+        // httpsAgent: agent,
     });
     return resp.data;
 }
@@ -60,9 +62,7 @@ async function detail(inReq, _outResp) {
     const title = $('h1').first().text().trim();
     const pic = $('meta[property="og:image"]').attr('content') || '';
 
-    const videourl = $('.video-player').find('meta[itemprop="contentURL"]').attr('content')
-        || $('video source[type="video/mp4"]').attr('src')
-        || '';
+    const videourl = $('meta[itemprop="contentURL"]').attr('content') || '';
 
     return {
         list: [{
@@ -116,7 +116,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'koreanpornmovie',
-        name: 'KoreaPornMovie',
+        name: 'KoreaPorn',
         type: 3
     },
     api: async (fastify) => {

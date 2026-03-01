@@ -2,12 +2,14 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import CryptoJS from 'crypto-js';
 
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2_1 like Mac OS X)AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1';
-const site = 'https://kanav.info';
-
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+const site = 'https://kanav.ad';
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
+       headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Referer': site + '/'
+        },
     });
     return resp.data;
 }
@@ -34,8 +36,9 @@ async function category(inReq, _outResp) {
     const id = inReq.body.id;
     const page = inReq.body.page || 1;
     const url = `${site}/index.php/vod/type/id/${id}/page/${page}.html`;
-
+    console.log(url)
     const html = await request(url);
+    console.log(html)
     const $ = load(html);
 
     let videos = [];

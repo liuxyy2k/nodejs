@@ -1,30 +1,54 @@
 import duoduo from "./spider/video/duoduo.js";
 import miss from "./spider/video/miss.js";
-import kanav from "./spider/video/kanav.js";
+import kanav from "./spider/video/kanav2.js";
 import jable from "./spider/video/jable.js";
 import rou from "./spider/video/rou.js";
 import taiav from "./spider/video/taiav.js";
 import youtube from "./spider/video/youtube.js";
-import hanime from "./spider/video/hanime2.js";
-import javxx from "./spider/video/jav.js";
-import supjav from "./spider/video/supjav.js";
+import hanime2 from "./spider/video/hanime2.js";
+// import supjav from "./spider/video/supjav.js";
 import pron91 from "./spider/video/porn91.js";
-import jav91 from "./spider/video/jav91.js";
 import haose from "./spider/video/haosetv.js";
 import pronlulu from "./spider/video/pronlulu.js";
 import sp91 from "./spider/video/sp91.js";
+import video91 from "./spider/video/video91.js";
+import porna91 from "./spider/video/porna91.js";
+import xvideos from "./spider/video/xvideos.js";
+import dnaav from "./spider/video/dnaav.js";
 import kore from "./spider/video/kore.js";
 import ai from "./spider/video/ai.js";
-import baseset from "./spider/video/baseset.js";
+import cg51 from "./spider/video/51cg.js";
+import hohoj from "./spider/video/hohoj.js";
+import rou233 from "./spider/video/rou233.js";
+// import av18 from "./spider/video/18av.js";
+import xm from "./spider/video/xm.js";
+import cg91 from "./spider/video/91cg.js";
+import cg911 from "./spider/video/911cg.js";
+import aw51 from "./spider/video/51aw.js";
+import hl from "./spider/video/heiliao.js";
+import beeg from "./spider/video/beeg.js";
+import avtoday from "./spider/video/avtoday.js";
+import madou from "./spider/video/madou.js";
+import doll from "./spider/video/doll.js";
+import animei from "./spider/video/animei.js";
+import kbjfan from "./spider/video/kbjfan.js";
+import pornhub from "./spider/video/pornhub.js";
+import ppphub from "./spider/video/ppphub.js";
+import aowu from "./spider/video/aowu.js";
+import thisav from "./spider/video/thisav.js";
+import avdb from "./spider/video/avdb.js";
+import xojav from "./spider/video/xojav.js";
+import hdm18 from "./spider/video/hdm18.js";
+// import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
 import panta from "./spider/video/panta.js";
 import wogg from "./spider/video/wogg.js";
 import zhizhen from "./spider/video/zhizhen.js";
-import tgsou from "./spider/video/tgsou.js";
-import tgchannel from "./spider/video/tgchannel.js";
+// import tgsou from "./spider/video/tgsou.js";
+// import tgchannel from "./spider/video/tgchannel.js";
 import douban from "./spider/video/douban.js";
-import push from "./spider/video/push.js";
+// import push from "./spider/video/push.js";
 import {getCache} from "./website/sites.js";
 import {getCache as getDanmuSetting} from "./website/danmu.js";
 import axios from "axios";
@@ -35,7 +59,13 @@ import {getCache as getCMS} from "./website/cms.js";
 import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
-    const spiders = [douban, miss, kanav, jable, youtube, rou, taiav, supjav, hanime, javxx, pron91, jav91, haose, ai, sp91, pronlulu, kore, duoduo, mogg, leijing, panta, wogg, zhizhen, tgchannel, tgsou, baseset, push];
+    const spiders = [
+        douban, leijing, panta, wogg, zhizhen, duoduo, mogg, youtube, ai, animei, hanime2, hdm18,
+        cg51, kbjfan, aowu, cg91, aw51, cg911, hl,
+        miss, kanav, jable, hohoj, rou233, xm, thisav, avtoday, xvideos, taiav, avdb,xojav,
+        pron91, haose, dnaav, sp91, video91, rou, porna91, pronlulu, kore, beeg ,
+        madou, doll, pornhub, ppphub
+    ];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
         spiders.push(T4Factory(item.name, item.address))

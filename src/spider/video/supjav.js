@@ -1,12 +1,15 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://supjav.com/zh';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
+        httpsAgent: agent
     });
     return resp.data;
 }
@@ -31,7 +34,13 @@ async function category(inReq, _outResp) {
     const id = inReq.body.id;
     const page = inReq.body.page || 1;
     const url = `${site}/${id}/page/${page}`;
-
+    try {
+        const resp = await axios.get(`${site}`, { headers: { 'User-Agent': UA }, httpsAgent: agent });
+    } catch(e) {
+        console.log(e.response?.status);
+        console.log(e.response?.headers['cf-ray']);  // 有这个就是 CF
+        console.log(e.response?.data?.substring(0, 500));  // 看响应内容
+    }
     const html = await request(url);
     const $ = load(html);
 

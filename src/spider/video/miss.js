@@ -1,14 +1,26 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
+// import initCycleTLS from 'cycletls';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
-const site = 'https://missav.ws';
+const site = 'https://missav.app';
+const PROXY = process.env.HTTP_PROXY || null;
+let cycleTLS = null; 
+async function getCycleTLS() {
+    if (!cycleTLS) cycleTLS = await initCycleTLS();
+    return cycleTLS;
+}
 
 async function request(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
-    });
-    return resp.data;
+    const tls = await getCycleTLS();
+    const resp = await tls(reqUrl, {
+        ja3: '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,45-13-43-0-16-65281-51-18-11-27-35-23-10-5-17513-21,29-23-24,0',
+        userAgent: UA,
+        headers: {
+            'Referer': 'https://missav123.com/',
+        },
+        proxy: PROXY || '',
+    }, 'get');
+    return resp.body;
 }
 
 async function init(_inReq, _outResp) {
@@ -17,8 +29,8 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: 'dm265/cn/chinese-subtitle', type_name: '中文字幕' },
-        { type_id: 'dm513/cn/new',              type_name: '最近更新' },
+        { type_id: '/label/new/',               type_name: '最近更新' },
+        { type_id: '/vodtype/28/',              type_name: '中文字幕' },
         { type_id: 'dm509/cn/release',          type_name: '新作上市' },
         { type_id: 'dm561/cn/uncensored-leak',  type_name: '无码流出' },
         { type_id: 'dm168/cn/weekly-hot',       type_name: '本週热门' },

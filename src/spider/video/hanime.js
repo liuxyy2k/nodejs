@@ -1,12 +1,21 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://hanime1.me';
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
+        headers: {
+            'User-Agent': UA,
+            'Referer': 'https://hanime1.me/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+        },
+        httpsAgent: agent,
     });
     return resp.data;
 }
@@ -14,15 +23,16 @@ async function request(reqUrl) {
 async function init(_inReq, _outResp) {
     return {};
 }
+const enc = encodeURIComponent; // 简写方便用
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: `${site}/search?genre=%E8%A3%8F%E7%95%AA`,       type_name: '里番' },
-        { type_id: `${site}/search?genre=%E6%B3%A1%E9%BA%B5%E7%95%AA`, type_name: '泡面番' },
-        { type_id: `${site}/search?genre=Motion%20Anime`,            type_name: 'Motion Anime' },
-        { type_id: `${site}/search?genre=3DCG`,                      type_name: '3D動畫' },
-        { type_id: `${site}/search?genre=%E5%90%8C%E4%BA%BA%E4%BD%9C%E5%93%81`, type_name: '同人' },
-        { type_id: `${site}/search?genre=MMD`,                       type_name: 'MMD' },
+        { type_id: `${site}/search?genre=${enc('里番')}`,       type_name: '里番' },
+        { type_id: `${site}/search?genre=${enc('泡面番')}`,     type_name: '泡面番' },
+        { type_id: `${site}/search?genre=${enc('Motion Anime')}`, type_name: 'Motion Anime' },
+        { type_id: `${site}/search?genre=3DCG`,                  type_name: '3D動畫' },
+        { type_id: `${site}/search?genre=${enc('同人')}`,       type_name: '同人' },
+        { type_id: `${site}/search?genre=MMD`,                   type_name: 'MMD' },
     ];
     return { class: classes, filters: {} };
 }
@@ -33,6 +43,7 @@ async function category(inReq, _outResp) {
     const url = page > 1 ? `${typeurl}&page=${page}` : typeurl;
 
     const html = await request(url);
+    console.log(html)
     const $ = load(html);
 
     let videolist = $('.home-rows-videos-wrapper > a');
