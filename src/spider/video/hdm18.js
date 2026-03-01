@@ -26,9 +26,7 @@ async function home(_inReq, _outResp) {
         { type_id: '/category/3d/', type_name: '3D动画' },
         { type_id: '/category/mmd/', type_name: 'MMD' },
         { type_id: '/category/cosplay/', type_name: 'Cosplay' },
-        { type_id: '/category/gm/', type_name: '国漫' },
-        { type_id: '/category/pmf/', type_name: '泡面番' },
-        { type_id: '/category/pmf/', type_name: '泡面番' },
+        { type_id: '/category/gm/', type_name: '国漫' }
     ];
     return { class: classes, filters: {} };
 }
