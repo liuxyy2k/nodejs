@@ -17,25 +17,29 @@ function getAxiosProxy() {
 async function fetch(url) {
     const resp = await axios.get(url, {
         headers: { 'User-Agent': UA },
-        ...getAxiosProxy(),  // ✅ 从环境变量读，不硬编码
+        ...getAxiosProxy(),  //从环境变量读，不硬编码
     });
     return typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
 }
 
 let browserContext = null;
-
+let browser = null
 async function getContext() {
     if (browserContext) return browserContext;
     try {
-        const browser = await chromium.launch({
+        browser = await chromium.launch({
             headless: true,
-            ...(PROXY ? { proxy: { server: PROXY } } : {}),  // ✅ 从环境变量读
+            ...(PROXY ? { proxy: { server: PROXY } } : {}),  //从环境变量读
         });
         browserContext = await browser.newContext({ userAgent: UA });
-        browser.on('disconnected', () => { browserContext = null; });
+        browser.on('disconnected', () => {
+            browser = null
+            browserContext = null
+        })
         return browserContext;
     } catch (e) {
         browserContext = null;
+        browser = null;
         throw e;
     }
 }
