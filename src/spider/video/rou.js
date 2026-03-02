@@ -18,6 +18,7 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
+        { type_id: `${site}/v`, type_name: '全部' },
         { type_id: `${site}/t/國產AV`, type_name: '國產AV' },
         { type_id: `${site}/t/探花`,   type_name: '探花' },
         { type_id: `${site}/t/自拍流出`, type_name: '自拍流出' },
