@@ -136,7 +136,7 @@ async function detail(inReq, _outResp) {
             vod_name:      name,
             vod_pic:       pic,
             vod_play_from: '18AV',
-            vod_play_url:  playUrl,
+            vod_play_url:  '播放$' + playUrl,
         }],
     };
 }
