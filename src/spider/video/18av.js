@@ -66,11 +66,7 @@ async function home(_inReq, _outResp) {
         { type_id: 'dt_random',               type_name: '国产自拍' },
     ];
 
-    const html = await request(cateUrl);
-    const $    = load(html);
-    const list = parseCards($);
-
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
@@ -122,12 +118,13 @@ async function detail(inReq, _outResp) {
     if (arrayMatch) {
         const content = arrayMatch[1];
         const srcReg  = /src\s*:\s*'([^']+)'/g;
-        const sizeReg = /size\s*:\s*'([^']+)'/g;
+        const sizeReg = /size:\s*(\d+)/g;
         let m;
         while ((m = srcReg.exec(content))  !== null) srcList.push(m[1]);
         while ((m = sizeReg.exec(content)) !== null) sizeList.push(m[1]);
     }
-
+    console.log(srcList)
+    console.log(sizeList)
     const playUrl = srcList.map((src, i) => `${sizeList[i] || i + 1}$${src}`).join('#');
 
     return {
@@ -136,7 +133,7 @@ async function detail(inReq, _outResp) {
             vod_name:      name,
             vod_pic:       pic,
             vod_play_from: '18AV',
-            vod_play_url:  '播放$' + playUrl,
+            vod_play_url:  playUrl,
         }],
     };
 }
@@ -145,7 +142,9 @@ async function play(inReq, _outResp) {
     return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        header: { 'User-Agent': UA,
+            'Referer': 'https://18av.mm-cg.com/zh'
+         },
     };
 }
 
