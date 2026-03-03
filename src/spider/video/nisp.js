@@ -1,6 +1,5 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
-
 const siteUrl = 'https://www.nivod.vip'
 const cateUrl = siteUrl + '/k/'
 const detailUrl = siteUrl + '/nivod/'
@@ -11,7 +10,7 @@ const headers = {
 }
 
 async function request(url) {
-    const { data } = await axios.get(url, { headers })
+    const { data } = await axios.get(url, { headers})
     return data
 }
 
@@ -34,7 +33,7 @@ function parseVods(html) {
         list.push({
             vod_id: id,
             vod_name: name,
-            vod_pic: siteUrl + picRaw,
+            vod_pic: !picRaw.startsWith('http') ? siteUrl + picRaw : picRaw,
             vod_remarks: remark
         })
     })
@@ -49,29 +48,202 @@ async function init(req, reply) {
 }
 
 async function home(req, reply) {
-
     const classes = [
         { type_id: '1', type_name: '电影' },
         { type_id: '2', type_name: '电视剧' },
         { type_id: '3', type_name: '综艺' },
         { type_id: '4', type_name: '动漫' }
     ]
-
-    const html = await request(siteUrl)
-    const list = parseVods(html)
-
+    let filterObj = {
+         '1': [
+             {
+                key: 'class',
+                name: '类型',
+                value: [
+                    { n: '全部',   v: '' },
+                    { n: '动作片', v: '6' },
+                    { n: '喜剧片', v: '7' },
+                    { n: '爱情片',   v: '8' },
+                    { n: '科幻片',   v: '9' },
+                    { n: '奇幻片',   v: '10' },
+                    { n: '恐怖片',   v: '11' },
+                    { n: '剧情片', v: '12' },
+                    { n: '战争片', v: '20' },
+                    { n: '悬疑片', v: '22' },
+                    { n: '犯罪片', v: '24' },
+                    { n: '惊悚片', v: '45' },
+                    { n: '灾难片', v: '47' },
+                    { n: '冒险片', v: '23' },
+                ]
+            },
+            {
+                key: 'area',
+                name: '地区',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '大陆', v: '大陆' },
+                    { n: '香港', v: '香港' },
+                    { n: '台湾', v: '台湾' },
+                    { n: '日本', v: '日本' },
+                    { n: '韩国', v: '韩国' },
+                    { n: '欧美', v: '欧美' }
+                ]
+            },
+            {
+                key: 'year',
+                name: '年份',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '2026', v: '2026' },
+                    { n: '2025', v: '2025' },
+                    { n: '2024', v: '2024' },
+                    { n: '2023', v: '2023' },
+                    { n: '2022', v: '2022' },
+                    { n: '2021', v: '2021' },
+                    { n: '2020', v: '2020' }
+                ]
+            },
+            {
+                key: 'sort',
+                name: '排序',
+                value: [
+                    { n: '添加时间', v: 'time_add' },
+                    { n: '更新时间', v: 'time_update' },
+                    { n: '人气', v: 'hits' },
+                    { n: '评分', v: 'score' }
+                ]
+            }
+        ],
+        '2': [
+             {
+                key: 'class',
+                name: '类型',
+                value: [
+                    { n: '全部',   v: '' },
+                    { n: '国产剧', v: '13' },
+                    { n: '港台剧', v: '14' },
+                    { n: '日剧',   v: '15' },
+                    { n: '韩剧',   v: '33' },
+                    { n: '欧美剧', v: '16' },
+                    { n: '泰剧',   v: '34' },
+                    { n: '新马剧', v: '35' }
+                ]
+            },
+            {
+                key: 'area',
+                name: '地区',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '大陆', v: '大陆' },
+                    { n: '香港', v: '香港' },
+                    { n: '台湾', v: '台湾' },
+                    { n: '日本', v: '日本' },
+                    { n: '韩国', v: '韩国' },
+                    { n: '欧美', v: '欧美' }
+                ]
+            },
+            {
+                key: 'year',
+                name: '年份',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '2026', v: '2026' },
+                    { n: '2025', v: '2025' },
+                    { n: '2024', v: '2024' },
+                    { n: '2023', v: '2023' },
+                    { n: '2022', v: '2022' },
+                    { n: '2021', v: '2021' },
+                    { n: '2020', v: '2020' }
+                ]
+            },
+            {
+                key: 'sort',
+                name: '排序',
+                value: [
+                    { n: '添加时间', v: 'time_add' },
+                    { n: '更新时间', v: 'time_update' },
+                    { n: '人气', v: 'hits' },
+                    { n: '评分', v: 'score' }
+                ]
+            }
+        ],
+        '4': [
+             {
+                key: 'class',
+                name: '类型',
+                value: [
+                    { n: '全部',   v: '' },
+                    { n: '国产动漫', v: '31' },
+                    { n: '日本动漫', v: '32' },
+                    { n: '韩国动漫',   v: '39' },
+                    { n: '港台动漫',   v: '40' },
+                    { n: '新马泰动漫', v: '41' },
+                    { n: '欧美动漫',   v: '42' },
+                    { n: '其他动漫', v: '43' }
+                ]
+            },
+            {
+                key: 'area',
+                name: '地区',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '国产', v: '国产' },
+                    { n: '日本', v: '日本' },
+                    { n: '欧美', v: '欧美' },
+                    { n: '其他', v: '其他' }
+                ]
+            },
+            {
+                key: 'year',
+                name: '年份',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '2026', v: '2026' },
+                    { n: '2025', v: '2025' },
+                    { n: '2024', v: '2024' },
+                    { n: '2023', v: '2023' },
+                    { n: '2022', v: '2022' },
+                    { n: '2021', v: '2021' },
+                    { n: '2020', v: '2020' }
+                ]
+            },
+            {
+                key: 'sort',
+                name: '排序',
+                value: [
+                    { n: '添加时间', v: 'time_add' },
+                    { n: '更新时间', v: 'time_update' },
+                    { n: '人气', v: 'hits' },
+                    { n: '评分', v: 'score' }
+                ]
+            }
+        ]
+    }
     reply.send({
         class: classes,
-        list
+        filters: filterObj
     })
 }
 
 async function category(req, reply) {
+    const { id, page = 1, filters } = req.body
+    let ext = filters
+    if (typeof filters === 'string') {
+        try {
+            ext = JSON.parse(filters)
+        } catch (e) {
+            ext = {}
+        }
+    } else {
+        ext = filters
+    }
+    ext = ext || {}
+    let type = ext?.class || ''
+    let area = ext?.area || ''
+    let year = ext?.year || ''
+    let sort = ext?.sort || ''
 
-    const { id, page = 1 } = req.body
-
-    const target = `${cateUrl}${id}--time_update------${id}---/`
-
+    const target = `${cateUrl}${type === '' ? id : type}-${area}-${sort}------${page}---${year}/`
     const html = await request(target)
     const list = parseVods(html)
 

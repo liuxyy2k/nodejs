@@ -68,7 +68,36 @@ var index_config_default = {
     autoPush: true
   },
   t4: {
-    list: []
+    list: [
+      {
+        name: "糖心次元",
+        address: "https://caicai.us.kg/糖心次元.php"
+      },
+      {
+        name: "🔞AIvin|AV",
+        address: "http://lbapiby.com/api.php/provide/vod/at/json"
+      },
+      {
+        name: "🔞黄AV资源",
+        address: "https://www.pgxdy.com/api/json.php"
+      },
+      {
+        name: "🔞桃花资源|AV",
+        address: "https://thzy1.me/api.php/provide/vod/"
+      },
+      {
+        name: "🔞越南资源|AV",
+        address: "https://vnzyz.com/api.php/provide/vod/"
+      },
+      {
+        name: "🔞八天资源|AV",
+        address: "https://8day.icu/api.php/provide/vod/"
+      },
+      {
+        name: "🔞91视频|AV",
+        address: "https://91av.cyou/api.php/provide/vod/"
+      }
+    ]
   },
   cms: {
     list: []
