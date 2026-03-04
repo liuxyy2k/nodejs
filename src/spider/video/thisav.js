@@ -42,17 +42,17 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: '/thisavtype/CHN_SUB',   type_name: '中文字幕' },
+        { type_id: '/thisavtype/CHN_SUB',        type_name: '中文字幕' },
         { type_id: '/label/rank/by/time.html',   type_name: '最近更新' },
-        { type_id: '/label/new/by/time',    type_name: '最新上市' },
-        { type_id: '/thisavtype/Censored',  type_name: '日本有码' },
-        { type_id: '/thisavtype/Uncensored',type_name: '日本无码' },
-        { type_id: '/thisavtype/FC2-PPV',   type_name: 'FC2-PPV' },
-        { type_id: '/thisavtype/Mosaic_Removed',  type_name: '无码破解' },
-        { type_id: '/thisavtype/MGS',        type_name: 'MGS動画' },
-        { type_id: '/thisavtype/Adult_IDOL', type_name: '写真' },
-        { type_id: '/thisavtype/Asian_Amateur', type_name: '国产' },
-        { type_id: '/thisavtype/Western_Porn', type_name: '欧美成人' },
+        { type_id: '/label/new/by/time',         type_name: '最新上市' },
+        { type_id: '/thisavtype/Censored',       type_name: '日本有码' },
+        { type_id: '/thisavtype/Uncensored',     type_name: '日本无码' },
+        { type_id: '/thisavtype/FC2-PPV',        type_name: 'FC2-PPV' },
+        { type_id: '/thisavtype/Mosaic_Removed', type_name: '无码破解' },
+        { type_id: '/thisavtype/MGS',            type_name: 'MGS動画' },
+        { type_id: '/thisavtype/Adult_IDOL',     type_name: '写真' },
+        { type_id: '/thisavtype/Asian_Amateur',  type_name: '国产' },
+        { type_id: '/thisavtype/Western_Porn',   type_name: '欧美成人' },
     ];
     return { class: classes, filters: {} };
 }
