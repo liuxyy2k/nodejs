@@ -70,16 +70,12 @@ var index_config_default = {
   t4: {
     list: [
       {
-        name: "糖心次元",
+        name: "🔞糖心次元php",
         address: "https://caicai.us.kg/糖心次元.php"
       },
       {
         name: "🔞AIvin|AV",
         address: "http://lbapiby.com/api.php/provide/vod/at/json"
-      },
-      {
-        name: "🔞黄AV资源",
-        address: "https://www.pgxdy.com/api/json.php"
       },
       {
         name: "🔞桃花资源|AV",

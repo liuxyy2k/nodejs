@@ -1,6 +1,6 @@
 import duoduo from "./spider/video/duoduo.js";
 import nsp from "./spider/video/nisp.js";
-// import miss from "./spider/video/miss.js";
+import miss from "./spider/video/miss.js";
 import kanav from "./spider/video/kanav2.js";
 import jable from "./spider/video/jable.js";
 import rou from "./spider/video/rou.js";
@@ -66,7 +66,7 @@ const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen,nsp, duoduo, mogg, youtube, ai, animei, hanime2, hdm18,
         cg51, kbjfan, aowu, cg91, aw51, cg911, hl,
-        kanav, jable, hohoj, rou233, xm, thisav, avtoday, xvideos, taiav, avdb,xojav, av18,
+        kanav, jable, hohoj, rou233, xm, thisav, avtoday, xvideos, taiav, avdb,xojav, av18,miss, 
         pron91, haose, dnaav, sp91, porncvd,video91, rou, porna91, pronlulu, kore, beeg , qstv, wanwu,
         madou, doll, pornhub, ppphub
     ];
