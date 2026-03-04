@@ -94,12 +94,11 @@ async function detail(inReq, _outResp) {
     const token = tokenResp.token;
     const ts = tokenResp.ts;
     // 生成 sign
-    const ky = file + '@' + ts;   // 用接口返回的 ts
+    const ky = file + '@' + ts;
     const sign = encrypt(ky);
     //获取播放地址
     const realUrl = `${site}/save_m3u8_cache.php?file=${file}&token=${token}&ts=${ts}&sign=${sign}`;
     const saveM3u8 = await request(realUrl);
-    console.log(saveM3u8)
     playUrl = site + saveM3u8.play_url
     return {
         list: [{
