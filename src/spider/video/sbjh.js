@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-const m3uFile = '../sbjh.m3u';
+const m3uFile = '../nodejs/src/spider/sbjh.m3u';
 
 // 解析m3u
 function parseM3U() {
