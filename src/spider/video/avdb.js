@@ -1,14 +1,11 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const api  = 'https://avdbapi.com/api.php/provide/vod';
 
 async function request(url, headers = {}) {
     const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA, ...headers },
-        httpsAgent:agent
+        headers: { 'User-Agent': UA, ...headers }
     });
     return typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
 }

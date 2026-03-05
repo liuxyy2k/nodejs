@@ -1,14 +1,15 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://missav.live';
 
 const tabs = [
     { name: '中文字幕', ext: { id: 'dm265/cn/chinese-subtitle' } },
     { name: '最近更新', ext: { id: 'dm513/cn/new' } },
     { name: '新作上市', ext: { id: 'dm509/cn/release' } },
-    { name: '我的收藏', ext: { id: 'saved' } },
     { name: '无码流出', ext: { id: 'dm561/cn/uncensored-leak' } },
     { name: 'VR', ext: { id: 'dm2091/cn/genres/VR' } },
     { name: '今日热门', ext: { id: 'dm242/cn/today-hot' } },
@@ -40,7 +41,10 @@ const tabs = [
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
+        headers: { 'User-Agent': UA ,
+            'Referer': 'https://missav.live/'
+        },
+        // httpsAgent: agent
     });
     return resp.data;
 }
@@ -71,28 +75,9 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    // 获取收藏女优列表并附加到 tabs
-    let actressTabs = [];
-    try {
-        const html = await request(`${site}/saved/actresses`);
-        const $ = load(html);
-        const actressList = $('.max-w-full.p-8.text-nord4.bg-nord1.rounded-lg');
-        actressList.find('.space-y-4').each((_, e) => {
-            const href = $(e).find('a:first').attr('href')?.replace(`${site}/`, '');
-            const name = $(e).find('h4').text();
-            if (href && name) {
-                actressTabs.push({ type_id: href, type_name: name });
-            }
-        });
-    } catch (e) {
-        // 无收藏女优时忽略
-    }
-
     const classes = [
         ...tabs.map(t => ({ type_id: t.ext.id, type_name: t.name })),
-        ...actressTabs,
     ];
-
     return { class: classes, filters: {} };
 }
 
@@ -106,7 +91,7 @@ async function category(inReq, _outResp) {
 
     const videos = parseVideos($, $('.thumbnail'));
 
-    return { page: parseInt(page), list: videos };
+    return { page: parseInt(page), videos };
 }
 
 async function detail(inReq, _outResp) {

@@ -1,73 +1,67 @@
 import fs from 'fs';
-
-const m3uFile = '../nodejs/src/spider/sbjh.m3u';
+const m3uUrl = 'http://43.143.23.150:8112/json/sbjh.m3u';
 
 // 解析m3u
-function parseM3U() {
+async function parseM3U() {
+    const response = await fetch(m3uUrl);
+    if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+    const text = await response.text();
 
-    const text = fs.readFileSync(m3uFile, 'utf8');
     const lines = text.split('\n');
-
     const data = {};
 
     for (let i = 0; i < lines.length; i++) {
-
         if (lines[i].startsWith('#EXTINF')) {
-
             const info = lines[i];
-
             const group = info.match(/group-title="(.*?)"/)?.[1] || "直播";
-            const name = info.split(',')[1] || "未知";
-
+            const name = info.split(',')[1]?.trim() || "未知";
             const url = lines[i + 1]?.trim();
 
             if (!url) continue;
-
             if (!data[group]) data[group] = [];
 
-            data[group].push({
-                name,
-                url
-            });
-
+            data[group].push({ name, url });
         }
-
     }
-
     return data;
 }
 
-let liveData = parseM3U();
+// 懒加载：首次使用时才初始化，避免模块加载时阻塞
+let liveData = null;
+
+async function getLiveData() {
+    if (!liveData) {
+        liveData = await parseM3U();
+    }
+    return liveData;
+}
 
 async function init() {
     return {};
 }
 
 async function home() {
-
+    const data = await getLiveData();
     const classes = [];
 
-    for (const g in liveData) {
-
+    for (const g in data) {
         classes.push({
             type_id: g,
             type_name: g
         });
-
     }
 
     return {
         class: classes,
         filters: {}
     };
-
 }
 
 async function category(inReq) {
-
+    const data = await getLiveData();
     const tid = inReq.body.id;
 
-    const list = (liveData[tid] || []).map(i => ({
+    const list = (data[tid] || []).map(i => ({
         vod_id: i.url,
         vod_name: i.name,
         vod_pic: "",
@@ -81,11 +75,9 @@ async function category(inReq) {
         total: list.length,
         list
     };
-
 }
 
 async function detail(inReq) {
-
     const url = inReq.body.id;
 
     return {
@@ -97,16 +89,13 @@ async function detail(inReq) {
             vod_play_url: "播放$" + url
         }]
     };
-
 }
 
 async function play(inReq) {
-
     return {
         parse: 0,
         url: inReq.body.id
     };
-
 }
 
 async function search() {
@@ -117,19 +106,17 @@ export default {
 
     meta: {
         key: 'm3uLive',
-        name: 'M3U直播',
+        name: '色播聚合',
         type: 3,
     },
 
     api: async (fastify) => {
-
         fastify.post('/init', init);
         fastify.post('/home', home);
         fastify.post('/category', category);
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
-
     },
 
 };

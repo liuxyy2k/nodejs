@@ -51,19 +51,39 @@ async function home(_inReq, _outResp) {
         type_id: id,
         type_name: typeNameList[i],
     }));
-
-    const html = await request(siteUrl);
-    const $ = load(html);
-    const list = parseVods($);
-
-    return { class: classes, list };
+    let filterObj = {
+         'list': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最新', v: 'new' },
+                    { n: '最热', v: 'hot' }  
+                ]
+            }
+        ]
+    }
+    return { class: classes, filters: filterObj };
 }
 
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const pg = inReq.body.page || 1;
+    let ext = inReq.body.filters;
+    if (typeof ext === 'string') {
+        try {
+            ext = JSON.parse(filters)
+        } catch (e) {
+            ext = {}
+        }
+    }
+    ext = ext || {}
+    let by = ext?.by || ''
 
-    const url = `${cateUrl}${tid}-${pg}.htm`;
+    let url = `${cateUrl}${tid}-${pg}.htm`;
+    if(by !== '') {
+        url = url + '?sort=' + by
+    }
     const html = await request(url);
     const $ = load(html);
     const list = parseVods($);

@@ -6,6 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="a68386c7-5a33-47bb-803b-0173f44cd489" name="Changes" comment="//">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/index.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/router.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/router.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/spider/video/avdb.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/spider/video/avdb.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/spider/video/haosetv.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/spider/video/haosetv.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/spider/video/javxx.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/spider/video/javxx.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/spider/video/miss.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/spider/video/miss.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/spider/video/supjav.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/spider/video/supjav.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,12 +28,12 @@
     &quot;assignee&quot;: &quot;liuxyy2k&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;git@github.com:liuxyy2k/nodejs.git&quot;,
-    &quot;accountId&quot;: &quot;b99ee094-e12d-4faa-bdf1-30a6ce431a13&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/liuxyy2k/nodejs.git",
+    "accountId": "0538f56f-917f-4f56-b817-9fc47be25c72"
   }
-}</component>
+}]]></component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
@@ -52,9 +59,10 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/project/spider/catvodopen/nodejs",
+    "last_opened_file_path": "D:/project/nodejs",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -67,8 +75,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-30f59d01ecdd-26cb7f24e5b0-intellij.indexing.shared.core-IU-253.29346.240" />
-        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-IU-253.29346.240" />
+        <option value="bundled-jdk-30f59d01ecdd-2fc7cc6b9a17-intellij.indexing.shared.core-IU-253.30387.90" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-IU-253.30387.90" />
       </set>
     </attachedChunks>
   </component>
@@ -85,6 +93,7 @@
       <workItem from="1772096852562" duration="735000" />
       <workItem from="1772150826606" duration="39000" />
       <workItem from="1772157463321" duration="121000" />
+      <workItem from="1772706483238" duration="400000" />
     </task>
     <task id="LOCAL-00001" summary="//">
       <option name="closed" value="true" />
