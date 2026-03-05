@@ -76,7 +76,7 @@ export default {
             {
                 name: '🔞湿园',
                 address: 'https://xxavs.com/api.php/provide/vod/at/json',
-            },
+            }
         ],
     },
     cms: {

@@ -1,12 +1,11 @@
-import fs from 'fs';
-const m3uUrl = 'http://43.143.23.150:8112/json/sbjh.m3u';
+
+const m3uUrl = 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/sbjh.m3u';
 
 // 解析m3u
 async function parseM3U() {
     const response = await fetch(m3uUrl);
     if (!response.ok) throw new Error(`请求失败: ${response.status}`);
     const text = await response.text();
-
     const lines = text.split('\n');
     const data = {};
 
@@ -37,6 +36,7 @@ async function getLiveData() {
 }
 
 async function init() {
+    await getLiveData(); // 提前加载缓存
     return {};
 }
 
