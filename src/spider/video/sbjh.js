@@ -1,5 +1,5 @@
 
-const m3uUrl = 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/sbjh.m3u';
+const m3uUrl = 'https://gh-proxy.org/https://github.com/cluntop/tvbox/blob/main/lib/sbjh.m3u';
 
 // 解析m3u
 async function parseM3U() {
@@ -79,14 +79,21 @@ async function category(inReq) {
 
 async function detail(inReq) {
     const url = inReq.body.id;
+    const data = await getLiveData();
+
+    let channelName = '直播';
+    for (const group in data) {
+        const ch = data[group].find(i => i.url === url);
+        if (ch) { channelName = ch.name; break; }
+    }
 
     return {
         list: [{
             vod_id: url,
-            vod_name: "直播",
+            vod_name: channelName,
             vod_pic: "",
             vod_play_from: "live",
-            vod_play_url: "播放$" + url
+            vod_play_url: channelName + "$" + url
         }]
     };
 }
