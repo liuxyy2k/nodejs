@@ -1,13 +1,12 @@
-import initCycleTLS from 'cycletls';
 import { load } from 'cheerio';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const site = 'https://missav.live';
-const JA3 = '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0';
 
 const defaultHeaders = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'User-Agent': UA,
     'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
@@ -17,14 +16,6 @@ const defaultHeaders = {
     'Sec-Fetch-User': '?1',
     'Upgrade-Insecure-Requests': '1',
 };
-
-let cycleTLS;
-async function getClient() {
-    if (!cycleTLS) {
-        cycleTLS = await initCycleTLS();
-    }
-    return cycleTLS;
-}
 
 const tabs = [
     { name: '中文字幕', ext: { id: 'dm265/cn/chinese-subtitle' } },
@@ -60,22 +51,20 @@ const tabs = [
 ];
 
 async function request(reqUrl) {
-    const client = await getClient();
-    const resp = await client(reqUrl, {
+    const resp = await fetch(reqUrl, {
         headers: {
             ...defaultHeaders,
             'Referer': site + '/',
         },
-        ja3: JA3,
-        userAgent: UA,
-        timeout: 15,
-    }, 'get');
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15000),
+    });
     if (resp.status >= 400) throw new Error(`HTTP ${resp.status}`);
-    return resp.body;
+    return resp.text();
 }
 
 function parseVideos($, container) {
-    let videos = [];
+    const videos = [];
     container.each((_, e) => {
         const href = $(e).find('.text-secondary').attr('href');
         const title = $(e).find('.text-secondary').text().trim().replace(/\s+/g, ' ');
@@ -100,22 +89,17 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    const classes = [
-        ...tabs.map(t => ({ type_id: t.ext.id, type_name: t.name })),
-    ];
+    const classes = tabs.map(t => ({ type_id: t.ext.id, type_name: t.name }));
     return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
     const id = inReq.body.id;
     const page = inReq.body.page || 1;
-
     const url = `${site}/${id}?page=${page}`;
     const html = await request(url);
     const $ = load(html);
-
     const videos = parseVideos($, $('.thumbnail'));
-
     return { page: parseInt(page), videos };
 }
 
@@ -142,7 +126,6 @@ async function detail(inReq, _outResp) {
                 const name = line.replace('/video.m3u8', '');
                 playUrls.unshift(`${name}$${m3u8Prefix}${uuid}/${line}`);
             });
-            // 追加自动画质
             playUrls.push(`自动$${m3u8Prefix}${uuid}${m3u8Suffix}`);
         } catch (e) {
             playUrls.push(`默认$${m3u8Prefix}${uuid}${m3u8Suffix}`);
@@ -172,12 +155,9 @@ async function search(inReq, _outResp) {
     const text = encodeURIComponent(inReq.body.wd);
     const page = inReq.body.pg || 1;
     const url = `${site}/cn/search/${text}?page=${page}`;
-
     const html = await request(url);
     const $ = load(html);
-
     const videos = parseVideos($, $('.thumbnail'));
-
     return { list: videos };
 }
 

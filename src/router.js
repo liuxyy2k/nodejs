@@ -43,6 +43,7 @@ import hdm18 from "./spider/video/hdm18.js";
 import qstv from "./spider/video/qstv.js";
 import wanwu from "./spider/video/wanwu.js";
 import porncvd from "./spider/video/porncvd.js";
+import javday from "./spider/video/javday.js";
 // import sbjh from "./spider/video/sbjh.js";
 import javxx from "./spider/video/javxx.js";
 // import baseset from "./spider/video/baseset.js";
@@ -67,7 +68,7 @@ import CMSFactory from "./spider/video/cms.js";
 const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen,nsp, duoduo, mogg, youtube, ai, animei, hanime2, hdm18,
-        cg51, kbjfan, aowu, cg91, aw51, cg911, hl,
+        cg51, kbjfan, aowu, cg91, aw51, cg911, hl,javday,
         kanav, jable, hohoj, rou233, xm, thisav, avtoday, xvideos, taiav, avdb,xojav, av18,miss,javxx,
         pron91, haose, dnaav, sp91, porncvd,video91, rou, porna91, pronlulu, kore, beeg , qstv, wanwu,
         madou, doll, pornhub, ppphub
