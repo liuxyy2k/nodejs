@@ -100,6 +100,10 @@ var index_config_default = {
       {
         name: "🔞湿园",
         address: "https://xxavs.com/api.php/provide/vod/at/json"
+      },
+      {
+        name: "聚合",
+        address: "http://192.168.120.202:3006/spider/m3uLive/3/home"
       }
     ]
   },
