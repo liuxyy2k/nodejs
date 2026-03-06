@@ -42,14 +42,13 @@ async function category(inReq, _outResp) {
         const href = $(element).find('.relative a').attr('href');
         const title = $(element).find('img:last').attr('alt');
         const cover = $(element).find('img').attr('src');
-        const subTitle = $(element).find('.relative a > div:eq(1)').text();
-        const hdinfo = $(element).find('.relative a > div:first').text();
+        const subTitle = $(element).find('span').eq(0).text();
         if (href) {
             videos.push({
                 vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
-                vod_remarks: subTitle || hdinfo,
+                vod_remarks: subTitle
             });
         }
     });
