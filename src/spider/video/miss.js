@@ -1,10 +1,30 @@
-import axios from 'axios';
+import initCycleTLS from 'cycletls';
 import { load } from 'cheerio';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const site = 'https://missav.live';
+const JA3 = '771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0';
+
+const defaultHeaders = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+};
+
+let cycleTLS;
+async function getClient() {
+    if (!cycleTLS) {
+        cycleTLS = await initCycleTLS();
+    }
+    return cycleTLS;
+}
 
 const tabs = [
     { name: '中文字幕', ext: { id: 'dm265/cn/chinese-subtitle' } },
@@ -40,13 +60,18 @@ const tabs = [
 ];
 
 async function request(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA ,
-            'Referer': 'https://missav.live/'
+    const client = await getClient();
+    const resp = await client(reqUrl, {
+        headers: {
+            ...defaultHeaders,
+            'Referer': site + '/',
         },
-        // httpsAgent: agent
-    });
-    return resp.data;
+        ja3: JA3,
+        userAgent: UA,
+        timeout: 15,
+    }, 'get');
+    if (resp.status >= 400) throw new Error(`HTTP ${resp.status}`);
+    return resp.body;
 }
 
 function parseVideos($, container) {
