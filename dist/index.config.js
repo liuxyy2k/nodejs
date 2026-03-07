@@ -64,7 +64,14 @@ var index_config_default = {
     list: []
   },
   danmu: {
-    urls: [{ address: "https://danmuapi-ten-iota.vercel.app", name: "默认服务器" }],
+    urls: [
+      { address: "https://danmuapi-ten-iota.vercel.app", name: "默认服务器" },
+      { address: "https://logdanmu.dpdns.org", name: "默认1" },
+      { address: "https://fjj0417.dpdns.org/87654321", name: "默认2" },
+      { address: "https://dm.stardm.us.kg:443/87654321", name: "默认3" },
+      { address: "https://danmu.14812910.xyz/87654321", name: "默认4" },
+      { address: "https://313236.xyz/87654321", name: "默认5" }
+    ],
     autoPush: true
   },
   t4: {
@@ -94,11 +101,11 @@ var index_config_default = {
         address: "https://91av.cyou/api.php/provide/vod/"
       },
       {
-        name: "🔞小丝袜",
+        name: "🔞小丝袜|AV",
         address: "https://www.siwazyw.tv/api.php/provide/vod/at/json"
       },
       {
-        name: "🔞湿园",
+        name: "🔞湿园|AV",
         address: "https://xxavs.com/api.php/provide/vod/at/json"
       }
     ]
