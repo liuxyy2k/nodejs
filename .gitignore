@@ -2,3 +2,5 @@ generated
 node_modules
 *.db.json
 meta.*.json
+dist/index.js.md5
+dist/index.js
