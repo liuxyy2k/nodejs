@@ -8,7 +8,7 @@ const site = 'https://javday.app';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers }
+        headers: { 'User-Agent': UA, ...headers },
         // httpsAgent: agent
     });
     return resp.data;
@@ -20,7 +20,7 @@ function parseVods($) {
         let pic = $(element).find('.videoBox-cover').attr('style') || '';
         const match = pic.match(/url\(([^)]+)\)/);
         if (match) {
-            pic = site + match[1]
+            pic = site + match[1].replace('"','').replace('\"','')
         }
         const url = $(element).find('a').eq(0).attr('href') || '';
         const name = $(element).find('.title').text().trim();
