@@ -167,6 +167,55 @@ async function home(req, reply) {
                 ]
             }
         ],
+        '3': [
+             {
+                key: 'class',
+                name: '类型',
+                value: [
+                    { n: '全部',   v: '' },
+                    { n: '内地综艺', v: '27' },
+                    { n: '港台综艺', v: '28' },
+                    { n: '日本综艺', v: '29' },
+                    { n: '韩国综艺', v: '36' },
+                    { n: '欧美综艺', v: '30' }
+                ]
+            },
+            {
+                key: 'area',
+                name: '地区',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '内地', v: '内地' },
+                    { n: '港台', v: '港台' },
+                    { n: '日韩', v: '日韩' },
+                    { n: '欧美', v: '欧美' }
+                ]
+            },
+            {
+                key: 'year',
+                name: '年份',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '2026', v: '2026' },
+                    { n: '2025', v: '2025' },
+                    { n: '2024', v: '2024' },
+                    { n: '2023', v: '2023' },
+                    { n: '2022', v: '2022' },
+                    { n: '2021', v: '2021' },
+                    { n: '2020', v: '2020' }
+                ]
+            },
+            {
+                key: 'sort',
+                name: '排序',
+                value: [
+                    { n: '添加时间', v: 'time_add' },
+                    { n: '更新时间', v: 'time_update' },
+                    { n: '人气', v: 'hits' },
+                    { n: '评分', v: 'score' }
+                ]
+            }
+        ],
         '4': [
              {
                 key: 'class',
@@ -266,7 +315,7 @@ async function detail(req, reply) {
     const name = $('meta[property="og:title"]').attr('content')
     const pic = $('meta[property="og:image"]').attr('content')
     const year = $('meta[property="video:release_date"]').attr('content')
-
+    const description = $('meta[name="description"]').attr('content')
     /* 播放线路 */
     let playFromArr = []
     $('div.module-tab-items-box div').each((i, el) => {
@@ -314,7 +363,8 @@ async function detail(req, reply) {
             vod_pic: pic,
             vod_year: year,
             vod_play_from: playFromArr.join('$$$'),
-            vod_play_url: playListArr.join('$$$')
+            vod_play_url: playListArr.join('$$$'),
+            vod_content: description
         }]
     })
 }
