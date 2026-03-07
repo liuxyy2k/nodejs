@@ -6,7 +6,6 @@ import kanav from "./spider/video/kanav2.js";
 import jable from "./spider/video/jable.js";
 import rou from "./spider/video/rou.js";
 import taiav from "./spider/video/taiav.js";
-import youtube from "./spider/video/youtube.js";
 import hanime2 from "./spider/video/hanime2.js";
 // import supjav from "./spider/video/supjav.js";
 import pron91 from "./spider/video/porn91.js";
@@ -68,11 +67,11 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen,nsp, duoduo, mogg, youtube, ai, animei, hanime2, hdm18,
-        cg51, kbjfan, aowu, cg91, aw51, cg911, hl,javday,missav2,
-        kanav, jable, hohoj, rou233, xm, thisav, avtoday, xvideos, taiav, avdb,xojav, av18,miss,javxx,
-        pron91, haose, dnaav, sp91, porncvd,video91, rou, porna91, pronlulu, kore, beeg , qstv, wanwu,
-        madou, doll, pornhub, ppphub
+        douban, leijing, panta, wogg, zhizhen, nsp, duoduo, mogg, 
+        ai, animei, hanime2, hdm18,aowu,
+        cg51, cg91, aw51, cg911, hl, video91, sp91, pron91, haose, qstv, porna91, dnaav, rou,  wanwu, madou, doll,
+        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav, av18, miss, javxx, javday, missav2, rou233, xm, 
+        porncvd, pronlulu, kore, beeg, kbjfan, pornhub, ppphub, xvideos,
     ];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
