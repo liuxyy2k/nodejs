@@ -87,6 +87,7 @@ async function detail(inReq, _outResp) {
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic  = $('meta[property="og:image"]').attr('content') || '';
     const year = $('meta[property="video:release_date"]').attr('content') || '';
+    const description = $('meta[property="description"]').attr('content') || '';
 
     const videoUrl = extractVideoUrl(html) || '';
 
@@ -98,6 +99,7 @@ async function detail(inReq, _outResp) {
             vod_year:      year,
             vod_play_from: 'Kanav',
             vod_play_url:  `播放$${videoUrl}`,
+            vod_content: description
         }],
     };
 }
