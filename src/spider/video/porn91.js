@@ -17,15 +17,17 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: 'ori',   type_name: '原创' },
-        { type_id: 'hot',   type_name: '热门' },
-        { type_id: 'top',   type_name: '排行榜' },
-        { type_id: 'long',  type_name: '长片' },
-        { type_id: 'longer',type_name: '超长' },
-        { type_id: 'tf',    type_name: 'TF' },
-        { type_id: 'rf',    type_name: 'RF' },
-        { type_id: 'topm',  type_name: 'Top M' },
-        { type_id: 'mf',    type_name: 'MF' },
+        { type_id: 'ori',   type_name: '91原创' },
+        { type_id: 'hot',   type_name: '当前最热' },
+        { type_id: 'top',   type_name: '本月最热' },
+        { type_id: 'long',  type_name: '10分钟以上' },
+        { type_id: 'longer',type_name: '20分钟以上' },
+        { type_id: 'tf',    type_name: '本月收藏' },
+        { type_id: 'rf',    type_name: '最近加精' },
+        { type_id: 'hd',    type_name: '高清' },
+        { type_id: 'top&m=-1',    type_name: '每月最热' },
+        { type_id: 'md',    type_name: '本月讨论' },
+        { type_id: 'mf',    type_name: '收藏最多' },
     ];
     return { class: classes, filters: {} };
 }
