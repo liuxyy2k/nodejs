@@ -44,6 +44,7 @@ import qstv from "./spider/video/qstv.js";
 import wanwu from "./spider/video/wanwu.js";
 import porncvd from "./spider/video/porncvd.js";
 import javday from "./spider/video/javday.js";
+import cableav from "./spider/video/cableav.js";
 // import sbjh from "./spider/video/sbjh.js";
 import javxx from "./spider/video/javxx.js";
 // import baseset from "./spider/video/baseset.js";
@@ -70,7 +71,7 @@ const getSpiders = async (server) => {
         douban, leijing, panta, wogg, zhizhen, nsp, duoduo, mogg, 
         ai, animei, hanime2, hdm18,aowu,
         cg51, cg91, aw51, cg911, hl, video91, sp91, pron91, haose, qstv, porna91, dnaav, rou,  wanwu, madou, doll,
-        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav, av18, miss, javxx, javday, missav2, rou233, xm, 
+        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav, av18, miss, javxx, javday, missav2, rou233, xm, cableav,
         porncvd, pronlulu, kore, beeg, kbjfan, pornhub, ppphub, xvideos,
     ];
     const t4Data = await getT4(server)
