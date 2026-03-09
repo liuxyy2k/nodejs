@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
 // const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const host     = 'https://618013.xyz';
 const apiHost  = 'https://h5.xxoo168.org';
 
@@ -17,7 +17,7 @@ const headers = {
 };
 
 async function request(url, extraHeaders = {}) {
-    const resp = await axios.get(url, { headers: { ...headers, ...extraHeaders }});
+    const resp = await axios.get(url, { headers: { ...headers, ...extraHeaders } });
     return resp.data;
 }
 
@@ -33,13 +33,16 @@ function decryptTitle(encrypted) {
 
 function extractVideos($, limit) {
     const videos = [];
-    $('a.vodbox').each((_, el) => {
+    $('.vodbox').each((_, el) => {
         try {
+            let vodId = ''
             let link = $(el).attr('href') || '';
             if (link.startsWith('/')) link = host + link;
-
-            let vodId = (link.match(/m=(\d+)/) || [])[1];
-            if (!vodId) return;
+            if(!link.includes('.m3u8')) {
+                vodId = '618013.xyz_' + new URL(link).searchParams.get("m")
+            } else {
+                vodId = '618013.xyz_' + new URL(link).searchParams.get("v")
+            }
 
             // 标题解密
             let titleEncrypted = $(el).find('p.km-script').text().trim();
@@ -52,7 +55,7 @@ function extractVideos($, limit) {
             else if (pic.startsWith('/')) pic = host + pic;
 
             videos.push({
-                vod_id:      `618013.xyz_${vodId}`,
+                vod_id:      vodId,
                 vod_name:    title,
                 vod_pic:     pic,
                 vod_remarks: '',
@@ -123,9 +126,13 @@ async function detail(inReq, _outResp) {
     const vid = inReq.body.id;
     const [domain, videoId] = vid.split('_');
     const apiUrl  = `${apiHost}/api/v2/vod/reqplay/${videoId}`;
-
-    const html = await request(apiUrl);
-    let playUrl = html.data.httpurl
+    let playUrl = ''
+    if(videoId.startsWith('https')) {
+        playUrl = videoId
+    } else {
+        const html = await request(apiUrl);
+        playUrl = html.data.httpurl
+    }
     return {
         list: [{
             vod_id:        vid,
@@ -141,7 +148,8 @@ async function play(inReq, _outResp) {
  return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA ,
+        header: { 
+            'User-Agent': UA ,
             'Referer': host + '/'
         },
     };
