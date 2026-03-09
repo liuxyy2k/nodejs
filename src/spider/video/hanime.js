@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://hanime1.me';
 
@@ -15,7 +15,7 @@ async function request(reqUrl) {
             'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
             'Accept-Encoding': 'gzip, deflate, br',
         },
-        httpsAgent: agent,
+        // httpsAgent: agent,
     });
     return resp.data;
 }

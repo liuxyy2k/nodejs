@@ -66,7 +66,6 @@ async function detail(inReq, _outResp) {
     const play = $('iframe').attr('src')
     const urls = new URL(play);
     const m3u8 = urls.searchParams.get('src');
-    console.log(m3u8)
     let playUrl = '';
     playUrl = decodeURIComponent(m3u8)
     return {
