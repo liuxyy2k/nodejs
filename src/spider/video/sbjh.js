@@ -54,7 +54,7 @@ async function category(inReq) {
 
             vod_pic:item.xinimg.replace(
                 "http://cdn.gcufbd.top/img/",
-                "https://slink.ltd/https://raw.githubusercontent.com/fish2018/lib/refs/heads/main/imgs/"
+                "https://gh-proxy.org/https://raw.githubusercontent.com/fish2018/lib/refs/heads/main/imgs/"
             ),
 
             vod_remarks:item.Number,
