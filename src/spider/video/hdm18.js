@@ -1,15 +1,68 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import crypto from 'crypto';
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://18hdm.com';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const PORT = process.env.DEV_HTTP_PORT || 9988;
+
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers }
+        headers: { 'User-Agent': UA, ...headers },
+        // httpsAgent: agent
     });
     return resp.data;
 }
 
+function getImgUrl($el) {
+    const src = $el.attr('data-src') || '';
+    console.log(src)
+    const enc = extractImgFromOnload($el.attr('onload') || '');
+    const t   = enc || src;
+    if (!t) return '';
+    if (enc || shouldDecrypt(t)) {
+        return `http://127.0.0.1:${PORT}/spider/hdm18/3/img?url=${encodeURIComponent(e64(t))}`;
+    }
+    return absUrl(t);
+}
+
+function extractImgFromOnload(onload) {
+    const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
+    return m ? m[1] : '';
+}
+
+function shouldDecrypt(url) {
+    const u = (url || '').toLowerCase();
+    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/'].some(x => u.includes(x));
+}
+
+function absUrl(u) {
+    if (!u) return '';
+    if (u.startsWith('//'))  return 'https:' + u;
+    if (u.startsWith('/'))   return site + u;
+    return u;
+}
+
+function aesDecrypt(buf) {
+    const key      = Buffer.from('f5d965df75336270');
+    const iv       = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
+}
+
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
+}
 
 async function init(_inReq, _outResp) {
     return {};
@@ -34,14 +87,13 @@ async function category(inReq, _outResp) {
     let typeurl = site + inReq.body.id;
     const page = inReq.body.page || 1;
     const url = page > 1 ?  `${typeurl}${page}/` : typeurl;
-    console.log(url)
     const html = await request(url);
     const $ = load(html);
     let videos = [];
     
     $('.flex').each((_, element) => {
         try {
-            const pic = $(element).find('.w-full').attr('data-src') || '';
+            const imgEl = $(element).find('.w-full');
             const id = $(element).attr('href') || '';
             const name = $(element).find('.w-full').attr('alt') || '';
             const remark = $(element).find('.text-sm').eq(0).text().trim() || '';
@@ -49,9 +101,10 @@ async function category(inReq, _outResp) {
             videos.push({
                 vod_id: id,
                 vod_name: name,
-                vod_pic: pic,
+                vod_pic: imgEl.length ? getImgUrl(imgEl) : '',
                 vod_remarks: remark
             });
+            console.log(videos)
         } catch (e) {}
     });
 
@@ -147,21 +200,50 @@ async function search(inReq, _outResp) {
     let videos = [];
     $('.video-item').each((_, element) => {
         try {
-            const pic = $(element).find('.w-full').attr('data-src') || '';
-            const id = $(element).find('a').eq(0).attr('href') || '';
-            const name = $(element).find('h2').text().trim() || '';
-            const remark = $(element).find('.text-sm').text().trim() || '';
+            const imgEl = $(element).find('.w-full').attr('data-src') || '';
+            const id = $(element).attr('href') || '';
+            const name = $(element).find('.w-full').attr('alt') || '';
+            const remark = $(element).find('.text-sm').eq(0).text().trim() || '';
             if (!id || !name) return;
             videos.push({
                 vod_id: id,
                 vod_name: name,
-                vod_pic: pic,
+                vod_pic: imgEl.length ? getImgUrl(imgEl) : '',
                 vod_remarks: remark
             });
         } catch (e) {}
     });
 
     return { list: videos };
+}
+
+async function imgProxy(inReq, reply) {
+    try {
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${site}/`,
+                'Origin':     site,
+            },
+            responseType: 'arraybuffer',
+            timeout:      10000,
+        });
+
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
+    }
 }
 
 export default {
@@ -177,5 +259,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img',    imgProxy);
     },
 };
