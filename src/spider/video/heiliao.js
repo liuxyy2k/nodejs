@@ -1,37 +1,87 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import crypto from 'crypto';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-const site = 'https://kdn9m.zqcvioh.xyz';
+const site = 'https://heiliao.com';
+
+
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
+        // httpsAgent: agent
     });
     return resp.data;
 }
 
+function getImgUrl($el) {
+    const src = $el.attr('src') || $el.attr('data-src') || '';
+    const enc = extractImgFromOnload($el.attr('onload') || '');
+    const t   = enc || src;
+    if (!t) return '';
+    if (enc || shouldDecrypt(t)) {
+        return `http://127.0.0.1:${PORT}/spider/hlw/3/img?url=${encodeURIComponent(e64(t))}`;
+    }
+    return absUrl(t);
+}
+
+function extractImgFromOnload(onload) {
+    const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
+    return m ? m[1] : '';
+}
+
+function shouldDecrypt(url) {
+    const u = (url || '').toLowerCase();
+    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/'].some(x => u.includes(x));
+}
+
+function absUrl(u) {
+    if (!u) return '';
+    if (u.startsWith('//'))  return 'https:' + u;
+    if (u.startsWith('/'))   return site + u;
+    return u;
+}
+
+function aesDecrypt(buf) {
+    const key      = Buffer.from('f5d965df75336270');
+    const iv       = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
+}
+
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
+}
+
 function parseVodList($) {
     const list = [];
-
     $('.video-item').each((_, element) => {
         try {
             const url  = $(element).find('a').attr('href') || '';
             const name = $(element).find('h3').text().trim();
             if (!name || !url) return;
-
             // 从 URL 中提取纯数字 ID
             const id = url.split('/').find(p => /^\d+$/.test(p)) || '';
-
-            // 图片从 img 的 html 内容里正则提取
-            const imgHtml = $(element).find('img').toString();
-            const match   = imgHtml.match(/'(https?:\/\/[^']+)/);
-            const pic     = match ? match[1] : '';
-
-            list.push({ vod_id: id, vod_name: name, vod_pic: pic, vod_remarks: '' });
+            const imgEl  =  $(element).find('img');
+            const remarks = $(element).find('.date-xxx').text().trim() || ''
+            list.push(
+                {   vod_id: id, 
+                    vod_name: name, 
+                    vod_pic: imgEl.length ? getImgUrl(imgEl) : '', 
+                    vod_remarks: remarks 
+                }
+            );
         } catch (e) {}
     });
-
     return list;
 }
 
@@ -53,11 +103,7 @@ async function home(_inReq, _outResp) {
         { type_id: 'xycg', type_name: '校园黑料' },
     ];
 
-    const html = await request(site);
-    const $    = load(html);
-    const list = parseVodList($);
-
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
@@ -73,7 +119,7 @@ async function category(inReq, _outResp) {
     const $    = load(html);
     const list = parseVodList($);
 
-    return { page, pagecount: 999, list };
+    return { page, pagecount: 9999, list };
 }
 
 async function detail(inReq, _outResp) {
@@ -89,49 +135,17 @@ async function detail(inReq, _outResp) {
     const playParts = [];
     let index = 1;
 
-    // 方法1：dplayer config 属性
-    $('div.dplayer').each((_, el) => {
+    $('div.dplayer').each((_, element) => {
         try {
-            const dataConfig = $(el).attr('config') || '';
-            const m = dataConfig.match(/"url"\s*:\s*"([^"]+)"/);
-            if (m) {
-                playParts.push(`第${index}集$${m[1]}`);
+            const config = $(element).attr('config') || '';
+            const json = JSON.parse(config);
+            const videoUrl = json.video && json.video.url ? json.video.url : '';
+            if (videoUrl) {
+                playParts.push(`第${index}集$${videoUrl}`);
                 index++;
             }
         } catch (e) {}
     });
-
-    // 方法2：video source 标签
-    if (playParts.length === 0) {
-        $('video source').each((_, el) => {
-            const src = $(el).attr('src') || '';
-            if (src) {
-                playParts.push(`第${index}集$${src}`);
-                index++;
-            }
-        });
-    }
-
-    // 方法3：从 script 中提取视频链接
-    if (playParts.length === 0) {
-        const patterns = [
-            /"url"\s*:\s*"(https?:\/\/[^"]+\.(?:mp4|m3u8)[^"]*?)"/,
-            /src\s*:\s*"(https?:\/\/[^"]+\.(?:mp4|m3u8)[^"]*?)"/,
-            /'(https?:\/\/[^']+\.(?:mp4|m3u8)[^']*?)'/,
-        ];
-        $('script').each((_, el) => {
-            if (playParts.length > 0) return;
-            const scriptContent = $(el).html() || '';
-            for (const pattern of patterns) {
-                const m = scriptContent.match(pattern);
-                if (m) {
-                    playParts.push(`第${index}集$${m[1]}`);
-                    index++;
-                    break;
-                }
-            }
-        });
-    }
 
     return {
         list: [{
@@ -140,11 +154,12 @@ async function detail(inReq, _outResp) {
             vod_pic:       pic,
             vod_year:      year,
             vod_content:   content,
-            vod_play_from: 'Hl51',
-            vod_play_url:  playParts.join('#').replace(/\\/g, '/'),
+            vod_play_from: '黑料网',
+            vod_play_url:  playParts.join('#'),
         }],
     };
 }
+
 
 async function play(inReq, _outResp) {
     return {
@@ -163,6 +178,36 @@ async function search(inReq, _outResp) {
     return { list };
 }
 
+
+async function imgProxy(inReq, reply) {
+    try {
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${site}/`,
+                'Origin':     site,
+            },
+            responseType: 'arraybuffer',
+            timeout:      10000,
+        });
+
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
+    }
+}
+
 export default {
     meta: {
         key: 'hlw',
@@ -176,5 +221,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img',    imgProxy);
     },
 };

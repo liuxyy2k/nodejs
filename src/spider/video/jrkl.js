@@ -1,17 +1,13 @@
 import axios from "axios";
 import { load } from "cheerio";
-
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134 Safari/537.36";
 
-let HOST = "";
+let HOST = "https://kanliao25.com";
 
-const HOSTS = [
-  "https://kanliao25.com/",
-  "https://kanliao7.org/",
-  "https://kanliao7.net/",
-  "https://kanliao14.com/",
-];
 
 function e64(t) {
   return Buffer.from(t).toString("base64");
@@ -28,22 +24,10 @@ async function request(url) {
       Referer: HOST,
       Origin: HOST,
     },
+    // httpsAgent: agent,
     timeout: 15000,
   });
   return resp.data;
-}
-
-async function detectHost() {
-  for (const url of HOSTS) {
-    try {
-      const html = await axios.get(url, { headers: { "User-Agent": UA } });
-      const $ = load(html.data);
-      if ($("#index article a").length > 0) {
-        return url;
-      }
-    } catch {}
-  }
-  return HOSTS[0];
 }
 
 function isAd(title) {
@@ -51,77 +35,49 @@ function isAd(title) {
   return ads.some((a) => title.includes(a));
 }
 
-function parseImage(el) {
-  let pic = "";
-
-  const script = el.find("script").html() || "";
-  const m = script.match(/loadBannerDirect\('([^']+)/);
-  if (m) pic = m[1];
-
-  if (!pic) {
-    const style = el.find(".blog-background").attr("style") || "";
-    const bg = style.match(/url\((.*?)\)/);
-    if (bg) pic = bg[1];
-  }
-
-  if (!pic) {
-    pic = el.find("img").attr("data-src") || el.find("img").attr("src") || "";
-  }
-
-  if (pic && !pic.startsWith("http")) {
-    if (pic.startsWith("/")) pic = HOST + pic;
-    else pic = HOST + "/" + pic;
-  }
-
-  return pic;
-}
 
 function parseList($) {
   const list = [];
 
   $("#index article, #archive article").each((_, e) => {
-    const el = $(e);
+      const el = $(e);
+      const a = el.find("a").attr("href") || "";
+      const title =
+        el.find("h2").text() ||
+        el.find(".post-card-title").text() ||
+        el.find(".entry-title").text();
 
-    const a = el.find("a").attr("href") || "";
-    const title =
-      el.find("h2").text() ||
-      el.find(".post-card-title").text() ||
-      el.find(".entry-title").text();
+      if (!a || !title) return;
 
-    if (!a || !title) return;
+      if (isAd(title)) return;
 
-    if (isAd(title)) return;
+     let pic = '';
 
-    const pic = parseImage(el);
+      const style = el.find("script").html();
 
-    const remark =
-      el.find("time").text() ||
-      el.find(".post-meta").text() ||
-      el.find(".post-card-info").text();
-
-    list.push({
-      vod_id: a,
-      vod_name: title.trim(),
-      vod_pic: pic
-        ? `proxy?type=img&url=${e64(pic)}`
-        : "",
-      vod_remarks: remark.trim(),
+      if (style) {
+        const match = style.match(/'([^']+\.(jpg|png|jpeg|webp|gif))'/i);
+        if (match) {
+          pic = match[1];
+        }
+      }
+      const remark = el.find(".post-card-info span").eq(1).text();
+      list.push({
+        vod_id: a,
+        vod_name: title.trim(),
+        vod_pic: HOST + pic,
+        vod_remarks: remark.trim(),
+      });
     });
-  });
 
   return list;
 }
 
-async function init() {
-  HOST = await detectHost();
-  console.log("使用站点:", HOST);
+async function init(_inReq, _outResp) {
   return {};
 }
 
 async function home() {
-  const html = await request(HOST);
-  const $ = load(html);
-
   const classes = [
     { type_id: "/category/rdgz/", type_name: "热点关注" },
     { type_id: "/category/dy/", type_name: "抖音" },
@@ -135,11 +91,8 @@ async function home() {
     { type_id: "/category/xsp/", type_name: "小视频" },
   ];
 
-  const list = parseList($);
-
   return {
     class: classes,
-    list,
     filters: {},
   };
 }
@@ -228,27 +181,6 @@ async function search(inReq) {
   return { list };
 }
 
-async function imgProxy(url) {
-  try {
-    const real = d64(url);
-
-    const resp = await axios.get(real, {
-      responseType: "arraybuffer",
-      headers: {
-        "User-Agent": UA,
-        Referer: HOST,
-      },
-    });
-
-    return [
-      200,
-      resp.headers["content-type"] || "image/jpeg",
-      resp.data,
-    ];
-  } catch {
-    return [500, "text/plain", Buffer.from("img proxy error")];
-  }
-}
 
 export default {
   meta: {
@@ -264,9 +196,5 @@ export default {
     fastify.post("/detail", detail);
     fastify.post("/play", play);
     fastify.post("/search", search);
-  },
-
-  proxy: async ({ url, type }) => {
-    if (type === "img") return await imgProxy(url);
   },
 };
