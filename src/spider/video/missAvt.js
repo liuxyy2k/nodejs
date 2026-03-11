@@ -19,7 +19,7 @@ function getImgUrl($el) {
     const t   = enc || src;
     if (!t) return '';
     if (enc || shouldDecrypt(t)) {
-        return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(t))}`;
+        return `http://127.0.0.1:${PORT}/spider/missavt/3/img?url=${encodeURIComponent(e64(t))}`;
     }
     return absUrl(t);
 }
