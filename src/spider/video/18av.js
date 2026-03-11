@@ -123,9 +123,16 @@ async function detail(inReq, _outResp) {
         while ((m = srcReg.exec(content))  !== null) srcList.push(m[1]);
         while ((m = sizeReg.exec(content)) !== null) sizeList.push(m[1]);
     }
-    console.log(srcList)
-    console.log(sizeList)
-    const playUrl = srcList.map((src, i) => `${sizeList[i] || i + 1}$${src}`).join('#');
+    // 组合
+    const list = srcList.map((src, i) => ({
+        src,
+        size: sizeList[i] || 0
+    }));
+
+    // 按清晰度排序 (1080 > 720 > 480)
+    list.sort((a, b) => b.size - a.size);
+    // 重新拼接
+    const playUrl = list.map(v => `${v.size}$${v.src}`).join('#');
 
     return {
         list: [{
