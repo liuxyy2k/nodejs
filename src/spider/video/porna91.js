@@ -1,29 +1,75 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91porna.com';
 
+const PORT   = process.env.DEV_HTTP_PORT || 9988;
+
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
+
     });
     return resp.data;
 }
 
+function getImgUrl($el) {
+    const src = $el.attr('data-src') || '';
+    const enc = extractImgFromOnload($el.attr('onload') || '');
+    const t   = enc || src;
+    if (!t) return '';
+    if (enc || shouldDecrypt(t)) {
+        return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(t))}`;
+    }
+    return absUrl(t);
+}
+
+function extractImgFromOnload(onload) {
+    const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
+    return m ? m[1] : '';
+}
+
+function shouldDecrypt(url) {
+    const u = (url || '').toLowerCase();
+    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/'].some(x => u.includes(x));
+}
+
+function absUrl(u) {
+    if (!u) return '';
+    if (u.startsWith('//'))  return 'https:' + u;
+    if (u.startsWith('/'))   return site + u;
+    return u;
+}
+
+function aesDecrypt(buf) {
+    const key      = Buffer.from('f5d965df75336270');
+    const iv       = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
+}
+
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
+}
+
 function parseVods($) {
     const videos = [];
-    $('li div.video-item a').each((_, element) => {
-        const pic = $(element).find('img').attr('data-src') || '';
-        const url = $(element).attr('href') || '';
-        const name = $(element).find('img').attr('alt') || '';
-        const time = $(element).find('div.text-sm').text().trim();
-        if (pic.endsWith('.gif') || !name) return;
+    $('div.video-item').each((_, element) => {
+        const imgEl = $(element).find('.w-full');
+        const url = $(element).find('.flex').attr('href') || '';
+        const name = $(element).find('.w-full').attr('alt') || '';
+        const time = $(element).find('div.w-full').text().trim();
         const id = url.split('=')[1] || '';
         videos.push({
             vod_id: id,
             vod_name: name,
-            vod_pic: pic,
+            vod_pic: imgEl.length ? getImgUrl(imgEl) : '',
             vod_remarks: time,
         });
     });
@@ -95,6 +141,12 @@ async function home(_inReq, _outResp) {
         { type_id: 'original', type_name: '91原创' },
         { type_id: 'now_month_hot', type_name: '本月最热' },
         { type_id: 'ten_minutes', type_name: '10分钟以上' },
+        { type_id: 'twenty_minutes', type_name: '20分钟以上' },
+        { type_id: 'now_month_collect', type_name: '本月收藏' },
+        { type_id: 'hd', type_name: '高清' },
+        { type_id: 'month_hot', type_name: '每月最热' },
+        { type_id: 'now_month_comment', type_name: '本月讨论' },
+        { type_id: 'max_collect', type_name: '收藏最多' },
     ];
 
     const html = await request(`${site}/comic/index/video?category=play`);
@@ -182,6 +234,35 @@ async function search(inReq, _outResp) {
     return { list };
 }
 
+async function imgProxy(inReq, reply) {
+    try {
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${site}/`,
+                'Origin':     site,
+            },
+            responseType: 'arraybuffer',
+            timeout:      10000,
+        });
+
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
+    }
+}
+
 export default {
     meta: {
         key: 'porna91',
@@ -195,5 +276,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img',  imgProxy);
     },
 };
