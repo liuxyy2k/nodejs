@@ -113,7 +113,6 @@ async function category(inReq, _outResp) {
     const page = parseInt(inReq.body.page) || 1;
 
     let url = `${site}${tid}${page}/`;
-    if (page > 1) url += `&page=${page}`;
 
     const html = await request(url);
     const $ = load(html);
