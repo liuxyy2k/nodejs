@@ -62,8 +62,6 @@ import lives from "./spider/video/lives.js";
 import a123tv from "./spider/video/a123tv.js";
 import zbjh from "./spider/video/zbjh.js";
 import tt from "./spider/video/tt.js";
-// import xmlive from "./spider/video/xmlive.js";
-// import hlbdy from "./spider/video/hlbdy.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
