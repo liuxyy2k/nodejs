@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio'
 const siteUrl = 'https://a123tv.com'
 const cateUrl = siteUrl + '/t/'
 const detailUrl = siteUrl + '/nivod/'
-const searchUrl = siteUrl + '/search?keywords='
+const searchUrl = siteUrl + '/s/'
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
@@ -235,7 +235,7 @@ async function search(req, reply) {
 
     const { wd } = req.body
 
-    const html = await request(searchUrl + encodeURIComponent(wd))
+    const html = await request(searchUrl + encodeURIComponent(wd) + '.html')
     const list = parseVods(html)
 
     reply.send({ list })
