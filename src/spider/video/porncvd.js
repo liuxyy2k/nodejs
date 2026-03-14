@@ -8,8 +8,12 @@ const headers = {
 };
 
 async function request(url) {
-    const resp = await axios.get(url, { headers });
-    return resp.data;
+    const resp = await axios.post('http://192.168.0.101:8191/v1', {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
+    });
+    return resp.data.solution.response;
 }
 
 // 解析视频列表（对应 Java 的 parseVods）

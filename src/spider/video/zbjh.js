@@ -194,66 +194,76 @@ async function search(inReq, _outResp) {
 }
 
 async function play(inReq, _outResp) {
-    const id      = inReq.body.id;
-    const m3u8Url = `https://edge-hls.doppiocdn.net/hls/${id}/master/${id}_auto.m3u8?playlistType=lowLatency`;
 
-    const resp  = await axios.get(m3u8Url, { headers: HEADERS, timeout: 10000, responseType: 'text' });
-    const lines = resp.data.trim().split('\n');
+    const id = inReq.body.id;
 
-    let psch = '', pkey = '', firstUrl = '';
+    const master =
+        `https://edge-hls.doppiocdn.net/hls/${id}/master/${id}_auto.m3u8?playlistType=lowLatency`;
 
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.startsWith('#EXT-X-MOUFLON:')) {
-            const parts = line.split(':');
-            if (parts.length >= 4) { psch = parts[2]; pkey = parts[3]; }
-        }
-        if (line.includes('#EXT-X-STREAM-INF') && !firstUrl) {
-            const urlBase = lines[i + 1] || '';
-            firstUrl = `${urlBase}&psch=${psch}&pkey=${pkey}`;
-        }
-    }
+    const proxy =
+        `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=`;
 
-    const proxyUrl = `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=` + firstUrl;
-    return { parse: 0, url: proxyUrl, contentType: '', header: HEADERS };
+    return {
+        parse: 0,
+        url: proxy + encodeURIComponent(master),
+        header: HEADERS
+    };
 }
 
 // ─── localProxy 对应 Python localProxy ───────────────────────────────────
 // 注意：原版没有 403 fallback，直接非 200 就返回 404
 
 async function localProxy(inReq, reply) {
+
     const url = decodeURIComponent(inReq.query.url || '');
-    if (!url) return reply.code(404).type('text/plain').send('');
 
-    let text = '', status = 0;
+    if (!url)
+        return reply.code(404).type('text/plain').send('');
+
+    let text = '';
+
     try {
-        const resp = await axios.get(url, { headers: HEADERS, timeout: 10000, responseType: 'text' });
-        status = resp.status;
-        text   = resp.data;
-    } catch (e) {
-        status = e.response?.status || 500;
-        text   = e.response?.data   || '';
+
+        const resp = await axios.get(url, {
+            headers: HEADERS,
+            timeout: 10000,
+            responseType: 'text'
+        });
+
+        text = resp.data;
+
+    } catch {
+        return reply.code(404).type('text/plain').send('');
     }
 
-    if (status === 403) {
-        const fallbackUrl = url.replace(/\d+p\d*\.m3u8/, '160p_blurred.m3u8');
-        try {
-            const resp = await axios.get(fallbackUrl, { headers: HEADERS, timeout: 10000, responseType: 'text' });
-            status = resp.status;
-            text   = resp.data;
-        } catch (e) {
-            status = e.response?.status || 500;
-            text   = e.response?.data   || '';
-        }
-    }
-
-    if (status !== 200) return reply.code(404).type('text/plain').send('');
-
+    // Mouflon 解密
     if (text.includes('#EXT-X-MOUFLON:FILE')) {
         text = processM3u8Content(text);
     }
 
-    reply.header('Content-Type', 'application/vnd.apple.mpegur').send(text);
+    // master.m3u8 线路代理
+    if (text.includes('#EXT-X-STREAM-INF')) {
+
+        const lines = text.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+
+            if (!lines[i].startsWith('#') && lines[i].includes('.m3u8')) {
+
+                const u = lines[i].trim();
+
+                lines[i] =
+                    `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=` +
+                    encodeURIComponent(u);
+            }
+        }
+
+        text = lines.join('\n');
+    }
+
+    reply
+        .header('Content-Type', 'application/vnd.apple.mpegurl')
+        .send(text);
 }
 
 // ─── 导出 ──────────────────────────────────────────────────────────────────

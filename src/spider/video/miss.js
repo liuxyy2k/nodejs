@@ -9,61 +9,32 @@ const KEY_SITE = "/missavSite"
 const KEY_COOKIE = "/missavCookie"
 
 
+// ================= FlareSolverr 配置 =================
+
+const FLARE_URL = 'http://192.168.0.101:8191/v1' 
+
 // ================= 请求工具 =================
 
 async function getSite(db){
-
-    try{
-        const val = (await db.getData(KEY_SITE)).missav || ""
-
-        if(!val) return DEFAULT_SITE
-
-        return val.startsWith("http") ? val : `https://${val}`
-
-    }catch{
-
-        return DEFAULT_SITE
-    }
-
+    return DEFAULT_SITE
 }
 
-async function getCookie(db){
-
-    try{
-        return await db.getData(KEY_COOKIE) || ""
-    }catch{
-        return ""
+async function request(url){
+    const body = {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
     }
-
-}
-
-async function buildHeaders(db){
-
-    const headers = {
-        "User-Agent":UA,
-        "Accept":"application/json, text/plain, */*",
-        "Accept-Encoding":"gzip, deflate, br"
-    }
-
-    const cookie = await getCookie(db)
-
-    if(cookie) headers.Cookie = cookie
-
-    return headers
-
-}
-
-async function request(url,db){
-
-    const headers = await buildHeaders(db)
-
-    const res = await axios.get(url,{
-        headers,
-        timeout:15000,
-        validateStatus:()=>true
+    
+    const resp = await axios.post(FLARE_URL, body, {
+        timeout: 90000 // 比 maxTimeout 大一点
     })
 
-    return res.data
+    if(resp.data?.status !== 'ok'){
+        throw new Error(`FlareSolverr 请求失败: ${resp.data?.message}`)
+    }
+
+    return resp.data.solution.response
 }
 
 
@@ -150,11 +121,8 @@ async function home(inReq){
         }
 
     ]
-
     for(const c of classes){
-
         filters[c.type_id] = options
-
     }
 
     return {class:classes,filters}
@@ -166,61 +134,37 @@ async function home(inReq){
 // ================= 分类 =================
 
 async function category(inReq){
-
     const db = inReq.server.db
-
     let id = inReq.body.id
     let page = inReq.body.page || 1
     const filters = inReq.body.filters || {}
-
     if(page===0) page=1
 
-
     if(filters.actor && filters.actor!=="all"){
-
         id = `cn/actresses/${encodeURIComponent(filters.actor)}`
-
     }
-
-
     if(filters.filt && filters.filt!=="all"){
-
         id += `?filters=${filters.filt}`
-
     }
-
-
     if(filters.sort){
-
         const sep = id.includes("?")?"&":"?"
-
         id += `${sep}sort=${filters.sort}`
-
     }
-
-
     id += id.includes("?")?`&page=${page}`:`?page=${page}`
 
-
     const site = await getSite(db)
-
     const html = await request(`${site}/${id}`,db)
-
     const $ = load(html)
-
     const list=[]
 
 
     $(".thumbnail").each((i,el)=>{
-
         const vod_id = $(el).find(".text-secondary").attr("href")
-
         const vod_name = $(el)
             .find(".text-secondary")
             .text()
             .trim()
             .replace(/\s+/g," ")
-
         const vod_pic = $(el)
             .find(".w-full")
             .attr("data-src")
@@ -247,96 +191,55 @@ async function category(inReq){
 
 
     return {
-
         page,
-
         pagecount:list.length<12?page:page+1,
-
         list
-
     }
 
 }
 
-
-
 // ================= 详情 =================
 
 async function detail(inReq){
-
     const db = inReq.server.db
-
     const url = inReq.body.id
-
-    const html = await request(url,db)
-
-
+    const html = await request(url, db)
     const match = html.match(/nineyu\.com\\\/(.+)\\\/seek\\\/_0\.jpg/)
-
-    const SURRIT="https://surrit.com/"
-
-    const PLAY="/playlist.m3u8"
-
-    const tracks=[]
-
+    const SURRIT = "https://surrit.com/"
+    const PLAY = "/playlist.m3u8"
+    const res = []
 
     if(match && match[1]){
-
         const uuid = match[1]
-
-        const data = await request(SURRIT+uuid+PLAY,db)
-
-        const lines = data.split("\n").filter(v=>v.includes("/video.m3u8"))
-
-        const res=[]
-
+        let playUrl= SURRIT + uuid + PLAY
+        const resp = await axios.get(playUrl, {
+            headers: { 'User-Agent': UA },
+        });
+        const lines = resp.data.split("\n").filter(v => v.includes("/video.m3u8"))
         for(const line of lines){
-
-            const name = line.replace("/video.m3u8","")
-
+            const name = line.trim().replace("/video.m3u8", "")
             const m = name.match(/(\d+)p|(\d+)x(\d+)/)
-
             if(!m) continue
-
-            const r = parseInt(m[1]||m[3])
-
+            const r = parseInt(m[1] || m[3])
             res.push({
-
                 name,
-
-                resolution:r,
-
-                url:`${SURRIT}${uuid}/${line}`
-
+                resolution: r,
+                url: `${SURRIT}${uuid}/${line.trim()}`
             })
-
         }
-
-        if(res.length){
-
-            res.sort((a,b)=>b.resolution-a.resolution)
-
-            tracks.push(res[0])
-
-        }
-
+        
+        // 从高到低排序
+        res.sort((a, b) => b.resolution - a.resolution)
     }
-
 
     return {
-
         list:[{
-
-            vod_id:url,
-
-            vod_play_from:"MissAV",
-
-            vod_play_url:tracks.map(v=>`${v.name}$${v.url}`).join("#")
-
+            vod_id: url,
+            vod_play_from: "MissAV",
+            // 全部分辨率用 # 分隔，播放器会显示切换选项
+            vod_play_url: res.map(v => `${v.name}$${v.url}`).join("#")
         }]
-
     }
-
 }
 
 

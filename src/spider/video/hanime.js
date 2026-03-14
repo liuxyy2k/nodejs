@@ -6,33 +6,35 @@ import { load } from 'cheerio';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://hanime1.me';
 
-async function request(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': 'https://hanime1.me/',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-        },
-        // httpsAgent: agent,
+// ================= FlareSolverr 配置 =================
+
+const FLARE_URL = 'http://192.168.0.101:8191/v1' 
+
+async function request(url) {
+    const resp = await axios.post(FLARE_URL, {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
     });
-    return resp.data;
+    return resp.data.solution.response;
 }
 
 async function init(_inReq, _outResp) {
     return {};
 }
-const enc = encodeURIComponent; // 简写方便用
+const enc = encodeURIComponent; 
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: `${site}/search?genre=${enc('里番')}`,       type_name: '里番' },
-        { type_id: `${site}/search?genre=${enc('泡面番')}`,     type_name: '泡面番' },
+        { type_id: `${site}/search?genre=${enc('裏番')}`,       type_name: '里番' },
+        { type_id: `${site}/search?genre=${enc('泡麵番')}`,     type_name: '泡面番' },
         { type_id: `${site}/search?genre=${enc('Motion Anime')}`, type_name: 'Motion Anime' },
         { type_id: `${site}/search?genre=3DCG`,                  type_name: '3D動畫' },
-        { type_id: `${site}/search?genre=${enc('同人')}`,       type_name: '同人' },
+        { type_id: `${site}/search?genre=2.5D`,                  type_name: '2.5D' },
+        { type_id: `${site}/search?genre=${enc('2D動畫')}`,                  type_name: '2D動畫' },
+        { type_id: `${site}/search?genre=${enc('AI生成')}`,                  type_name: 'AI生成' },
         { type_id: `${site}/search?genre=MMD`,                   type_name: 'MMD' },
+        { type_id: `${site}/search?genre=Cosplay`,                   type_name: 'Cosplay' },
     ];
     return { class: classes, filters: {} };
 }
@@ -43,19 +45,20 @@ async function category(inReq, _outResp) {
     const url = page > 1 ? `${typeurl}&page=${page}` : typeurl;
 
     const html = await request(url);
-    console.log(html)
     const $ = load(html);
-
-    let videolist = $('.home-rows-videos-wrapper > a');
+    console.log(html)
+    let videolist = $('.home-rows-videos-wrapper a');
     if (videolist.length === 0) videolist = $('.content-padding-new > .row > .search-doujin-videos.col-xs-6');
 
     let videos = [];
+    
     videolist.each((_, element) => {
-        if ($(element).attr('target') === '_blank' || $(element).find('.overlay').attr('target') === '_blank') return;
-        const href = $(element).attr('href') || $(element).find('.overlay').attr('href');
-        const title = $(element).find('.home-rows-videos-title').text() || $(element).find('.card-mobile-title').text();
+        if ($(element).attr('target') === '_blank') return;
+        
+        const href = $(element).attr('href');
+        
+        const title = $(element).find('.home-rows-videos-title').text();
         let cover = $(element).find('img').attr('src');
-        if (cover && cover.includes('background')) cover = $(element).find('img').eq(1).attr('src');
         if (href) {
             videos.push({
                 vod_id: href,
