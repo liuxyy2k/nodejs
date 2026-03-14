@@ -11,7 +11,7 @@ const KEY_COOKIE = "/missavCookie"
 
 // ================= FlareSolverr 配置 =================
 
-const FLARE_URL = 'http://192.168.0.101:8191/v1' 
+const FLARE_URL = 'http://192.168.31.245:8191/v1' 
 
 // ================= 请求工具 =================
 

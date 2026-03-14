@@ -8,7 +8,7 @@ import rou from "./spider/video/rou.js";
 import taiav from "./spider/video/taiav.js";
 import hanime from "./spider/video/hanime.js";
 import hanime2 from "./spider/video/hanime2.js";
-// import supjav from "./spider/video/supjav.js";
+import supjav from "./spider/video/supjav.js";
 import pron91 from "./spider/video/porn91.js";
 import haose from "./spider/video/haosetv.js";
 import pronlulu from "./spider/video/pronlulu.js";
@@ -63,6 +63,8 @@ import a123tv from "./spider/video/a123tv.js";
 import zbjh from "./spider/video/zbjh.js";
 import tt from "./spider/video/tt.js";
 import bgcg from "./spider/video/bagecg.js";
+import javrate from "./spider/video/javrate.js";
+import sefun from "./spider/video/sefun.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -84,10 +86,10 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp,a123tv, duoduo, mogg, sbjh, cj, jptt,lives,zbjh,tt,
+        douban, leijing, panta, wogg, zhizhen, nsp,a123tv, duoduo, mogg, sefun, sbjh, cj, jptt,lives,zbjh,tt,
         ai, animei,hanime, hanime2, hdm18,aowu,xjsp,
         cg51, aw51,bl51,sp51, cg91, cg911,cg007,cgw,bgcg, hl, jrkl, video91, sp91, pron91, porn99, porna91, haose, qstv, dnaav, rou,  wanwu, madou, doll,
-        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav, av18, miss, javxx, javday, missav2,missavt, rou233, xm, cableav,
+        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav,supjav, av18, miss, javxx,javrate, javday, missav2,missavt, rou233, xm, cableav,
         porncvd, pronlulu, kore, beeg, kbjfan, pornhub, ppphub, xvideos,
     ];
     const t4Data = await getT4(server)
