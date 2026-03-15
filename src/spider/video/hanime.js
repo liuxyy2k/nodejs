@@ -6,7 +6,7 @@ const site = 'https://hanime1.me';
 
 // ================= FlareSolverr 配置 =================
 
-const FLARE_URL = 'http://192.168.31.245:8191/v1' 
+const FLARE_URL = 'http://192.168.0.102:8191/v1' 
 
 async function fetch(url) {
    const resp = await axios.post(FLARE_URL, {

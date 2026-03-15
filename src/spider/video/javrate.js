@@ -6,7 +6,7 @@ const searchUrl = siteUrl + '/search/javs?search_query=';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 async function request(url) {
-    const resp = await axios.post('http://192.168.31.245:8191/v1', {
+    const resp = await axios.post('http://192.168.0.102:8191/v1', {
         cmd: 'request.get',
         url: url,
         maxTimeout: 60000,

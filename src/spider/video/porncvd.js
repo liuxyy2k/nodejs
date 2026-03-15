@@ -8,7 +8,7 @@ const headers = {
 };
 
 async function request(url) {
-    const resp = await axios.post('http://192.168.31.245:8191/v1', {
+    const resp = await axios.post('http://192.168.0.102:8191/v1', {
         cmd: 'request.get',
         url: url,
         maxTimeout: 60000,
