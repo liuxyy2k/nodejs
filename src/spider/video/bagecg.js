@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
-
+import fs from 'fs';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
@@ -14,7 +14,7 @@ async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA,
             'Referer': site + '/'
-         },
+         }
     });
     return resp.data;
 }
@@ -55,7 +55,7 @@ function extractImgFromOnload(onload) {
 
 function shouldDecrypt(url) {
     const u = (url || '').toLowerCase();
-    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/imagebj'].some(x => u.includes(x));
+    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/imagebj','/jhimage','xszc666.com'].some(x => u.includes(x));
 }
 
 function absUrl(u) {
@@ -65,11 +65,14 @@ function absUrl(u) {
     return u;
 }
 
-function aesDecrypt(buf) {
-    const key      = Buffer.from('f5d965df75336270');
-    const iv       = Buffer.from('97b60394abc2fbe1');
-    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
-    return Buffer.concat([decipher.update(buf), decipher.final()]);
+function xorDecrypt(buf) {
+    const key = [50, 48, 50, 48, 45, 122, 113, 51, 45, 56, 56, 56];
+    const on = 100;
+    const out = Buffer.from(buf); // 复制一份
+    for (let i = 0; i < on; i++) {
+        out[i] ^= key[i % key.length];
+    }
+    return out;
 }
 
 function e64(s) {
@@ -189,31 +192,36 @@ async function search(inReq, _outResp) {
     return { list };
 }
 
+// imgProxy 里换成 xorDecrypt，加上条件判断
 async function imgProxy(inReq, reply) {
     try {
         let raw = d64(inReq.query.url);
+        
         const match = raw.match(/loadBannerDirect\('([^']*)'/);
         if (match) raw = match[1];
-        if (!raw) return reply.code(404).send('');
-
+    
         const resp = await axios.get(raw, {
-            headers: {
-                'User-Agent': UA,
-                'Referer':    `${site}/`,
-                'Origin':     site,
-            },
+            headers: { 'User-Agent': UA, 'Referer': `${site}/`, 'Origin': site },
             responseType: 'arraybuffer',
-            timeout:      10000,
+            timeout: 10000,
         });
 
-        const decrypted = aesDecrypt(Buffer.from(resp.data));
-        let   ct        = 'image/jpeg';
-        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
-        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+        const buf = shouldDecrypt(raw)
+            ? xorDecrypt(Buffer.from(resp.data))
+            : Buffer.from(resp.data);
 
-        reply.header('Content-Type', ct).send(decrypted);
+
+        let ct = 'image/jpeg';
+        if (buf[0] === 0x89 && buf[1] === 0x50) ct = 'image/png';
+        else if (buf.slice(0, 4).toString() === 'GIF8') ct = 'image/gif';
+
+        reply
+            .header('Content-Type', ct)
+            .header('Content-Length', buf.length)
+            .header('Cache-Control', 'no-cache')
+            .send(buf);
     } catch (e) {
-        console.error('imgProxy error:', e.message);
+        console.error('imgProxy error:', e.message, e.stack);
         reply.code(500).send('');
     }
 }
