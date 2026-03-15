@@ -1,5 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import CryptoJS from "crypto-js"
 import { load } from 'cheerio';
 
 const UA   = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0';
@@ -48,11 +49,16 @@ function base64Decode(str) {
 }
 
 // 对应 decrypt(d) — AES-256-CBC，key='2890'+uid+'tB959C'，iv='2F131BE91247866E'
-function decryptUrl(d, uid) {
-    const key      = Buffer.from('2890' + uid + 'tB959C', 'utf-8');
-    const iv       = Buffer.from('2F131BE91247866E', 'utf-8');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    return Buffer.concat([decipher.update(Buffer.from(d, 'base64')), decipher.final()]).toString('utf-8');
+function decrypt(d, uid){
+    const key = CryptoJS.enc.Utf8.parse("2890" + uid + "tB959C")
+    const iv  = CryptoJS.enc.Utf8.parse("2F131BE91247866E")
+    const decrypted = CryptoJS.AES.decrypt(d, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+    })
+
+    return CryptoJS.enc.Utf8.stringify(decrypted)
 }
 
 // ─── API 处理函数 ──────────────────────────────────────────────────────────
@@ -154,7 +160,7 @@ async function play(inReq, _outResp) {
         const from     = config.from;
         const id       = config.link.split('/').pop().split('-')[0];
         const jxUrl    = PLAYER_CONFIG[from]?.parse || '';
-
+        
         if (!jxUrl) {
             // 走 index.php → art.php 流程
             const indexUrl  = `${site}/addons/dp/player/index.php?key=0&id=${id}&uid=0&from=${from}&url=${videoUrl}}`;
@@ -169,8 +175,10 @@ async function play(inReq, _outResp) {
         } else if (jxUrl.includes('ec.php')) {
             // 走 ec.php → ConFig 解密流程
             const jxData  = await fetch(jxUrl + videoUrl);
+            
             const conFig  = JSON.parse(jxData.match(/ConFig\s*=\s*({[\s\S]*?})\s*,\s*box/)[1]);
-            const playUrl = decryptUrl(conFig.url, conFig.config.uid);
+            console.log(conFig)
+            const playUrl = decrypt(conFig.url, conFig.config.uid);
             return { parse: 0, url: playUrl, header: { 'User-Agent': UA } };
         } else {
             // 其他有 jxUrl 的线路，直接走解析地址
