@@ -1,207 +1,143 @@
-import axios from "axios";
-import { load } from "cheerio";
+import axios from 'axios';
+import { load } from 'cheerio';
 
-const siteUrl = "https://supjav.com/zh";
-const headers = {
-    "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-};
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
+const site = 'https://supjav.com/zh';
 
-// FlareSolverr
 async function request(url) {
-    const resp = await axios.post("http://192.168.31.245:8191/v1", {
-        cmd: "request.get",
-        url,
+    const resp = await axios.post('http://192.168.0.102:8191/v1', {
+        cmd: 'request.get',
+        url: url,
         maxTimeout: 60000,
     });
     return resp.data.solution.response;
 }
 
 function parseVods($) {
-    const list = [];
-
-    $(".post").each((_, e) => {
-        const href = $(e).find("a").attr("href") || "";
-        const title = $(e).find("a").attr("title") || "";
-        const pic = $(e)
-            .find("img")
-            .attr("src")
-            ?.replace("!320x216.jpg", "") || "";
-
-        list.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: pic,
-            vod_remarks: "",
+    const cards = [];
+    $('.post').each((_, e) => {
+        const href    = $(e).find('a').attr('href') || '';
+        const title   = $(e).find('a').attr('title') || '';
+        const cover   = ($(e).find('a img').attr('src') || '').replace('!320x216.jpg', '');
+        const remarks = $(e).find('.con .meta .date').text().trim();
+        cards.push({
+            vod_id:      href,
+            vod_name:    title,
+            vod_pic:     cover,
+            vod_remarks: remarks,
         });
     });
-
-    return list;
+    return cards;
 }
 
-async function init() {
+async function init(_inReq, _outResp) {
     return {};
 }
 
-async function home() {
+async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: "popular", type_name: "热门" },
-        { type_id: "category/censored-jav", type_name: "有码" },
-        { type_id: "category/uncensored-jav", type_name: "无码" },
-        { type_id: "category/amateur", type_name: "素人" },
-        { type_id: "category/chinese-subtitles", type_name: "中文字幕" },
+        { type_id: 'popular',                     type_name: '热门'     },
+        { type_id: 'category/censored-jav',       type_name: '有码'     },
+        { type_id: 'category/uncensored-jav',     type_name: '无码'     },
+        { type_id: 'category/amateur',            type_name: '素人'     },
+        { type_id: 'category/chinese-subtitles',  type_name: '中文字幕' },
+        { type_id: 'category/reducing-mosaic',    type_name: '无码破解' },
     ];
-
     return { class: classes, filters: {} };
 }
 
-async function category(inReq) {
-    const tid = inReq.body.id;
-    const pg = inReq.body.page || 1;
+async function category(inReq, _outResp) {
+    const tid  = inReq.body.id;
+    const page = parseInt(inReq.body.page) || 1;
 
-    const url = `${siteUrl}/${tid}/page/${pg}`;
+    const html = await request(`${site}/${tid}/page/${page}`);
+    const $    = load(html);
 
-    const html = await request(url);
-
-    const $ = load(html);
+    if ($('title').text() === 'Just a moment...') {
+        throw new Error('Cloudflare challenge detected, please open in browser first.');
+    }
 
     const list = parseVods($);
-
-    return {
-        page: parseInt(pg),
-        pagecount: parseInt(pg) + 1,
-        limit: 20,
-        total: (parseInt(pg) + 1) * 20,
-        list,
-    };
+    return { page, pagecount: page + 1, list };
 }
 
-async function detail(inReq) {
-    const id = inReq.body.id;
-
+async function detail(inReq, _outResp) {
+    const id   = inReq.body.id;
     const html = await request(id);
+    const $    = load(html);
 
-    const $ = load(html);
-
-    const name = $("h1").text().trim();
-    const pic = $(".post img").attr("src") || "";
+    const name = $('meta[name="keywords"]').attr('content') || '';
+    const des  = $('meta[name="description"]').attr('content') || '';
 
     const tracks = [];
-
-    $("a.btn-server").each((_, e) => {
-        const name = $(e).text().trim();
-        const data = $(e).attr("data-link");
-
-        tracks.push(`${name}$${data}`);
+    $('a.btn-server').each((_, e) => {
+        const trackName = $(e).text().trim();
+        const dataLink  = $(e).attr('data-link') || '';
+        if(trackName !== 'TV') return
+        tracks.push(`${trackName}$${dataLink}`);
     });
+    
+     let data = tracks[0].split('$')[1]
+     const param = data.split('').reverse().join('');
+     const url   = `https://lk1.supremejav.com/supjav.php?c=${param}`;
 
-    return {
-        list: [
-            {
-                vod_id: id,
-                vod_name: name,
-                vod_pic: pic,
-                vod_play_from: "SupJav",
-                vod_play_url: tracks.join("#"),
-            },
-        ],
-    };
-}
-
-async function play(inReq) {
-    const data = inReq.body.id;
-    const name = inReq.body.flag || '';
-    const param = data.split("").reverse().join("");
-
-    const url = `https://lk1.supremejav.com/supjav.php?c=${param}`;
-
-    const res = await axios.get(url, {
+     const res = await axios.get(url, {
         headers: {
-            "User-Agent": headers["User-Agent"],
+            'User-Agent': UA,
             Referer: `https://lk1.supremejav.com/supjav.php?l=${data}&bg=undefined`,
         },
     });
-    const m3u8 = []
-    let playUrl = "";
-    if (name === 'TV') {
-        const $ = load(res.data);
-        playUrl = $('#video_player').attr('data-hash')
-        // const resm3U8 = await axios.get(playUrl, {
-        //     headers: {
-        //         "User-Agent": headers["User-Agent"],
-        //         Referer: `https://turbovidhls.com/`,
-        //     },
-        // });
-        
-        // playUrl = getBestM3U8(resm3U8.data)
-
-    } else if (name === 'FST') {
-        const $ = load(res.data);
-        $('script').each((_, e) => {
-            if ($(e).text().includes('eval')) {
-                const script = $(e).text().replace('eval', '');
-                const result = eval(script);
-                playUrl = 'https://fc2stream.tv' + result.match(/"hls4":"([^"]+)"/)[1] 
-            }
-        });
-        // const resm3U8 = await axios.get(playUrl, {
-        //     headers: {
-        //         "User-Agent": headers["User-Agent"],
-        //         Referer: `https://fc2stream.tv/`,
-        //     },
-        // });
-        // playUrl = getBestM3U8(resm3U8.data)
-
-    } else if (name === 'ST') {
-        const $ = load(res);
-        let robot = $('#robotlink').text();
-        robot = robot.substring(0, robot.indexOf('&token=') + 7);
-        $('script').each((_, e) => {
-            const script = $(e).text();
-            if (script.includes("getElementById('robotlink')")) {
-                const token = script.split('&token=')[1].split("'")[0];
-                playUrl = 'https:/' + robot + token + '&stream=1';
-            }
-        });
-
-    } else if (name === 'VOE') {
-        const location = res.match(/window\.location\.href = '(.*?)';/)[1];
-        const locres = await request(location);
-        playUrl = locres.match(/prompt\("Node", "(.*?)"\);/)[1];
-    }
-
-
-    return {
-        parse: 0,
-        url: playUrl,
-        header: {
-            Referer: name === 'TV'? "https://turbovidhls.com/" : "https://fc2stream.tv/",
-            "User-Agent": headers["User-Agent"],
+    const el = load(res.data);
+    let playUrl = el('#video_player').attr('data-hash')
+    const resm3U8 = await axios.get(playUrl, {
+        headers: {
+            "User-Agent": UA,
+            Referer: `https://turbovidhls.com/`,
         },
+    });
+    const lines = resm3U8.data.split('\n')
+    let bestUrl = []
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line.includes('#EXT-X-STREAM-INF')) {
+            const m = line.match(/RESOLUTION=\d+x(\d+)/)
+            if (m) {
+                const height = parseInt(m[1])
+                const url = lines[i + 1]?.trim()
+                bestUrl.push(`${height}$${url}`)
+            }
+        }
+    }
+    // 按分辨率从大到小排序
+    bestUrl.sort((a, b) => {
+        const h1 = parseInt(a.split('$')[0])
+        const h2 = parseInt(b.split('$')[0])
+        return h2 - h1
+    })
+    
+    return {
+        list: [{
+            vod_id:        id,
+            vod_name:      name,
+            vod_pic:       '',
+            vod_play_from: 'SupJav',
+            vod_play_url:  bestUrl.join('#'),
+            vod_content: des
+        }],
     };
 }
 
 function getBestM3U8(text) {
-
     const lines = text.split('\n')
-
     let bestUrl = ''
     let bestHeight = 0
-
     for (let i = 0; i < lines.length; i++) {
-
         const line = lines[i]
-
         if (line.includes('#EXT-X-STREAM-INF')) {
-
             const m = line.match(/RESOLUTION=\d+x(\d+)/)
-
             if (m) {
-
                 const height = parseInt(m[1])
-
                 const url = lines[i + 1]?.trim()
-
                 if (height > bestHeight) {
                     bestHeight = height
                     bestUrl = url
@@ -213,15 +149,23 @@ function getBestM3U8(text) {
     return bestUrl
 }
 
-async function search(inReq) {
-    const wd = encodeURIComponent(inReq.body.wd);
+async function play(inReq, _outResp) {
+     return {
+        parse: 0,
+        url: inReq.body.id,
+        header: {
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+            'Referer': 'https://turbovidhls.com/'
+        },
+    };
+}
 
-    const url = `${siteUrl}/page/1?s=${wd}`;
+async function search(inReq, _outResp) {
+    const text = encodeURIComponent(inReq.body.wd);
+    const page = parseInt(inReq.body.page) || 1;
 
-    const html = await request(url);
-
-    const $ = load(html);
-
+    const html = await request(`${site}/page/${page}?s=${text}`);
+    const $    = load(html);
     const list = parseVods($);
 
     return { list };
@@ -229,16 +173,16 @@ async function search(inReq) {
 
 export default {
     meta: {
-        key: "supjav",
-        name: "SupjAV",
+        key:  'supjav',
+        name: 'SupjAv',
         type: 3,
     },
     api: async (fastify) => {
-        fastify.post("/init", init);
-        fastify.post("/home", home);
-        fastify.post("/category", category);
-        fastify.post("/detail", detail);
-        fastify.post("/play", play);
-        fastify.post("/search", search);
+        fastify.post('/init',     init);
+        fastify.post('/home',     home);
+        fastify.post('/category', category);
+        fastify.post('/detail',   detail);
+        fastify.post('/play',     play);
+        fastify.post('/search',   search);
     },
 };
