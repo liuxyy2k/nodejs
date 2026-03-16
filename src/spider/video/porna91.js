@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
-
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91porna.com';
 
@@ -33,7 +32,7 @@ function extractImgFromOnload(onload) {
 
 function shouldDecrypt(url) {
     const u = (url || '').toLowerCase();
-    return ['pic.gylhaa.cn', 'new.slfpld.cn', '/upload_01/', '/upload/'].some(x => u.includes(x));
+    return ['pic.gylhaa.cn','pic.mpevng.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
 }
 
 function absUrl(u) {
