@@ -51,7 +51,7 @@ async function home(_inReq, _outResp) {
         const name = $(e).find('.btn-categories__title').text().trim();
         const info = $(e).find('.btn-categories__info').text().split(' ')[0];
         const href = $(e).find('a.btn-categories').attr('href') || '';
-        if (!name || !href) return;
+        if (!name || !href || name === 'AI AV后宮') return;
         classes.push({
             type_id:   href,
             type_name: `${name} (${info})`,
