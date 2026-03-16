@@ -18,7 +18,7 @@ function parseVods($) {
     $('.post').each((_, e) => {
         const href    = $(e).find('a').attr('href') || '';
         const title   = $(e).find('a').attr('title') || '';
-        const cover   = ($(e).find('a img').attr('src') || '').replace('!320x216.jpg', '');
+        const cover   = ($(e).find('.thumb').attr('data-original') || '').replace('!320x216.jpg', '');
         const remarks = $(e).find('.con .meta .date').text().trim();
         cards.push({
             vod_id:      href,
