@@ -46,6 +46,7 @@
     "crypto-js": "^4.2.0",
     "cycletls": "^2.0.5",
     "dayjs": "1.11.10",
+    "dotenv": "^17.3.1",
     "esbuild-server": "0.3.0",
     "fastify": "4.26.0",
     "got-scraping": "^4.2.1",
