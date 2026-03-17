@@ -52,7 +52,6 @@ async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
     const url = `${site}${tid}page/${page}/`
-    console.log(url)
     const html = await request(url);
     const $    = load(html);
     const list = parseCards($);
@@ -112,10 +111,41 @@ async function play(inReq, _outResp) {
             playUrl = hls4
         }
     }
-    const domain = new URL(url).hostname;
+    const domain = 'https://' +  new URL(url).hostname;
+    const m3u8 = domain + playUrl
+    const resm3U8 = await axios.get(m3u8, {
+        headers: {
+            "User-Agent": UA,
+            Referer: url + '/',
+        },
+    });
+    const lines = resm3U8.data.split('\n')
+    let best = {
+        height: 0,
+        url: ''
+    };
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (line.includes('#EXT-X-STREAM-INF')) {
+            const m = line.match(/RESOLUTION=\d+x(\d+)/);
+            if (m) {
+                const height = parseInt(m[1]);
+                const url = lines[i + 1]?.trim();
+
+                if (url && height > best.height) {
+                    best.height = height;
+                    best.url = url;
+                }
+            }
+        }
+    }
+
+    const newUrl = m3u8.replace("master.m3u8", best.url);
      return {
         parse: 0,
-        url: domain + playUrl,
+        url: newUrl,
         header: { 'User-Agent': UA,
                 'Referer': url
          },
