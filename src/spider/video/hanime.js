@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import 'dotenv/config'
+import { config } from './config.js';
 
 const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Mobile/15E148 Safari/604.1';
 const site = 'https://hanime1.me';
 
 // ================= FlareSolverr 配置 =================
 
-const FLARE_URL = process.env.FLARE_URL || 'http://192.168.0.102:8191/v1';
+const FLARE_URL = config.FLARE_URL;
 
 async function fetch(url) {
    const resp = await axios.post(FLARE_URL, {

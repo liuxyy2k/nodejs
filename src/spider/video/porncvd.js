@@ -1,15 +1,14 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import 'dotenv/config'
+import { config } from './config.js';
+
+const FLARE_URL = config.FLARE_URL;
 
 const siteUrl = 'https://porncvd.com';
 const searchUrl = siteUrl + '/search/javs?search_query=';
-
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
-
-const FLARE_URL = process.env.FLARE_URL || 'http://192.168.0.102:8191/v1';
 
 async function request(url) {
     const resp = await axios.post(FLARE_URL, {

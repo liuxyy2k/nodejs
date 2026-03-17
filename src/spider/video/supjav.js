@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import 'dotenv/config'
+import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://supjav.com/zh';
 
-const FLARE_URL = process.env.FLARE_URL || 'http://192.168.0.102:8191/v1';
+const FLARE_URL = config.FLARE_URL;
 
 async function request(url) {
     const resp = await axios.post(FLARE_URL, {

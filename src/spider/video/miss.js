@@ -1,6 +1,6 @@
 import axios from "axios"
 import { load } from "cheerio"
-import 'dotenv/config'
+import { config } from './config.js';
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 
@@ -12,7 +12,7 @@ const KEY_COOKIE = "/missavCookie"
 
 // ================= FlareSolverr 配置 =================
 
-const FLARE_URL = process.env.FLARE_URL || 'http://192.168.0.102:8191/v1';
+const FLARE_URL = config.FLARE_URL;
 
 // ================= 请求工具 =================
 
