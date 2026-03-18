@@ -36,14 +36,14 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: '/censored/',                       type_name: '有码'},
-        { type_id: '/uncensored/',                   type_name: '无码'},
-        { type_id: '/amature/',                 type_name: '素人'},
-        { type_id: '/fc2ppv/',                type_name: 'FC2'},
+        { type_id: '/censored/',         type_name: '有码'},
+        { type_id: '/uncensored/',       type_name: '无码'},
+        { type_id: '/amature/',          type_name: '素人'},
+        { type_id: '/fc2ppv/',           type_name: 'FC2'},
         { type_id: '/vr/',               type_name: 'VR'},
-        { type_id: '/trend/',                   type_name: '热度' },
-        { type_id: '/popularity/',                  type_name: '人气' },
-        { type_id: '/uncensored',                type_name: '无码' }
+        { type_id: '/trend/',            type_name: '热度' },
+        { type_id: '/popularity/',       type_name: '人气' },
+        { type_id: '/uncensored',        type_name: '无码' }
     ];
     return { class: classes, filters: {}};
 }
@@ -77,9 +77,11 @@ async function detail(inReq, _outResp) {
             [...unpacked.matchAll(/https?:\/\/[^"' ]+\/[ev]\/[a-z0-9]+/gi)]
             .map(v => v[0])
         )]
-        playUrl= urls[0]
         
-
+        playUrl = urls.map((url, index) => {
+            return `线路${index + 1}$${url}`;
+        }).join('#');
+        
     }   
     return {
         list: [{
@@ -87,7 +89,7 @@ async function detail(inReq, _outResp) {
             vod_name:      name,
             vod_pic:       pic,
             vod_play_from: 'TwoJav',
-            vod_play_url:  `播放$${playUrl}`,
+            vod_play_url:  playUrl,
             vod_content: des
         }],
     };

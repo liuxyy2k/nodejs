@@ -110,7 +110,7 @@ async function detail(inReq, _outResp) {
             vod_name: name,
             vod_pic: pic,
             vod_content: des,
-            vod_play_from: '第一吃瓜',
+            vod_play_from: '麻豆瓜网',
             vod_play_url: '播放$' + playUrl,
         }],
     };
