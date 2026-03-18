@@ -88,18 +88,7 @@ async function home(_inReq, _outResp) {
     } catch {
         // 抓取失败，使用手动分类
     }
-
-    // 首页视频
-    let list = [];
-    try {
-        const data = await request(site);
-        const $    = load(data);
-        list = $('.video-list .avdata-outer').toArray()
-            .map((el) => parseVideoItem($, el))
-            .filter(Boolean);
-    } catch { /* ignore */ }
-
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
