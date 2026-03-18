@@ -68,6 +68,8 @@ async function detail(inReq, _outResp) {
     const des  = $('#post-content').text() || '';
     let pic  = $('#iframe img').attr('src') || '';
     let playUrl = ''
+    let vod_play_from = '';
+    let vod_play_url = '';
     const reg = /<script>\s*eval\(function\(p,a,c,k,e,d\)[\s\S]*?\)\)\s*<\/script>/
     const match = html.match(reg)
     if (match) {
@@ -78,18 +80,24 @@ async function detail(inReq, _outResp) {
             .map(v => v[0])
         )]
         
-        playUrl = urls.map((url, index) => {
-            return `线路${index + 1}$${url}`;
-        }).join('#');
-        
+        const fromArr = [];
+        const urlArr = [];
+
+        urls.forEach((url, index) => {
+            fromArr.push(`线路${index + 1}`);
+            urlArr.push(`播放$${url}`);
+        });
+
+        vod_play_from = fromArr.join('$$$');
+        vod_play_url = urlArr.join('$$$');
     }   
     return {
         list: [{
             vod_id:        href,
             vod_name:      name,
             vod_pic:       pic,
-            vod_play_from: 'TwoJav',
-            vod_play_url:  playUrl,
+            vod_play_from: vod_play_from,
+            vod_play_url:  vod_play_url,
             vod_content: des
         }],
     };
