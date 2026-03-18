@@ -1,0 +1,137 @@
+import axios from 'axios';
+
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+const site = 'https://chaturbate.com';
+
+// ─── HTTP Client ──────────────────────────────────────────────────────────────
+
+const http = axios.create({
+    timeout: 10_000,
+    headers: { 'User-Agent': UA },
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatRoom(r) {
+    const age = r.display_age ? ` (${r.display_age})` : '';
+    return {
+        vod_id:      r.username,
+        vod_name:    `${r.username}${age}`,
+        vod_pic:     r.img || '',
+        vod_remarks: '',
+    };
+}
+
+// ─── Handlers ─────────────────────────────────────────────────────────────────
+
+async function init(_inReq, _outResp) {
+    return {};
+}
+
+async function home(_inReq, _outResp) {
+    return {
+        class: [
+            { type_id: 'f', type_name: '女性' },
+            { type_id: 'm', type_name: '男性' },
+            { type_id: 'c', type_name: '情侣' },
+        ],
+        list:    [],
+        filters: {},
+    };
+}
+
+async function category(inReq, _outResp) {
+    const tid    = inReq.body.id;
+    const pg     = parseInt(inReq.body.page) || 0;
+    const gender = { f: 'f', m: 'm', c: 'c' }[tid] ?? '';
+
+    const { data } = await http.get(`${site}/api/ts/roomlist/room-list/`, {
+        params: {
+            enable_recommendations: false,
+            genders: gender,
+            limit:   90,
+            offset:  pg * 90,
+        },
+    });
+
+    const total = data.total_count || 0;
+    const list  = (data.rooms || []).map(formatRoom);
+
+    return {
+        page:      pg + 1,
+        pagecount: Math.ceil(total / 90),
+        limit:     90,
+        total,
+        list,
+    };
+}
+
+async function detail(inReq, _outResp) {
+    const id = inReq.body.id;
+    return {
+        list: [{
+            vod_id:        id,
+            vod_name:      `Chaturbate - ${id}`,
+            vod_pic:       '',
+            vod_play_from: 'Chaturbate',
+            vod_play_url:  `直播源$${id}`,
+        }],
+    };
+}
+
+async function play(inReq, _outResp) {
+    const id = inReq.body.id;
+
+    let playUrl = id;
+    try {
+        const { data } = await http.post(
+            `${site}/get_edge_hls_url_ajax/`,
+            new URLSearchParams({ room_slug: id }),
+            { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+        );
+        playUrl = data.url || id;
+    } catch {
+        playUrl = id;
+    }
+
+    return {
+        parse:  0,
+        url:    playUrl,
+        header: { 'X-Requested-With': 'XMLHttpRequest' },
+    };
+}
+
+async function search(inReq, _outResp) {
+    const key = inReq.body.wd || '';
+    const pg  = parseInt(inReq.body.pg) || 0;
+
+    const { data } = await http.get(`${site}/api/ts/roomlist/room-list/`, {
+        params: {
+            enable_recommendations: false,
+            limit:  90,
+            offset: pg * 90,
+            query:  key,
+        },
+    });
+
+    const list = (data.rooms || []).map(formatRoom);
+    return { list };
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+
+export default {
+    meta: {
+        key:  'chaturbate',
+        name: 'Chaturbate直播',
+        type: 3,
+    },
+    api: async (fastify) => {
+        fastify.post('/init',     init);
+        fastify.post('/home',     home);
+        fastify.post('/category', category);
+        fastify.post('/detail',   detail);
+        fastify.post('/play',     play);
+        fastify.post('/search',   search);
+    },
+};
