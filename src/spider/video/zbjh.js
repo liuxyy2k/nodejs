@@ -59,23 +59,60 @@ function processKey(key) {
     return ['girls', key.strip?.() ?? key.trim()];
 }
 
-// 对应 Python process_m3u8_content_v2
 function processM3u8Content(m3u8) {
-    const lines = m3u8.trim().split('\n');
+    const lines = m3u8.split('\n');
+    const result = [];
+    let lastMouflon = null; // 暂存上一条 MOUFLON 真实 URL
+
     for (let i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('#EXT-X-MOUFLON:FILE:') && lines[i + 1]?.includes('media.mp4')) {
-            // 对应 Python: line.split(':', 2)[2].strip()
-            const encryptedData = lines[i].split(':').slice(2).join(':').trim();
-            let decrypted;
-            try {
-                decrypted = decrypt(encryptedData, stripchatKey);
-            } catch {
-                decrypted = decrypt(encryptedData, 'Zokee2OhPh9kugh4');
-            }
-            lines[i + 1] = lines[i + 1].replace('media.mp4', decrypted);
+        let line = lines[i].trim();
+
+        if (line.startsWith('#EXT-X-MOUFLON:PSCH')) {
+            line = '#EXT-X-MOUFLON:PSCH:v2:Ook7quaiNgiyuhai';
         }
+
+        if (line.startsWith('#EXT-X-MOUFLON:URI:')) {
+            let url = line.split(':').slice(2).join(':').trim();
+
+            // 仅当 Mouflon 本身指向 media.mp4 时才解密（极少情况）
+            if (url.includes('media.mp4')) {
+                url = decrypt(url, stripchatKey);
+            }
+
+            lastMouflon = url; // ← 保存给下一个 PART 用
+
+            const sep = url.includes('?') ? '&' : '?';
+            const proxied = `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=` +
+                encodeURIComponent(url + `${sep}psch=v2&pkey=Ook7quaiNgiyuhai`);
+            line = `#EXT-X-MOUFLON:URI:${proxied}`;
+        }
+
+        if (line.startsWith('#EXT-X-PART:')) {
+            const match = line.match(/URI="(.+?)"/);
+            if (match) {
+                let partUrl = match[1];
+
+                // ✅ 占位符 → 用上方 MOUFLON 的真实 URL 替换
+                if (partUrl.includes('media.mp4')) {
+                    if (!lastMouflon) {
+                        result.push(line);
+                        continue; // 找不到对应 Mouflon，跳过
+                    }
+                    partUrl = lastMouflon;
+                    lastMouflon = null; // 消费掉
+                }
+
+                const sep = partUrl.includes('?') ? '&' : '?';
+                const proxied = `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=` +
+                    encodeURIComponent(partUrl + `${sep}psch=v2&pkey=Ook7quaiNgiyuhai`);
+                line = line.replace(match[1], proxied);
+            }
+        }
+
+        result.push(line);
     }
-    return lines.join('\n');
+
+    return result.join('\n');
 }
 
 // ─── API 处理函数 ──────────────────────────────────────────────────────────
@@ -194,19 +231,36 @@ async function search(inReq, _outResp) {
 }
 
 async function play(inReq, _outResp) {
+    if (!stripchatKey) stripchatKey = decodeKeyCompact();
 
-    const id = inReq.body.id;
+    const id    = inReq.body.id;
+    const proxy = `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=`;
 
-    const master =
-        `https://edge-hls.doppiocdn.net/hls/${id}/master/${id}_auto.m3u8?playlistType=lowLatency`;
+    // ✅ 去掉 lowLatency，改用普通直播流
+    const master = `https://edge-hls.doppiocdn.net/hls/${id}/master/${id}_auto.m3u8`;
 
-    const proxy =
-        `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=`;
+    const resm3U8 = await axios.get(master, { headers: HEADERS, timeout: 10000 });
+    const lines   = resm3U8.data.split('\n');
+    let best      = { height: 0, url: '' };
 
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('#EXT-X-STREAM-INF')) {
+            const m = lines[i].match(/RESOLUTION=\d+x(\d+)/);
+            if (m) {
+                const height = parseInt(m[1]);
+                const url    = lines[i + 1]?.trim();
+                if (url && height > best.height) best = { height, url };
+            }
+        }
+    }
+
+    if (!best.url) throw new Error('no valid stream found');
+
+    // 普通流不需要 psch 参数
     return {
         parse: 0,
-        url: proxy + encodeURIComponent(master),
-        header: HEADERS
+        url:   proxy + encodeURIComponent(best.url),
+        header: HEADERS,
     };
 }
 
@@ -216,50 +270,51 @@ async function play(inReq, _outResp) {
 async function localProxy(inReq, reply) {
 
     const url = decodeURIComponent(inReq.query.url || '');
-
     if (!url)
         return reply.code(404).type('text/plain').send('');
 
     let text = '';
 
     try {
-
         const resp = await axios.get(url, {
             headers: HEADERS,
             timeout: 10000,
             responseType: 'text'
         });
-
         text = resp.data;
-
     } catch {
         return reply.code(404).type('text/plain').send('');
     }
 
-    // Mouflon 解密
-    if (text.includes('#EXT-X-MOUFLON:FILE')) {
+    // ✅ 修复：触发 Mouflon
+    if (text.includes('#EXT-X-MOUFLON')) {
         text = processM3u8Content(text);
     }
 
-    // master.m3u8 线路代理
-    if (text.includes('#EXT-X-STREAM-INF')) {
+    const lines = text.split('\n');
+    const base = new URL(url);
 
-        const lines = text.split('\n');
-
-        for (let i = 0; i < lines.length; i++) {
-
-            if (!lines[i].startsWith('#') && lines[i].includes('.m3u8')) {
-
-                const u = lines[i].trim();
-
-                lines[i] =
-                    `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=` +
-                    encodeURIComponent(u);
-            }
+    for (let i = 0; i < lines.length; i++) {
+        // ✅ 处理 #EXT-X-MAP
+        if (lines[i].startsWith('#EXT-X-MAP:URI="')) {
+            lines[i] = lines[i].replace(
+                /URI="(.+?)"/,
+                (_, u) => `URI="${proxy}${encodeURIComponent(u)}"`
+            );
+            continue;
         }
 
-        text = lines.join('\n');
+        if (!lines[i].startsWith('#')) {
+            let u = lines[i].trim();
+            if (!u) continue;
+            if (u.startsWith(`http://127.0.0.1:${PORT}`)) continue; // 防双重代理
+            u = new URL(u, base).toString();
+            lines[i] = proxy + encodeURIComponent(u);
+        }
     }
+
+    // ❗你之前漏了这句
+    text = lines.join('\n');
 
     reply
         .header('Content-Type', 'application/vnd.apple.mpegurl')
