@@ -1,8 +1,21 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';  // npm i cheerio
+import { load } from 'cheerio';  // npm i cheerio
+
+import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://theporn.cc';
+
+const FLARE_URL = config.FLARE_URL;
+
+async function request(url) {
+    const resp = await axios.post(FLARE_URL, {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
+    });
+    return resp.data.solution.response;
+}
 
 // ─── HTTP Client ──────────────────────────────────────────────────────────────
 
@@ -58,8 +71,8 @@ async function home(_inReq, _outResp) {
     let classes = [...MANUAL_CLASSES];
 
     try {
-        const { data } = await http.get(`${site}/categories`);
-        const $ = cheerio.load(data);
+        const data = await request(`${site}/categories`);
+        const $    = load(data);
         const seen = new Set(classes.map((c) => c.type_id));
 
         $('.categories_list .categorie_item').each((_, el) => {
@@ -79,8 +92,8 @@ async function home(_inReq, _outResp) {
     // 首页视频
     let list = [];
     try {
-        const { data } = await http.get(site);
-        const $ = cheerio.load(data);
+        const data = await request(site);
+        const $    = load(data);
         list = $('.video-list .avdata-outer').toArray()
             .map((el) => parseVideoItem($, el))
             .filter(Boolean);
@@ -94,8 +107,8 @@ async function category(inReq, _outResp) {
     const pg   = parseInt(inReq.body.page) || 1;
     const url  = pg === 1 ? `${site}/${tid}` : `${site}/${tid}/${pg}`;
 
-    const { data } = await http.get(url);
-    const $ = cheerio.load(data);
+    const data = await request(url);
+    const $    = load(data);
 
     let list = [];
     for (const selector of ['.video-list .avdata-outer', '.avdata-outer', '.video-list .card']) {
@@ -123,8 +136,8 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const tid = inReq.body.id;
-    const { data } = await http.get(`${site}/video/${tid}`);
-    const $ = cheerio.load(data);
+    const data = await request(`${site}/video/${tid}`);
+    const $    = load(data);
 
     let title = $('title').text().replace(' - ThePorn', '').trim()
              || $('.av-big-title .inner-title').text().trim();
@@ -155,8 +168,8 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     const id = inReq.body.id;
-    const { data } = await http.get(`${site}/video/${id}`);
-    const $ = cheerio.load(data);
+    const data = await request(`${site}/video/${id}`);
+    const $    = load(data);
 
     let src = '';
 
@@ -187,8 +200,8 @@ async function search(inReq, _outResp) {
     const pg  = parseInt(inReq.body.pg) || 1;
     const url = pg === 1 ? `${site}/search/${key}` : `${site}/search/${key}/${pg}`;
 
-    const { data } = await http.get(url);
-    const $ = cheerio.load(data);
+    const data = await request(url);
+    const $    = load(data);
 
     for (const selector of ['.search-results .video-item', '.video-list .avdata-outer', '.avdata-outer']) {
         const els = $(selector).toArray();
