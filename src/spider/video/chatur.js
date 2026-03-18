@@ -90,6 +90,35 @@ async function play(inReq, _outResp) {
             { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
         );
         playUrl = data.url || id;
+        const resm3U8 = await axios.get(playUrl, {
+            headers: {
+                "User-Agent": UA,
+                Referer: site + '/',
+            },
+        });
+
+        const lines = resm3U8.data.split('\n')
+        let best = {
+            height: 0,
+            url: ''
+        };
+    
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.includes('#EXT-X-STREAM-INF')) {
+                const m = line.match(/RESOLUTION=\d+x(\d+)/);
+                if (m) {
+                    const height = parseInt(m[1]);
+                    const url = lines[i + 1]?.trim();
+                    if (url && height > best.height) {
+                        best.height = height;
+                        best.url = url;
+                    }
+                }
+            }
+        }
+        playUrl = new URL(best.url, playUrl).href;
     } catch {
         playUrl = id;
     }
@@ -97,7 +126,7 @@ async function play(inReq, _outResp) {
     return {
         parse:  0,
         url:    playUrl,
-        header: { 'X-Requested-With': 'XMLHttpRequest' },
+        header: { 'X-Requested-With': 'XMLHttpRequest','Referer': site+ '/','User-Agent': UA },
     };
 }
 
