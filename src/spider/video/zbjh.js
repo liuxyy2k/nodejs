@@ -268,6 +268,7 @@ async function play(inReq, _outResp) {
 // 注意：原版没有 403 fallback，直接非 200 就返回 404
 
 async function localProxy(inReq, reply) {
+    const proxy = `http://127.0.0.1:${PORT}/spider/stripol/3/proxy?url=`;
 
     const url = decodeURIComponent(inReq.query.url || '');
     if (!url)
