@@ -50,7 +50,17 @@ async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
     let url  = `${site}${tid}`
-    if(page > 1) url = `${url}?mode=async&function=get_block&block_id=list_videos_most_recent_videos&sort_by=post_date&from=${page}&_=${Date.now()}`
+    let block = 'list_videos_most_recent_videos'
+    if (tid === '/latest-updates/') {
+        block = 'list_videos_latest_videos_list'
+    } else if (tid === '/4k/') {
+        block = 'list_videos_latest_videos_list'
+    } else if (tid === '/top-rated/') {
+        block = 'list_videos_common_videos_list'
+    } else if (tid === '/top-rated/') {
+        block = 'list_videos_common_videos_list'
+    }
+    if(page > 1) url = `${url}?mode=async&function=get_block&block_id=${block}&sort_by=post_date&from=${page}&_=${Date.now()}`
     const html = await request(url);
     const $    = load(html);
     const list = parseCards($);
