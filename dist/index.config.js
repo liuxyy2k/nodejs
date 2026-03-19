@@ -23,6 +23,32 @@ __export(index_config_exports, {
 });
 module.exports = __toCommonJS(index_config_exports);
 var index_config_default = {
+  //弹幕
+  live: {
+    url: [
+      {
+        "name": "b站",
+        "url": "https://sub.ottiptv.cc/bililive.m3u",
+        "ua": "AptvPlayer-UA"
+      },
+      {
+        "name": "iptv",
+        "url": "https://cdn.jsdelivr.net/gh/Kimentanm/aptv/m3u/iptv.m3u"
+      },
+      {
+        "name": "虎牙",
+        "url": "https://sub.ottiptv.cc/huyayqk.m3u"
+      },
+      {
+        "name": "斗鱼",
+        "url": "https://sub.ottiptv.cc/douyuyqk.m3u"
+      },
+      {
+        "name": "轮播",
+        "url": "https://sub.ottiptv.cc/yylunbo.m3u"
+      }
+    ]
+  },
   ali: {
     token: "",
     token280: "token280"
