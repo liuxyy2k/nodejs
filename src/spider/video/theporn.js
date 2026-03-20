@@ -208,7 +208,7 @@ export default {
     meta: {
         key:  'theporn',
         name: 'ThePorn',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);

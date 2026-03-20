@@ -11,7 +11,8 @@
     "build:config": "cross-env NODE_ENV=production node esbuild-config.js",
     "build:rollup(obsolete)": "rimraf dist && cross-env NODE_ENV=production node rollup.js && cross-env NODE_ENV=production node rollup-config.js",
     "build:rollup:config(obsolete)": "cross-env NODE_ENV=production node rollup-config.js",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "start": "node server.js"
   },
   "author": "",
   "devDependencies": {
@@ -58,6 +59,7 @@
     "jsonpath-plus": "10.3.0",
     "node-json-db": "2.3.0",
     "node-rsa": "1.1.1",
+    "puppeteer": "^24.40.0",
     "qrcode": "1.5.4",
     "qs": "6.14.0",
     "react": "18.2.0",

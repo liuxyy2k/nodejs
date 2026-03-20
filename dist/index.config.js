@@ -109,23 +109,23 @@ var index_config_default = {
         address: "https://xxavs.com/api.php/provide/vod/at/json"
       },
       {
-        name: "网盘丨4K免扫码",
+        name: "网盘|4K免扫码",
         address: "https://catbox.n13.club/18/影探影视.php"
       },
       {
-        name: "斗鱼丨直播",
+        name: "斗鱼|直播",
         address: "https://catbox.n13.club/ai/斗鱼直播.php"
       },
       {
-        name: "虎牙丨直播",
+        name: "虎牙|直播",
         address: "https://php.doube.eu.org/spider/php/虎牙直播.php"
       },
       {
-        name: "酷狗丨音乐",
+        name: "酷狗|音乐",
         address: "http://sspa8.top:99/php/酷我.php"
       },
       {
-        name: "电视丨直播",
+        name: "电视|直播",
         address: "http://zhangqun1818.serv00.net/zh/2242.php"
       }
     ]

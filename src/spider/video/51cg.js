@@ -69,14 +69,24 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
+        { type_id: '',     type_name: '首页' },
         { type_id: 'wpcz', type_name: '今日吃瓜' },
-        { type_id: 'mrdg', type_name: '每日大瓜' },
+        { type_id: 'mrdg', type_name: '吃瓜榜单' },
         { type_id: 'rdsj', type_name: '热门吃瓜' },
         { type_id: 'bkdg', type_name: '必看大瓜' },
         { type_id: 'whhl', type_name: '网红黑料' },
         { type_id: 'xsxy', type_name: '学生学校' },
+        { type_id: 'ysyl', type_name: '看片娱乐' },
         { type_id: 'whmx', type_name: '明星黑料' },
         { type_id: 'thjx', type_name: '探花精选' },
+        { type_id: 'gcjq', type_name: '国产剧情' },
+        { type_id: 'whhj', type_name: '网黄合集' },
+        { type_id: 'lldd', type_name: '伦理道德' },
+        { type_id: 'snsn', type_name: '骚男骚女' },
+        { type_id: 'whmx', type_name: '明星黑料' },
+        { type_id: '51by', type_name: '51品茶' },
+        { type_id: 'yczq', type_name: '原创博主' },
+        { type_id: '51djc', type_name: '51剧场' },
     ];
 
     return { class: classes,  filters: {} };
@@ -85,8 +95,10 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    const url = `${site}/category/${tid}/${page}/`;
+    let url = `${site}/category/${tid}/${page}/`;
+    if(tid === '') {
+        url = `${site}/page/${page}/`;
+    }
     const html = await request(url);
     const $ = load(html);
     const list = await parseVods($);

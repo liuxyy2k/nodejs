@@ -5,18 +5,68 @@ import { config } from './config.js';
 const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Mobile/15E148 Safari/604.1';
 const site = 'https://hanime1.me';
 
-// ================= FlareSolverr 配置 =================
+const FLARE_URL   = config.FLARE_URL;
+const SESSION_ID  = 'hanime_session';
+const MAX_TIMEOUT = 30000; // 从 60s 降到 30s
 
-const FLARE_URL = config.FLARE_URL;
+// ================= Session 管理 =================
+
+let sessionReady = false;
+
+async function ensureSession() {
+    if (sessionReady) return;
+    try {
+        // 先销毁旧 session（防止重启后残留）
+        await axios.post(FLARE_URL, {
+            cmd: 'sessions.destroy',
+            session: SESSION_ID,
+        }).catch(() => {}); // 不存在时忽略报错
+
+        await axios.post(FLARE_URL, {
+            cmd: 'sessions.create',
+            session: SESSION_ID,
+        });
+
+        sessionReady = true;
+        console.log('[FlareSolverr] Session created:', SESSION_ID);
+    } catch (e) {
+        console.error('[FlareSolverr] Failed to create session:', e.message);
+    }
+}
+
+// ================= 核心请求 =================
 
 async function fetch(url) {
-   const resp = await axios.post(FLARE_URL, {
-        cmd: 'request.get',
-        url: url,
-        maxTimeout: 60000,
-    });
-    return resp.data.solution.response;
+    await ensureSession();
+
+    try {
+        const resp = await axios.post(FLARE_URL, {
+            cmd:        'request.get',
+            url:        url,
+            session:    SESSION_ID,
+            maxTimeout: MAX_TIMEOUT,
+        });
+        return resp.data.solution.response;
+    } catch (e) {
+        // Session 失效时重建后重试一次
+        if (e?.response?.status === 500) {
+            console.warn('[FlareSolverr] Session may be stale, recreating...');
+            sessionReady = false;
+            await ensureSession();
+
+            const resp = await axios.post(FLARE_URL, {
+                cmd:        'request.get',
+                url:        url,
+                session:    SESSION_ID,
+                maxTimeout: MAX_TIMEOUT,
+            });
+            return resp.data.solution.response;
+        }
+        throw e;
+    }
 }
+
+// ================= 工具函数 =================
 
 function cfCheck($) {
     if ($('title').text() === 'Just a moment...') throw new Error('CF blocked');
@@ -37,7 +87,8 @@ function fixHref(href) {
 // ─── API 处理函数 ──────────────────────────────────────────────────────────
 
 async function init(_inReq, _outResp) {
-    console.log(FLARE_URL)
+    console.log('[hanime] FLARE_URL:', FLARE_URL);
+    await ensureSession(); // 启动时预热 session
     return {};
 }
 
@@ -85,7 +136,6 @@ async function category(inReq, _outResp) {
             const cover    = $(element).find('.main-thumb').attr('src');
             const likes    = $(element).find('.stat-item').eq(0).text().trim().replace('thumb_up', '').trim();
             const views    = $(element).find('.stat-item').eq(1).text().trim();
-            const duration = $(element).find('.duration').text().trim();
             const remarks  = [likes, views].filter(Boolean).join(' · ');
 
             videos.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: remarks });

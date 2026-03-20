@@ -3,9 +3,14 @@ import axios from 'axios';
 const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const api  = 'https://avdbapi.com/api.php/provide/vod';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 async function request(url, headers = {}) {
     const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA, ...headers }
+        headers: { 'User-Agent': UA, ...headers },
+        httpsAgent: agent
     });
     return typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
 }
@@ -73,18 +78,20 @@ async function play(inReq, _outResp) {
         const resp = await axios.get(url, {
             headers: { 'User-Agent': UA, 'Referer': 'https://avdbapi.com/' },
         });
-        
         const html = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
         const m3u8 = html.match(/m3u8:\s*["']([^"']+)["']/)?.[1] || '';
         const aboutlink  = html.match(/aboutlink:\s*["']([^"']+)["']/)?.[1] || '';
-        if (aboutlink && m3u8) playUrl = aboutlink + m3u8;
-    
+        if (aboutlink && m3u8) playUrl = 'https://upload18.org' + m3u8;
+        const m3u8Resp = await axios.get(playUrl, {
+            headers: { 'User-Agent': UA, 'Referer': 'https://avdbapi.com/' },
+        });
+        console.log(m3u8Resp.data)
     } catch (e) {
         console.error('embed parse error:', e.message);
     }
     return {
         parse: 0,
-        playUrl,
+        url: playUrl,
         header: {
             'User-Agent': UA,
             'Referer': `${url}/`
