@@ -76,38 +76,58 @@ var index_config_default = {
   },
   t4: {
     list: [
-      // {
-      //     name: '🔞糖心次元php',
-      //     address: 'https://caicai.us.kg/糖心次元.php',
-      // },
-      // {
-      //     name: '🔞AIvin|AV',
-      //     address: 'http://lbapiby.com/api.php/provide/vod/at/json',
-      // },
-      // {
-      //     name: '🔞桃花资源|AV',
-      //     address: 'https://thzy1.me/api.php/provide/vod/',
-      // },
-      // {
-      //     name: '🔞越南资源|AV',
-      //     address: 'https://vnzyz.com/api.php/provide/vod/',
-      // },
-      // {
-      //     name: '🔞八天资源|AV',
-      //     address: 'https://8day.icu/api.php/provide/vod/',
-      // },
-      // {
-      //     name: '🔞91视频|AV',
-      //     address: 'https://91av.cyou/api.php/provide/vod/',
-      // },
-      // {
-      //     name: '🔞小丝袜|AV',
-      //     address: 'https://www.siwazyw.tv/api.php/provide/vod/at/json',
-      // },
-      // {
-      //     name: '🔞湿园|AV',
-      //     address: 'https://xxavs.com/api.php/provide/vod/at/json',
-      // }
+      {
+        name: "糖心次元php",
+        address: "https://caicai.us.kg/糖心次元.php"
+      },
+      {
+        name: "AIvin|AV",
+        address: "http://lbapiby.com/api.php/provide/vod/at/json"
+      },
+      {
+        name: "桃花资源|AV",
+        address: "https://thzy1.me/api.php/provide/vod/"
+      },
+      {
+        name: "越南资源|AV",
+        address: "https://vnzyz.com/api.php/provide/vod/"
+      },
+      {
+        name: "八天资源|AV",
+        address: "https://8day.icu/api.php/provide/vod/"
+      },
+      {
+        name: "91视频|AV",
+        address: "https://91av.cyou/api.php/provide/vod/"
+      },
+      {
+        name: "小丝袜|AV",
+        address: "https://www.siwazyw.tv/api.php/provide/vod/at/json"
+      },
+      {
+        name: "湿园|AV",
+        address: "https://xxavs.com/api.php/provide/vod/at/json"
+      },
+      {
+        name: "网盘丨4K免扫码",
+        address: "https://catbox.n13.club/18/影探影视.php"
+      },
+      {
+        name: "斗鱼丨直播",
+        address: "https://catbox.n13.club/ai/斗鱼直播.php"
+      },
+      {
+        name: "虎牙丨直播",
+        address: "https://php.doube.eu.org/spider/php/虎牙直播.php"
+      },
+      {
+        name: "酷狗丨音乐",
+        address: "http://sspa8.top:99/php/酷我.php"
+      },
+      {
+        name: "电视丨直播",
+        address: "http://zhangqun1818.serv00.net/zh/2242.php"
+      }
     ]
   },
   cms: {
