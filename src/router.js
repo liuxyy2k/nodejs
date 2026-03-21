@@ -95,12 +95,13 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp,a123tv, duoduo, mogg, sefun, sbjh, chatur, cj, jptt, tt,
-        ai, animei,hanime, hanime2, hdm18,aowu,xjsp,
-        cg51, aw51,bl51,sp51, cg91, cg911,cg007,cgw,mdgw, bgcg,dycg, cg1024, hl, jrkl, video91, sp91, pron91, porn99, porna91,j18Tv, haose,po85, qstv, dnaav, rou,  
-        wanwu, madou, doll, avple, uua,
-        kanav, jable, hohoj, thisav, avtoday, taiav, xojav,supjav,twoJav,popjav, av18, miss, javxx,javrate, javday, missav2,missavt, rou233, xm, cableav,
-        porncvd, pronlulu, kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos,xhams
+        douban, leijing, panta, wogg, zhizhen, nsp, a123tv, duoduo, mogg, sefun, 
+        sbjh, chatur, cj, jptt, tt, ai, animei, hanime, hanime2, hdm18, aowu, xjsp,
+        cg51, aw51, bl51, sp51, cg91, cg911, cg007, cgw, mdgw, bgcg, dycg, cg1024, hl, jrkl,
+        video91, sp91, pron91, porn99, porna91, j18Tv, haose, po85, qstv, dnaav, rou, uua,
+        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu,
+        kanav, jable, hohoj, thisav, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, javxx, javrate, javday, 
+        kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos, xhams
     ];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
