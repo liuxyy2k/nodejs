@@ -84,7 +84,7 @@ export default {
                 name: '湿园|AV',
                 address: 'https://xxavs.com/api.php/provide/vod/at/json'
             },
-            {   name: "网盘|4K免扫码",
+            {   name: "网盘|4k",
                 address: "https://catbox.n13.club/18/影探影视.php"
             },
             {   name: "斗鱼|直播",

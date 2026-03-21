@@ -20,6 +20,7 @@ import dnaav from "./spider/video/dnaav.js";
 import kore from "./spider/video/kore.js";
 import ai from "./spider/video/ai.js";
 import cg51 from "./spider/video/51cg.js";
+import hlbdy from "./spider/video/hlbdy.js";
 import sp51 from "./spider/video/wysp.js";
 import cg007 from "./spider/video/cg007.js";
 import cgw from "./spider/video/cgw.js";
@@ -97,7 +98,7 @@ const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, a123tv, duoduo, mogg, sefun, 
         sbjh, chatur, cj, jptt, tt, ai, animei, hanime, hanime2, hdm18, aowu, xjsp,
-        cg51, aw51, bl51, sp51, cg91, cg911, cg007, cgw, mdgw, bgcg, dycg, cg1024, hl, jrkl,
+        cg51, aw51, bl51, sp51, cg91, cg911, cg007, cgw, mdgw, bgcg, dycg, cg1024, hl,hlbdy, jrkl,
         video91, sp91, pron91, porn99, porna91, j18Tv, haose, po85, qstv, dnaav, rou, uua,
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu,
         kanav, jable, hohoj, thisav, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, javxx, javrate, javday, 
