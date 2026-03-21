@@ -159,7 +159,6 @@ async function detail(inReq, _outResp) {
     const type  = json.props.pageProps.instance.play_source_type
     let playUrl = json.props.pageProps.instance.play
     playUrl = await buildM3u8Url(type, playUrl)
-    console.log(playUrl)
     return {
         list: [{
             vod_id:        href,
