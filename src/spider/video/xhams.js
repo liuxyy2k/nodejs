@@ -36,16 +36,17 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
+        { type_id: '/categories/asian',       type_name: '亚洲人'      },
+        { type_id: '/categories/jav',       type_name: '日本AV'      },
+        { type_id: '/categories/amateur',       type_name: '素人'      },
+        { type_id: '/categories/uncensored',       type_name: '无码'      },
+        { type_id: '/categories/18-year-old',       type_name: '十八岁'      },
+        { type_id: '/categories/milf',       type_name: '人妻'      },
         { type_id: '/newest',       type_name: 'Newest'      },
         { type_id: '/best/weekly',  type_name: 'Weekly Best' },
         { type_id: '/4k',           type_name: '4K'          },
     ];
-
-    const html = await request(`${site}/newest`);
-    const $    = load(html);
-    const list = parseCards($);
-
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
@@ -68,38 +69,41 @@ async function detail(inReq, _outResp) {
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic  = $('meta[property="og:image"]').attr('content') || '';
 
-    // 提取 initials-script 里的视频源
-    const script = $('#initials-script').text();
-
-    let playParts = [];
-    try {
-        // 用正则替代 eval，安全提取 h264 sources
-        const initialsMatch = script.match(/window\.initials\s*=\s*(\{[\s\S]+\});?\s*$/);
-        if (initialsMatch) {
-            const initials = JSON.parse(initialsMatch[1]);
-            const videos   = initials?.xplayerSettings?.sources?.standard?.h264 || [];
-            playParts = videos.map(e => `${e.label}$${e.url}`);
-        }
-    } catch (e) {
-        // 正则方式失败，尝试直接正则提取 h264 数组
-        const h264Match = script.match(/"h264"\s*:\s*(\[[\s\S]+?\])\s*,\s*"(hls|webm)"/);
-        if (h264Match) {
-            try {
-                const videos = JSON.parse(h264Match[1]);
-                playParts = videos.map(e => `${e.label}$${e.url}`);
-            } catch (e2) {
-                console.error('h264 parse error:', e2.message);
+    const m3u8 = html.match(/href="([^"]+\.m3u8[^"]*)"/)?.[1];
+    const base = m3u8.substring(0, m3u8.lastIndexOf('/') + 1);
+    const resm3U8 = await axios.get(m3u8, {
+        headers: {
+            "User-Agent": UA,
+            Referer: href,
+        },
+    });
+    const lines = resm3U8.data.split('\n')
+    let bestUrl = []
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line.includes('#EXT-X-STREAM-INF')) {
+            const m = line.match(/RESOLUTION=\d+x(\d+)/)
+            if (m) {
+                const height = parseInt(m[1])
+                const rawUrl = lines[i + 1]?.trim()
+                const fullUrl = new URL(rawUrl, m3u8).href
+                bestUrl.push(`${height}$${fullUrl}`)
             }
         }
     }
-
+    // 按分辨率从大到小排序
+    bestUrl.sort((a, b) => {
+        const h1 = parseInt(a.split('$')[0])
+        const h2 = parseInt(b.split('$')[0])
+        return h2 - h1
+    })   
     return {
         list: [{
             vod_id:        href,
             vod_name:      name,
             vod_pic:       pic,
             vod_play_from: 'xhamster',
-            vod_play_url:  playParts.join('#'),
+            vod_play_url:   bestUrl.join('#'),
         }],
     };
 }
