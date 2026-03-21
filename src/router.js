@@ -45,7 +45,6 @@ import pornhub from "./spider/video/pornhub.js";
 import ppphub from "./spider/video/ppphub.js";
 import aowu from "./spider/video/aowu.js";
 import thisav from "./spider/video/thisav.js";
-import avdb from "./spider/video/avdb.js";
 import xojav from "./spider/video/xojav.js";
 import hdm18 from "./spider/video/hdm18.js";
 import qstv from "./spider/video/qstv.js";
@@ -100,7 +99,7 @@ const getSpiders = async (server) => {
         ai, animei,hanime, hanime2, hdm18,aowu,xjsp,
         cg51, aw51,bl51,sp51, cg91, cg911,cg007,cgw,mdgw, bgcg,dycg, cg1024, hl, jrkl, video91, sp91, pron91, porn99, porna91,j18Tv, haose,po85, qstv, dnaav, rou,  
         wanwu, madou, doll, avple, uua,
-        kanav, jable, hohoj, thisav, avtoday, taiav, avdb, xojav,supjav,twoJav,popjav, av18, miss, javxx,javrate, javday, missav2,missavt, rou233, xm, cableav,
+        kanav, jable, hohoj, thisav, avtoday, taiav, xojav,supjav,twoJav,popjav, av18, miss, javxx,javrate, javday, missav2,missavt, rou233, xm, cableav,
         porncvd, pronlulu, kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos,xhams
     ];
     const t4Data = await getT4(server)
