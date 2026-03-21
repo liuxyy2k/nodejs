@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91porna.com';
 
@@ -32,7 +33,7 @@ function extractImgFromOnload(onload) {
 
 function shouldDecrypt(url) {
     const u = (url || '').toLowerCase();
-    return ['pic.gylhaa.cn','pic.mpevng.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
+    return ['pic.gylhaa.cn','pic.mpevng.cn','pic.wrhawe.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
 }
 
 function absUrl(u) {
@@ -64,9 +65,8 @@ function parseVods($) {
         const url = $(element).find('.flex').attr('href') || '';
         const name = $(element).find('.w-full').attr('alt') || '';
         const time = $(element).find('div.w-full').text().trim();
-        const id = url.split('=')[1] || '';
         videos.push({
-            vod_id: id,
+            vod_id: url,
             vod_name: name,
             vod_pic: imgEl.length ? getImgUrl(imgEl) : '',
             vod_remarks: time,
@@ -135,6 +135,23 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
+        { type_id: 'comic/av/cate?type=update', type_name: '最近更新AV' },
+        { type_id: 'comic/av/cate?type=new', type_name: '最近上市AV' },
+        { type_id: 'comic/av/cate?type=hot', type_name: '热门AV' },
+        { type_id: '/moviesets/souhoutanhua', type_name: '瘦猴探花' },
+        { type_id: '/moviesets/hourujingxuan', type_name: '后入精选' },
+        { type_id: '/moviesets/koubaotunjing', type_name: '口爆吞精' },
+        { type_id: '/moviesets/ximengyao', type_name: '奚梦瑶' },
+        { type_id: '/moviesets/xiaobaoxunhua', type_name: '小宝探花' },
+        { type_id: '/moviesets/xingganheisi', type_name: '性感黑丝' },
+        { type_id: '/moviesets/zipaitoupai', type_name: '自拍偷拍' },
+        { type_id: '/moviesets/fengkuangzuoai', type_name: '疯狂做爱' },
+        { type_id: '/moviesets/91tanhua', type_name: '91探花' },
+        { type_id: '/moviesets/18j', type_name: '18禁' },
+        { type_id: '/moviesets/91dashen', type_name: '91大神' },
+        { type_id: '/moviesets/huwailuchu', type_name: '户外漏出' },
+        { type_id: '/moviesets/taiwanwailiu', type_name: '台湾外流' },
+        { type_id: '/moviesets/chaochui', type_name: '潮吹喷水' },
         { type_id: 'now_hot', type_name: '当前最热' },
         { type_id: 'new_update', type_name: '最近更新' },
         { type_id: 'original', type_name: '91原创' },
@@ -147,19 +164,21 @@ async function home(_inReq, _outResp) {
         { type_id: 'now_month_comment', type_name: '本月讨论' },
         { type_id: 'max_collect', type_name: '收藏最多' },
     ];
-
-    const html = await request(`${site}/comic/index/video?category=play`);
-    const $ = load(html);
-    const list = parseVods($);
-
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    let url = `${site}/comic/index/video?category=${tid}`;
+    let url = ''
+    if(tid.startsWith('comic')) {
+        url = `${site}/${tid}`;
+    } else if (tid.startsWith('/')) {
+        url = `${site}${tid}`;
+    } else {
+        url = `${site}/comic/index/video?category=${tid}`;
+    }
+   
     if (page > 1) url += `&page=${page}`;
 
     const html = await request(url);
@@ -171,7 +190,7 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const id = inReq.body.id;
-    const html = await request(`${site}/comic/index/detail?video_key=${id}`);
+    const html = await request(`${site}${id}`);
     const $ = load(html);
 
     const name = $('meta[property="og:title"]').attr('content') || '';
@@ -210,7 +229,7 @@ async function detail(inReq, _outResp) {
             vod_name: name,
             vod_pic: pic,
             vod_year: year,
-            vod_play_from: 'Porna',
+            vod_play_from: '91Porna',
             vod_play_url: '播放$' + playUrl,
         }],
     };

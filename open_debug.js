@@ -1,30 +1,42 @@
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import puppeteer from 'puppeteer';
 
-puppeteer.use(StealthPlugin());
-
-const browser = await puppeteer.launch({
-    headless: false,                          // 必须有头
+(async () => {
+  const browser = await puppeteer.launch({
+    headless: false,       // 显示浏览器
+    devtools: true,        // 自动打开 DevTools
     args: [
-        '--remote-debugging-port=9222',       // 开启远程调试
-        '--no-sandbox',
-        '--disable-blink-features=AutomationControlled',
-    ],
-});
+      '--disable-blink-features=AutomationControlled'
+    ]
+  });
 
-const page = await browser.newPage();
-await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-);
+  const page = await browser.newPage();
 
-await page.goto('https://upload18.org/play/index/fnk-038', {
-    waitUntil: 'networkidle2',
-    timeout: 30000,
-});
+  // 🔥 关键：页面加载前注入（绕过反调试）
+  await page.evaluateOnNewDocument(() => {
+    const noop = () => {};
 
-console.log('✅ 页面已打开');
-console.log('📌 现在用你的 Chrome 访问 http://localhost:9222');
-console.log('👆 点击页面链接，就能打开正常的 DevTools');
+    // 禁止刷新
+    window.location.reload = noop;
+    window.location.assign = noop;
+    window.location.replace = noop;
 
-// 保持运行，不要关
-await new Promise(() => {});
+    // 禁止关闭
+    window.close = noop;
+
+    // 干掉 debugger
+    setInterval(() => {
+      Function.prototype.constructor = () => {};
+    }, 1000);
+
+    // 防 DevTools 检测
+    Object.defineProperty(window, 'outerWidth', {
+      get: () => window.innerWidth
+    });
+  });
+
+  // 👉 打开目标页面
+  await page.goto('https://huavod.com/vodshow/1.html', {
+    waitUntil: 'domcontentloaded'
+  });
+
+})();
