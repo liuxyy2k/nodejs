@@ -1,5 +1,6 @@
 import duoduo from "./spider/video/duoduo.js";
 import nsp from "./spider/video/nisp.js";
+import duboku from "./spider/video/duboku.js";
 import miss from "./spider/video/miss.js";
 import missav2 from "./spider/video/missav2.js";
 import kanav from "./spider/video/kanav2.js";
@@ -96,7 +97,7 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp, a123tv, duoduo, mogg, sefun, 
+        douban, leijing, panta, wogg, zhizhen, nsp,duboku, a123tv, duoduo, mogg, sefun, 
         sbjh, chatur, cj, jptt, tt, ai, animei, hanime, hanime2, hdm18, aowu, xjsp,
         cg51, aw51, bl51, sp51, cg91, cg911, cg007, cgw, mdgw, bgcg, dycg, cg1024, hl,hlbdy, jrkl,
         video91, sp91, pron91, porn99, porna91, j18Tv, haose, po85, qstv, dnaav, rou, uua,

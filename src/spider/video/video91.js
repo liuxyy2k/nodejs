@@ -17,6 +17,7 @@ function parseVods($) {
         const pic = $(element).find('img').attr('src') || '';
         const url = $(element).attr('href') || '';
         const name = $(element).find('h3').text().trim();
+        const remarks = $(element).find('.video-play').text().trim() || '';
         if (pic.endsWith('.gif') || !name) return;
         const parts = url.split('/');
         const id = parts[2] || url;
@@ -24,6 +25,7 @@ function parseVods($) {
             vod_id: id,
             vod_name: name,
             vod_pic: pic,
+            vod_remarks: remarks
         });
     });
     return videos;
@@ -43,23 +45,65 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: 'page', type_name: '最新视频' },
-        { type_id: 'sort/hot/time/7/page', type_name: '7天最热' },
-        { type_id: 'sort/hot/time/30/page', type_name: '30天最热' },
+        { type_id: '/', type_name: '最新视频' },
+        { type_id: '/sort/hot/time/7', type_name: '7天最热' },
+        { type_id: '/sort/hot/time/30', type_name: '30天最热' },
     ];
-
-    const html = await request(site);
-    const $ = load(html);
-    const list = parseVods($);
-
-    return { class: classes, list, filters: {} };
+    let filterObj = {
+         '/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '10分钟内', v: 'duration/0-600' },
+                    { n: '10分钟+', v: 'duration/600-0' },
+                    { n: '20分钟+', v: 'duration/1200-0' },
+                ]
+            }
+        ],
+         '/sort/hot/time/7': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '10分钟内', v: 'duration/0-600' },
+                    { n: '10分钟+', v: 'duration/600-0' },
+                    { n: '20分钟+', v: 'duration/1200-0' },
+                ]
+            }
+        ],
+       '/sort/hot/time/30': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '全部', v: '' },
+                    { n: '10分钟内', v: 'duration/0-600' },
+                    { n: '10分钟+', v: 'duration/600-0' },
+                    { n: '20分钟+', v: 'duration/1200-0' },
+                ]
+            }
+        ], 
+    }
+    return { class: classes, filters: filterObj };
 }
 
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    const url = `${site}/videos/list/${tid}/${page}`;
+    let ext = inReq.body.filters;
+    if (typeof ext === 'string') {
+        try {
+            ext = JSON.parse(filters)
+        } catch (e) {
+            ext = {}
+        }
+    }
+    ext = ext || {}
+    let by = ext?.by || ''
+    const url = `${site}/videos/list${tid}${by}/page/${page}`;
     const html = await request(url);
     const $ = load(html);
     const list = parseVods($);
