@@ -2,7 +2,7 @@ import axios from 'axios';
 import { load } from 'cheerio';
 
 const siteUrl = 'https://www.javrate.com';
-const searchUrl = siteUrl + '/search/javs?search_query=';
+const searchUrl = siteUrl + '/search/';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 async function request(url) {
