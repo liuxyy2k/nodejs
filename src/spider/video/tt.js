@@ -1,6 +1,10 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Linux; Android 11; M2012K10C Build/RP1A.200720.011; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/87.0.4280.141 Mobile Safari/537.36;SuiRui/twitter/ver=1.4.4';
@@ -103,7 +107,7 @@ async function getToken(i = 0) {
         const { sign, t } = getsign();
         const headers = { 'User-Agent': UA, 'Accept': 'application/json', 'deviceid': did, 't': t, 's': sign };
         const body    = { deviceId: did, tt: 'U', code: '##X-4m6Goo4zzPi1hF##', chCode: 'tt09' };
-        const resp    = await axios.post(`${domain}/api/user/traveler`, body, { headers, timeout: 8000 });
+        const resp    = await axios.post(`${domain}/api/user/traveler`, body, { headers, timeout: 8000});
         const data1   = resp.data.data;
         return [data1.token, data1.imgDomain, domain];
     } catch {
@@ -115,6 +119,7 @@ async function init(inReq, _outResp) {
     const db = inReq.server?.db;
     did              = getDid(db);
     [token, phost, host] = await getToken();
+    console.log(host)
     return {};
 }
 
@@ -123,10 +128,9 @@ async function init(inReq, _outResp) {
 async function home(_inReq, _outResp) {
     const resp  = await axios.get(`${host}/api/video/classifyList`, { headers: getHeaders(), timeout: 10000 });
     const data1 = aesDecrypt(resp.data.encData);
-
     const classes = [{ type_name: '精选', type_id: 'jx' }];
     for (const k of data1.data) {
-        classes.push({ type_name: k.classifyTitle, type_id: k.classifyId });
+        classes.push({ type_name: `${k.classifyTitle}`, type_id: `${k.classifyId}` });
     }
 
     return { class: classes, filters: FILTERS };
@@ -160,7 +164,7 @@ async function category(inReq, _outResp) {
         };
     });
 
-    return { list: videos, page: pg, pagecount: 9999, limit: 90, total: 999999 };
+    return { list: videos, page: pg, pagecount: 9999, limit: 20, total: 999999 };
 }
 
 async function detail(inReq, _outResp) {
@@ -175,7 +179,7 @@ async function detail(inReq, _outResp) {
     return {
         list: [{
             vod_director:  clj,
-            vod_play_from: '书生玩剣ⁱ·*₁＇',
+            vod_play_from: '推特',
             vod_play_url:  `${vid[2]}$${playPath}`,
         }],
     };
@@ -230,7 +234,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key:  'suirui',
-        name: '随睿',
+        name: '推特',
         type: 3,
     },
     api: async (fastify) => {
