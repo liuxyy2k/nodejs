@@ -1,12 +1,17 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://jable.tv';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
+        // httpsAgent: agent
     });
     return resp.data;
 }
@@ -20,7 +25,16 @@ async function home(_inReq, _outResp) {
     const html = await request(classurl);
     const $ = load(html);
 
-    let classes = [];
+    let classes = [
+        {
+            type_id: site + '/new-release/',
+            type_name: '最新上市',
+        },
+         {
+            type_id: site + '/hot/',
+            type_name: '热门影片',
+        }
+    ];
     const ignore = ['首页'];
     $('.container .col-6.col-sm-4.col-lg-3').each((_, e) => {
         const name = $(e).find('h4').text();
@@ -28,15 +42,133 @@ async function home(_inReq, _outResp) {
         if (!name || ignore.some(i => name.includes(i))) return;
         classes.push({ type_id: href, type_name: name });
     });
-
-    return { class: classes, filters: {} };
+    let filterObj = {
+        'https://jable.tv/hot/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '所有时间', v: 'video_viewed' },
+                    { n: '本月热门',     v: 'video_viewed_month' },
+                    { n: '本周热门',   v: 'video_viewed_week' },
+                    { n: '今日热门',   v: 'video_viewed_today' }   
+                ]
+            }
+        ],
+         'https://jable.tv/categories/uncensored/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/bdsm/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新', v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',   v: 'video_viewed' },
+                    { n: '最高收藏',   v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/chinese-subtitle/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/pantyhose/': [
+            {
+                key: 'by',
+                name: '排序',
+               value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/insult/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/private-cam/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/uniform/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+        'https://jable.tv/categories/groupsex/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '最近更新',     v: 'post_date' },
+                    { n: '近期最佳',     v: 'post_date_and_popularity' },
+                    { n: '最多观看',     v: 'video_viewed' },
+                    { n: '最高收藏',     v: 'most_favourited' }   
+                ]
+            }
+        ],
+    }
+    return { class: classes, filters: filterObj };
 }
 
 async function category(inReq, _outResp) {
     const typeurl = inReq.body.id;
     const page = inReq.body.page || 1;
-
-    const url = `${typeurl}?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=post_date&from=${page}&_=${Date.now()}`;
+    let ext = inReq.body.filters;
+    if (typeof ext === 'string') {
+        try {
+            ext = JSON.parse(filters)
+        } catch (e) {
+            ext = {}
+        }
+    }
+    ext = ext || {}
+    let by = ext?.by || ''
+    const url = `${typeurl}?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=${by}&from=${page}&_=${Date.now()}`;
     const html = await request(url, {
         'referer': typeurl,
         'Origin': site,
