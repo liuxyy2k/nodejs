@@ -62,7 +62,6 @@ async function category(inReq, _outResp) {
     const page = parseInt(inReq.body.page) || 1;
 
     const url  = `${site}${tid}${page > 1 ? page : ''}/`;
-    console.log(url)
     const html = await request(url);
     const $    = load(html);
     const list = parseCards($);
@@ -72,7 +71,6 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const href = inReq.body.id;
-    href.split('/')
     const playerUrl = `${site}/${href.split('/')[1]}/${encodeURIComponent(href.split('/')[2])}/`;
     const html   = await request(playerUrl, { Referer: playerUrl });
     const $    = load(html);
