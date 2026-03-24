@@ -44,6 +44,9 @@ async function parseVods($) {
         const rawPic = $(element).find('.videoCover').attr('data-src');
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.videoTitle').text().trim();
+        const text = $(element).find('.videoInfo').text().trim() || '';
+        const dateMatch = text.match(/(\d{4})年(\d{2})月(\d{2})日/);
+        const date = dateMatch  ? `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : '';
         const parts = url.split('/');
         const id = parts[2] || '';
         if (name && url) {
@@ -51,7 +54,8 @@ async function parseVods($) {
                 { 
                     vod_id: id, 
                     vod_name: name, 
-                    vod_pic: rawPic ? proxyImgUrl(rawPic) : ''
+                    vod_pic: rawPic ? proxyImgUrl(rawPic) : '',
+                    vod_remarks: date
                 }
             );
         }
