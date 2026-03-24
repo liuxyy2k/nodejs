@@ -52,7 +52,7 @@ async function parseVods($) {
                     vod_id: url, 
                     vod_name: name, 
                     vod_pic: rawPic ? proxyImgUrl(rawPic) : '',
-                    vod_remarks: date
+                    vod_remarks: date.replace(/\s*年\s*|\s*月\s*/g, '-').replace(/\s*日/, '')
                 }
             );
         }
