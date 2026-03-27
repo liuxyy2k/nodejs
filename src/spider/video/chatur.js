@@ -18,7 +18,7 @@ function formatRoom(r) {
         vod_id:      r.username,
         vod_name:    `${r.username}${age}`,
         vod_pic:     r.img || '',
-        vod_remarks: '',
+        vod_remarks: r.num_users,
     };
 }
 
@@ -31,6 +31,7 @@ async function init(_inReq, _outResp) {
 async function home(_inReq, _outResp) {
     return {
         class: [
+            { type_id: '',  type_name: '精选' },
             { type_id: 'f', type_name: '女性' },
             { type_id: 'm', type_name: '男性' },
             { type_id: 'c', type_name: '情侣' },
@@ -44,14 +45,21 @@ async function category(inReq, _outResp) {
     const tid    = inReq.body.id;
     const pg     = parseInt(inReq.body.page) || 0;
     const gender = { f: 'f', m: 'm', c: 'c' }[tid] ?? '';
-
-    const { data } = await http.get(`${site}/api/ts/roomlist/room-list/`, {
-        params: {
+    let param = {
             enable_recommendations: false,
             genders: gender,
             limit:   90,
             offset:  pg * 90,
-        },
+    }
+    if(tid === '') {
+        param = {
+            enable_recommendations: false,
+            limit:   90,
+            offset:  pg * 90,
+        }
+    }
+    const { data } = await http.get(`${site}/api/ts/roomlist/room-list/`, {
+        params: param
     });
 
     const total = data.total_count || 0;
