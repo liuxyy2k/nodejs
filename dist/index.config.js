@@ -108,14 +108,12 @@ var index_config_default = {
         name: "湿园|AV",
         address: "https://xxavs.com/api.php/provide/vod/at/json"
       },
-      {
-        name: "网盘|4k",
-        address: "https://catbox.n13.club/18/影探影视.php"
-      },
-      {
-        name: "斗鱼|直播",
-        address: "https://catbox.n13.club/ai/斗鱼直播.php"
-      },
+      // {   name: "网盘|4k",
+      //     address: "https://catbox.n13.club/18/影探影视.php"
+      // },
+      // {   name: "斗鱼|直播",
+      //     address: "https://catbox.n13.club/ai/斗鱼直播.php"
+      // },
       {
         name: "虎牙|直播",
         address: "https://php.doube.eu.org/spider/php/虎牙直播.php"
