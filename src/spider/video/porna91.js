@@ -15,25 +15,29 @@ async function request(reqUrl, headers = {}) {
     return resp.data;
 }
 
-function getImgUrl($el) {
-    const src = $el.attr('data-src') || '';
-    const enc = extractImgFromOnload($el.attr('onload') || '');
-    const t   = enc || src;
-    if (!t) return '';
-    if (enc || shouldDecrypt(t)) {
-        return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(t))}`;
-    }
-    return absUrl(t);
-}
+// function getImgUrl($el) {
+//     const src = $el.attr('data-src') || '';
+//     const enc = extractImgFromOnload($el.attr('onload') || '');
+//     const t   = enc || src;
+//     if (!t) return '';
+//     if (enc || shouldDecrypt(t)) {
+//         return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(t))}`;
+//     }
+//     return absUrl(t);
+// }
 
-function extractImgFromOnload(onload) {
-    const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
-    return m ? m[1] : '';
-}
+// function extractImgFromOnload(onload) {
+//     const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
+//     return m ? m[1] : '';
+// }
 
-function shouldDecrypt(url) {
-    const u = (url || '').toLowerCase();
-    return ['pic.gylhaa.cn','pic.mpevng.cn','pic.wrhawe.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
+// function shouldDecrypt(url) {
+//     const u = (url || '').toLowerCase();
+//     return ['pic.gylhaa.cn','pic.mpevng.cn','pic.wrhawe.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
+// }
+
+function proxyImgUrl(raw) {
+    return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(raw))}`;
 }
 
 function absUrl(u) {
@@ -61,14 +65,14 @@ function d64(s) {
 function parseVods($) {
     const videos = [];
     $('div.video-item').each((_, element) => {
-        const imgEl = $(element).find('.w-full');
+        const imgEl = $(element).find('.w-full').attr('data-src') ;
         const url = $(element).find('.flex').attr('href') || '';
         const name = $(element).find('.w-full').attr('alt') || '';
         const time = $(element).find('div.w-full').text().trim();
         videos.push({
             vod_id: url,
             vod_name: name,
-            vod_pic: imgEl.length ? getImgUrl(imgEl) : '',
+            vod_pic: imgEl.length ? proxyImgUrl(imgEl) : '',
             vod_remarks: time,
         });
     });
