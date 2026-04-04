@@ -8,6 +8,7 @@ const DEF_PIC = 'https://ghproxy.net/https://raw.githubusercontent.com/hjdhnx/hi
 const sources = [
     { name: '库佬',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u'           },
     { name: '蚂蚁',  url: 'https://ge.html-5.me/ii/%E9%BB%84%E8%9A%82%E8%9A%81%E5%85%88%E9%94%8B%E6%8E%A8%E6%B5%81%E6%BA%90.txt' },
+    { name: '松视',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/lives.txt' },
     { name: 'IPTV',  url: 'https://ipv.qq1000.site/IPTV.txt'                                                                        },
     { name: '范明明', url: 'https://cdn.jsdelivr.net/gh/fanmingming/live@refs/heads/main/tv/m3u/ipv6.m3u'                           },
     { name: '电视',  url: 'https://tv.iill.top/m3u/Gather'                                                                         },
