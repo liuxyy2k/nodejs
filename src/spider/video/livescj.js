@@ -172,7 +172,6 @@ async function category(inReq, _outResp) {
     const source = sources.find(s => s.name === id);
     if (!source) return { page, pagecount: 1, list: [] };
     let text   = await fetchTextMaYi(source.url);
-    // if(id === '蚂蚁') text = await fetchTextMaYi(source.url);
     const groups = parse(text, source.url);
 
     // 按组展示：每个 group 作为一个 vod 卡片，点进去看频道列表
@@ -192,8 +191,6 @@ async function detail(inReq, _outResp) {
     const source = sources.find(s => s.name === sourceName);
     if (!source) return { list: [] };
     let text    = await fetchTextMaYi(source.url);
-    // if(id === '蚂蚁') text = await fetchTextMaYi(source.url);
-    console.log(text)
     const groups  = parse(text, source.url);
     const channels = groups[group] || [];
 
@@ -254,7 +251,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'live2vod', name: '直播点播', type: 3 },
+    meta: { key: 'live2vod', name: '直播合集', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);
