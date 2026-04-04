@@ -1,24 +1,76 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
 const DEF_PIC = 'https://ghproxy.net/https://raw.githubusercontent.com/hjdhnx/hipy-server/master/app/static/img/lives.jpg';
 
 const sources = [
-    { name: 'IPTV', url: 'https://ipv.qq1000.site/IPTV.txt'                                                                    },
-    { name: '范明明', url: 'https://cdn.jsdelivr.net/gh/fanmingming/live@refs/heads/main/tv/m3u/ipv6.m3u'                      },
-    { name: '电视',  url: 'https://tv.iill.top/m3u/Gather'                                                                     },
-    { name: '网络',  url: 'https://m.iill.top/Live.m3u'                                                                        },
-    { name: '体育',  url: 'https://tv.iill.top/m3u/Sport'                                                                      },
-    { name: '哔哩',  url: 'https://sub.ottiptv.cc/bililive.m3u'                                                                 },
-    { name: '虎牙',  url: 'https://sub.ottiptv.cc/huyayqk.m3u'                                                                 },
-    { name: '斗鱼',  url: 'https://sub.ottiptv.cc/douyuyqk.m3u'                                                                 },
-    { name: 'YY',   url: 'https://sub.ottiptv.cc/yylunbo.m3u'                                                                  },
+    { name: '库佬',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u'           },
+    { name: '蚂蚁',  url: 'https://ge.html-5.me/ii/%E9%BB%84%E8%9A%82%E8%9A%81%E5%85%88%E9%94%8B%E6%8E%A8%E6%B5%81%E6%BA%90.txt' },
+    { name: 'IPTV',  url: 'https://ipv.qq1000.site/IPTV.txt'                                                                        },
+    { name: '范明明', url: 'https://cdn.jsdelivr.net/gh/fanmingming/live@refs/heads/main/tv/m3u/ipv6.m3u'                           },
+    { name: '电视',  url: 'https://tv.iill.top/m3u/Gather'                                                                         },
+    { name: '网络',  url: 'https://m.iill.top/Live.m3u'                                                                            },
+    { name: '体育',  url: 'https://tv.iill.top/m3u/Sport'                                                                          },
+    { name: '哔哩',  url: 'https://sub.ottiptv.cc/bililive.m3u'                                                                    },
+    { name: '虎牙',  url: 'https://sub.ottiptv.cc/huyayqk.m3u'                                                                    },
+    { name: '斗鱼',  url: 'https://sub.ottiptv.cc/douyuyqk.m3u'                                                                   },
+    { name: 'YY',    url: 'https://sub.ottiptv.cc/yylunbo.m3u'                                                                     },
 ];
+
+function solveAESChallenge(html) {
+    const aMatch = html.match(/toNumbers\("([0-9a-f]+)"\),b=/);
+    const bMatch = html.match(/,b=toNumbers\("([0-9a-f]+)"\),c=/);
+    const cMatch = html.match(/,c=toNumbers\("([0-9a-f]+)"\)/);
+    if (!aMatch || !bMatch || !cMatch) return null;
+
+    const key        = Buffer.from(aMatch[1], 'hex');
+    const iv         = Buffer.from(bMatch[1], 'hex');
+    const ciphertext = Buffer.from(cMatch[1], 'hex');
+
+    const decipher   = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    decipher.setAutoPadding(false);
+    const decrypted  = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString('hex');
+}
+
+async function fetchTextMaYi(url) {
+    const headers = {
+        'User-Agent':      UA,
+        'Referer':         new URL(url).origin + '/',
+        'Accept':          '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+    };
+
+    // 第一次请求，可能拿到 AES 验证页
+    const resp1 = await axios.get(url, { headers, responseType: 'text', maxRedirects: 0 });
+
+    if (resp1.data?.includes('slowAES.decrypt')) {
+        // 解出 cookie 值
+        const cookieVal = solveAESChallenge(resp1.data);
+        if (!cookieVal) throw new Error('AES challenge 解析失败');
+
+        // 带 cookie 重新请求
+        const resp2 = await axios.get(url + (url.includes('?') ? '&' : '?') + 'i=1', {
+            headers: {
+                ...headers,
+                Cookie: `__test=${cookieVal}`,
+            },
+            responseType: 'text',
+        });
+        return resp2.data;
+    }
+
+    return resp1.data;
+}
 
 async function fetchText(url) {
     const resp = await axios.get(url, {
-        headers:  { 'User-Agent': UA },
+        headers: {
+            'User-Agent': UA,
+            'Referer':    new URL(url).origin + '/',
+        },
         timeout:  10000,
         responseType: 'text',
     });
@@ -54,9 +106,9 @@ function parseM3u(text) {
 
 // 解析 TXT 格式（频道名,url 或 group,#genre# 分组格式）
 function parseTxt(text) {
-    const lines   = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const groups  = {};
-    let curGroup  = '其他';
+    const lines    = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const groups   = {};
+    let   curGroup = '其他';
 
     for (const line of lines) {
         if (line.includes('#genre#')) {
@@ -70,11 +122,26 @@ function parseTxt(text) {
         const url  = line.substring(commaIdx + 1).trim();
         if (!url.startsWith('http')) continue;
 
-        if (!groups[curGroup]) groups[curGroup] = [];
-        groups[curGroup].push({ name, url, logo: '' });
+        if (!groups[curGroup]) groups[curGroup] = {};
+
+        // 同名频道多个 URL 合并到一起
+        if (!groups[curGroup][name]) {
+            groups[curGroup][name] = { name, urls: [], logo: '' };
+        }
+        groups[curGroup][name].urls.push(url);
     }
 
-    return groups;
+    // 转成数组，url 取第一个，备用线路用 | 拼接备用
+    const result = {};
+    for (const [group, channels] of Object.entries(groups)) {
+        result[group] = Object.values(channels).map(c => ({
+            name: c.name,
+            url:  c.urls[0],          // 主线路
+            urls: c.urls,             // 全部备用
+            logo: c.logo,
+        }));
+    }
+    return result;
 }
 
 function parse(text, sourceUrl) {
@@ -101,8 +168,8 @@ async function category(inReq, _outResp) {
 
     const source = sources.find(s => s.name === id);
     if (!source) return { page, pagecount: 1, list: [] };
-
-    const text   = await fetchText(source.url);
+    let text   = await fetchTextMaYi(source.url);
+    // if(id === '蚂蚁') text = await fetchTextMaYi(source.url);
     const groups = parse(text, source.url);
 
     // 按组展示：每个 group 作为一个 vod 卡片，点进去看频道列表
@@ -121,8 +188,9 @@ async function detail(inReq, _outResp) {
 
     const source = sources.find(s => s.name === sourceName);
     if (!source) return { list: [] };
-
-    const text    = await fetchText(source.url);
+    let text    = await fetchTextMaYi(source.url);
+    // if(id === '蚂蚁') text = await fetchTextMaYi(source.url);
+    console.log(text)
     const groups  = parse(text, source.url);
     const channels = groups[group] || [];
 
