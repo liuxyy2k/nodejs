@@ -11,6 +11,7 @@ const sources = [
     { name: '松视',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/lives.txt' },
     { name: '松视2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lc529180405/caicai/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/%E7%BA%AF%E5%8D%81%E5%85%AB.txt' },
     { name: '色播',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/lib/sbjh.m3u' },
+    { name: '18+',  url: 'https://gh-proxy.org/https://github.com/lc529180405/caicai/blob/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/ss.txt' },
     { name: 'IPTV',  url: 'https://ipv.qq1000.site/IPTV.txt'                                                                        },
     { name: '雨呢IPTV',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/lib/iptv.m3u'  },
     { name: '范明明', url: 'https://cdn.jsdelivr.net/gh/fanmingming/live@refs/heads/main/tv/m3u/ipv6.m3u'                           },
