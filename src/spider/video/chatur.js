@@ -7,7 +7,7 @@ const site = 'https://chaturbate.com';
 
 const http = axios.create({
     timeout: 10_000,
-    headers: { 'User-Agent': UA },
+    headers: { 'User-Agent': UA }
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -29,35 +29,116 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    return {
-        class: [
-            { type_id: '',  type_name: '精选' },
+    const classes = [
+            { type_id: '', type_name: '精选' },
             { type_id: 'f', type_name: '女性' },
-            { type_id: 'm', type_name: '男性' },
+            { type_id: 'm', type_name: '男士' },
             { type_id: 'c', type_name: '情侣' },
+            { type_id: 't', type_name: '跨性别' },
+    ];
+    let filterObj = {
+        '': [
+            {
+                key: 'reg',
+                name: '地区',
+                value: [
+                    { n: '亚洲',   v: 'AS' },
+                    { n: '北美',   v: 'NA' },
+                    { n: '南美',   v: 'SA' },
+                    { n: '欧洲',   v: 'ER' },
+                    { n: '其他',   v: 'O' }     
+                ]
+            }
         ],
-        list:    [],
-        filters: {},
+        'f': [
+            {
+                key: 'reg',
+                name: '地区',
+                value: [
+                    { n: '亚洲',   v: 'AS' },
+                    { n: '北美',   v: 'NA' },
+                    { n: '南美',   v: 'SA' },
+                    { n: '欧洲',   v: 'ER' },
+                    { n: '其他',   v: 'O' }     
+                ]
+            }
+        ],
+        'm': [
+            {
+                key: 'reg',
+                name: '地区',
+                value: [
+                    { n: '亚洲',   v: 'AS' },
+                    { n: '北美',   v: 'NA' },
+                    { n: '南美',   v: 'SA' },
+                    { n: '欧洲',   v: 'ER' },
+                    { n: '其他',   v: 'O' }     
+                ]
+            }
+        ],
+        'c': [
+            {
+                key: 'reg',
+                name: '地区',
+                value: [
+                    { n: '亚洲',   v: 'AS' },
+                    { n: '北美',   v: 'NA' },
+                    { n: '南美',   v: 'SA' },
+                    { n: '欧洲',   v: 'ER' },
+                    { n: '其他',   v: 'O' }     
+                ]
+            }
+        ],
+        't': [
+            {
+                key: 'reg',
+                name: '地区',
+                value: [
+                    { n: '亚洲',   v: 'AS' },
+                    { n: '北美',   v: 'NA' },
+                    { n: '南美',   v: 'SA' },
+                    { n: '欧洲',   v: 'ER' },
+                    { n: '其他',   v: 'O' }     
+                ]
+            }
+        ],
+    }
+    return {
+        class: classes,
+        filters: filterObj
     };
 }
 
 async function category(inReq, _outResp) {
     const tid    = inReq.body.id;
     const pg     = parseInt(inReq.body.page) || 0;
-    const gender = { f: 'f', m: 'm', c: 'c' }[tid] ?? '';
+    const gender = { f: 'f', m: 'm', c: 'c', t: 't' }[tid] ?? '';
+    let ext = inReq.body.filters;
+    if (typeof ext === 'string') {
+        try {
+            ext = JSON.parse(filters)
+        } catch (e) {
+            ext = {}
+        }
+    }
+    ext = ext || {}
+    let reg = ext?.reg || ''
     let param = {
             enable_recommendations: false,
             genders: gender,
             limit:   90,
-            offset:  pg * 90,
+            offset:  (pg-1) * 90,
+            regions: reg
     }
     if(tid === '') {
         param = {
             enable_recommendations: false,
             limit:   90,
-            offset:  pg * 90,
+            offset:  (pg-1) * 90,
+            regions: reg
         }
     }
+    
     const { data } = await http.get(`${site}/api/ts/roomlist/room-list/`, {
         params: param
     });
