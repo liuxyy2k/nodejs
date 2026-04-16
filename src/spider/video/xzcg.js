@@ -39,6 +39,7 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
+    const classes = []
     const html = await request(site);
     const $ = load(html);
     $('.submenu-item').each((_, element) => {
