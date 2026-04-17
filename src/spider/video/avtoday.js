@@ -3,6 +3,7 @@ import { load } from 'cheerio';
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
 // const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const site = 'https://avtoday.io';
 
@@ -81,12 +82,12 @@ async function category(inReq, _outResp) {
 async function detail(inReq, _outResp) {
     const href = inReq.body.id; // 形如 /video/xxxxx
     const code = href.split('/video/')[1];
-    const playerUrl = `${site}/player?s=${code}`;
+    const playerUrl = `${site}/player?s=${code.replace('.html','')}`;
 
     const html    = await request(playerUrl, { Referer: `${site}${href}` });
     const m3u8Match = html.match(/m3u8_url\s+=\s+'(.+)'/);
     const playUrl = m3u8Match ? m3u8Match[1] : '';
-
+  
     return {
         list: [{
             vod_id:        href,
