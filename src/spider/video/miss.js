@@ -222,7 +222,7 @@ async function detail(inReq){
         const uuid = match[1]
         let playUrl= SURRIT + uuid + PLAY
         const resp = await axios.get(playUrl, {
-            headers: { 'User-Agent': UA },
+            headers: { 'User-Agent': UA ,'Referer': DEFAULT_SITE + '/'},
         });
         const lines = resp.data.split("\n").filter(v => v.includes("/video.m3u8"))
         for(const line of lines){
