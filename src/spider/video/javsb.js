@@ -163,7 +163,7 @@ async function play(inReq, _outResp) {
 async function search(inReq, _outResp) {
     const text = encodeURIComponent(inReq.body.wd);
     const page = inReq.body.pg || 1;
-    const url = `${site}/search/${text}/?mode=async&function=get_block&block_id=list_videos_videos_list_search_result&q=${text}&sort_by=&from=${page}&_=${Date.now()}`;
+    const url = `${site}/vod/search.html?wd=${text}`;
 
     const html = await request(url);
     const $ = load(html);
