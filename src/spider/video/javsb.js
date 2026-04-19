@@ -140,7 +140,7 @@ async function detail(inReq, _outResp) {
     const realRes = await request(
         `https://jav.sb/save_m3u8_cache.php?file=${file}&token=${token}&ts=${ts}&sign=${sign}`
     );
-    const m3u8 = site + realRes.m3u8_file + '$sign=' + sign;
+    const m3u8 = site + realRes.m3u8_file + '&sign=' + sign;
     return {
         list: [{
             vod_id: url,
