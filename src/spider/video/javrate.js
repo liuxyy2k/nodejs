@@ -13,21 +13,17 @@ async function request(targetUrl) {
         const resp = await axios.post(SERVER_API, {
             url: targetUrl,
             referer: siteUrl + '/',
-            key: 'mira123'  // 👈 必须加上这个，对应你 server.js 里的 AUTH_KEY
+            key: 'mira123'
         }, {
             timeout: 60000,
-            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
             headers: {
                 'Content-Type': 'application/json'
             }
         });
 
-        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
         return resp.data;
     } catch (e) {
         console.log('中转请求失败:', e.message);
-        // 如果这里报错 403，就说明是 key 的问题
-        // 如果报错 404，说明 SERVER_API 地址写错了
         throw e;
     }
 }
