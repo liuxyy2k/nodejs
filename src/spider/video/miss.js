@@ -63,23 +63,32 @@ async function home(inReq){
     const db = inReq.server.db
 
     const classes = [
-
+        {type_id:"dm515/cn/new",type_name:"最近更新"},
+        {type_id:"dm590/cn/release",type_name:"新作上市"},
         {type_id:"dm265/cn/chinese-subtitle",type_name:"中文字幕"},
-        {type_id:"dm513/cn/new",type_name:"最近更新"},
-        {type_id:"dm509/cn/release",type_name:"新作上市"},
+        {type_id:"dm291/today-hot",type_name:"今日热门"},
+        {type_id:"dm169/cn/weekly-hot",type_name:"本周热门"},
+        {type_id:"dm263/cn/monthly-hot",type_name:"本月热门"},
+        {type_id:"dm2093/cn/genres/VR",type_name:"VR"},
         {type_id:"dm23/siro",type_name:"素人siro"},
         {type_id:"dm21/luxu",type_name:"素人luxu"},
         {type_id:"dm17/gana",type_name:"素人gana"},
         {type_id:"dm863/maan",type_name:"素人maan"},
         {type_id:"dm25/scute",type_name:"素人scute"},
         {type_id:"dm20/ara",type_name:"素人ara"},
-        {type_id:"dm561/cn/uncensored-leak",type_name:"无码"},
+        {type_id:"dm628/cn/uncensored-leak",type_name:"无码"},
         {type_id:"dm2469695/1pondo",type_name:"一本道"},
-        {type_id:"dm291/today-hot",type_name:"今日热门"},
-        {type_id:"dm168/cn/weekly-hot",type_name:"本周热门"},
-        {type_id:"dm207/cn/monthly-hot",type_name:"本月热门"},
-        {type_id:"dm95/cn/fc2",type_name:"FC2"},
-        {type_id:"dm34/cn/madou",type_name:"麻豆"}
+        {type_id:"dm29/cn/tokyohot",type_name:"东京热"},
+        {type_id:"dm24/cn/marriedslash",type_name:"人气斩"},
+        {type_id:"dm29/cn/xxxav",type_name:"XXX-AV"},
+        {type_id:"dm150/cn/fc2",type_name:"FC2"},
+        {type_id:"dm1198483/cn/heyzo",type_name:"Heyzo"},
+        {type_id:"dm35/cn/madou",type_name:"麻豆"},
+        {type_id:"dm18/cn/twav",type_name:"TWAV"},
+        {type_id:"dm15/cn/furuke",type_name:"Furuke"},
+        {type_id:"cn/klive",type_name:"韩国直播"},
+        {type_id:"cn/clive",type_name:"中国直播"}
+
 
     ]
 
