@@ -2,18 +2,35 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import { config } from './config.js';
 
-const FLARE_URL = config.FLARE_URL;
+// const FLARE_URL = config.FLARE_URL;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const site = 'https://avple.tv';
 
-async function request(url) {
-    const resp = await axios.post(FLARE_URL, {
-        cmd: 'request.get',
-        url: url,
-        maxTimeout: 60000,
-    });
-    return resp.data.solution.response;
+const SERVER_API = config.SERVER_API;
+
+async function request(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'  // 👈 必须加上这个，对应你 server.js 里的 AUTH_KEY
+        }, {
+            timeout: 60000,
+            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        // 如果这里报错 403，就说明是 key 的问题
+        // 如果报错 404，说明 SERVER_API 地址写错了
+        throw e;
+    }
 }
 
 function parseCards($) {
@@ -104,6 +121,7 @@ async function category(inReq, _outResp) {
     let by = ext?.by || ''
     const url  = `${site}${tid}${page}/${by === '' ? 'date' : by}`
     const html = await request(url);
+    console.log(html)
     const $    = load(html);
     const list = parseCards($);
 

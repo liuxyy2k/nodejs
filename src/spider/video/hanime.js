@@ -3,65 +3,30 @@ import { load } from 'cheerio';
 import { config } from './config.js';
 
 const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Mobile/15E148 Safari/604.1';
+
 const site = 'https://hanime1.me';
 
-const FLARE_URL   = config.FLARE_URL;
-const SESSION_ID  = 'hanime_session';
-const MAX_TIMEOUT = 30000; // 从 60s 降到 30s
+const SERVER_API = config.SERVER_API;
 
-// ================= Session 管理 =================
-
-let sessionReady = false;
-
-async function ensureSession() {
-    if (sessionReady) return;
+async function request(targetUrl) {
     try {
-        // 先销毁旧 session（防止重启后残留）
-        await axios.post(FLARE_URL, {
-            cmd: 'sessions.destroy',
-            session: SESSION_ID,
-        }).catch(() => {}); // 不存在时忽略报错
-
-        await axios.post(FLARE_URL, {
-            cmd: 'sessions.create',
-            session: SESSION_ID,
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'  // 👈 必须加上这个，对应你 server.js 里的 AUTH_KEY
+        }, {
+            timeout: 60000,
+            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
-
-        sessionReady = true;
-        console.log('[FlareSolverr] Session created:', SESSION_ID);
+        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
+        return resp.data;
     } catch (e) {
-        console.error('[FlareSolverr] Failed to create session:', e.message);
-    }
-}
-
-// ================= 核心请求 =================
-
-async function fetch(url) {
-    await ensureSession();
-
-    try {
-        const resp = await axios.post(FLARE_URL, {
-            cmd:        'request.get',
-            url:        url,
-            session:    SESSION_ID,
-            maxTimeout: MAX_TIMEOUT,
-        });
-        return resp.data.solution.response;
-    } catch (e) {
-        // Session 失效时重建后重试一次
-        if (e?.response?.status === 500) {
-            console.warn('[FlareSolverr] Session may be stale, recreating...');
-            sessionReady = false;
-            await ensureSession();
-
-            const resp = await axios.post(FLARE_URL, {
-                cmd:        'request.get',
-                url:        url,
-                session:    SESSION_ID,
-                maxTimeout: MAX_TIMEOUT,
-            });
-            return resp.data.solution.response;
-        }
+        console.log('中转请求失败:', e.message);
+        // 如果这里报错 403，就说明是 key 的问题
+        // 如果报错 404，说明 SERVER_API 地址写错了
         throw e;
     }
 }
@@ -93,7 +58,8 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    const data = await fetch(site);
+    const data = await request(site);
+    console.log(data)
     const $    = load(data);
     cfCheck($);
 
@@ -115,7 +81,7 @@ async function category(inReq, _outResp) {
     const pg = parseInt(inReq.body.page) || 1;
     if (pg > 1) url += `&page=${pg}`;
 
-    const data = await fetch(url);
+    const data = await request(url);
     const $    = load(data);
     cfCheck($);
 
@@ -157,7 +123,7 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const url  = inReq.body.id;
-    const data = await fetch(url);
+    const data = await request(url);
     const $    = load(data);
     cfCheck($);
 
@@ -209,7 +175,7 @@ async function search(inReq, _outResp) {
     const pg   = parseInt(inReq.body.pg || inReq.body.page || '1');
     const url  = `${site}/search?query=${text}&broad=on&page=${pg}`;
 
-    const data = await fetch(url);
+    const data = await request(url);
     const $    = load(data);
 
     const videos = [];

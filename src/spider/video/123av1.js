@@ -1,11 +1,39 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import { config } from './config.js';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131 Safari/537.36';
 
 
 const site = 'https://123av.com/zh';
+
+const SERVER_API = config.SERVER_API;
+
+async function requestM3u8(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123',
+            sniff: true
+        }, {
+            timeout: 60000,
+            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        // 如果这里报错 403，就说明是 key 的问题
+        // 如果报错 404，说明 SERVER_API 地址写错了
+        throw e;
+    }
+}
 
 async function request(url) {
   const { data } = await axios.get(url, {
@@ -88,19 +116,21 @@ async function detail(inReq, _outResp) {
     $('.justify-content-between h1').text().trim() ||
     $('h1').first().text().trim();
 
-  return {
-    list: [
-      {
-        vod_id: id,
-        vod_name: title,
-        vod_pic: pic,
-        vod_content: desc,
-        vod_play_from: '123AV',
-        // 这里直接把详情页ID交给play接口
-        vod_play_url: `播放$${id}`,
-      },
-    ],
-  };
+    //嗅探资源
+    const data = await requestM3u8(url);
+    return {
+      list: [
+        {
+          vod_id: id,
+          vod_name: title,
+          vod_pic: pic,
+          vod_content: desc,
+          vod_play_from: '123AV',
+          // 这里直接把详情页ID交给play接口
+          vod_play_url: `播放$${data.m3u8}`,
+        },
+      ],
+    };
 }
 
 async function play(inReq, _outResp) {
@@ -108,11 +138,11 @@ async function play(inReq, _outResp) {
 
   return {
     // 强制播放器自己网页嗅探
-    parse: 1,
-    url: `${site}/${id}`,
+    parse: 0,
+    url: id,
     header: {
       'User-Agent': UA,
-      Referer: site,
+      Referer: 'https://surrit.store/',
     },
   };
 }
