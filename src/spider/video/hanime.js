@@ -6,7 +6,7 @@ const UA   = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit
 
 const site = 'https://hanime1.me';
 
-const SERVER_API = config.CF_API;
+const SERVER_API = config.SERVER_API;
 
 async function request(targetUrl) {
     try {
@@ -59,7 +59,8 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const data = await request(site);
-    const $    = load(data.html);
+    console.log(data)
+    const $    = load(data);
     cfCheck($);
 
     const ignore  = ['新番预告', 'H漫画', '无码黄油'];
@@ -81,7 +82,7 @@ async function category(inReq, _outResp) {
     if (pg > 1) url += `&page=${pg}`;
 
     const data = await request(url);
-    const $    = load(data.html);
+    const $    = load(data);
     cfCheck($);
 
     const videos = [];
@@ -123,7 +124,7 @@ async function category(inReq, _outResp) {
 async function detail(inReq, _outResp) {
     const url  = inReq.body.id;
     const data = await request(url);
-    const $    = load(data.html);
+    const $    = load(data);
     cfCheck($);
 
     const videoEl = $('video#player');
@@ -175,7 +176,7 @@ async function search(inReq, _outResp) {
     const url  = `${site}/search?query=${text}&broad=on&page=${pg}`;
 
     const data = await request(url);
-    const $    = load(data.html);
+    const $    = load(data);
 
     const videos = [];
 
