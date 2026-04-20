@@ -82,4 +82,97 @@ app.post('/proxy', async (req, res) => {
     }
 });
 
+
+function isCfChallenge(html) {
+    return (
+        html.includes('cf-browser-verification') ||
+        html.includes('cf_chl_opt') ||
+        html.includes('challenge-platform') ||
+        html.includes('Just a moment') ||
+        html.includes('jschl_vc') ||
+        html.includes('Checking your browser')
+    );
+}
+
+// 路由二 Playwright 过 Cloudflare /cf 
+app.post('/cf', async (req, res) => {
+    const { url, referer , key } = req.body;
+    // 1. 安全校验
+    if (key !== AUTH_KEY) return res.status(403).send('Unauthorized');
+    if (!url) return res.status(400).send('Missing URL');
+
+    console.log(`[CF绕过模式] 目标: ${url}`);
+    let browser;
+    try {
+        browser = await chromium.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--window-size=1920,1080',
+                '--disable-dev-shm-usage',
+            ],
+        });
+
+        const context = await browser.newContext({
+            proxy: { server: PROXY_URL },
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+            locale: 'zh-CN',
+            timezoneId: 'Asia/Shanghai',
+            extraHTTPHeaders: {
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                ...(referer ? { Referer: referer } : {}),
+            },
+        });
+
+        const page = await context.newPage();
+
+        // 注入脚本隐藏自动化特征
+        await page.addInitScript(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+            window.chrome = { runtime: {} };
+        });
+
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        // 最多等待 15 秒直到挑战通过
+        let passed = false;
+        for (let i = 0; i < 15; i++) {
+            await page.waitForTimeout(1000);
+            if (!isCfChallenge(await page.content())) {
+                console.log(`[CF绕过] 通过，耗时约 ${i + 1}s`);
+                passed = true;
+                break;
+            }
+            // 第 3 秒模拟鼠标移动
+            if (i === 3) {
+                await page.mouse.move(
+                    Math.random() * 500 + 200,
+                    Math.random() * 300 + 100
+                );
+            }
+        }
+
+        if (!passed) return res.status(403).send('CF 挑战未通过，请更换 IP 或代理');
+
+        const cookies = await context.cookies();
+        return res.json({
+            html: await page.content(),
+            finalUrl: page.url(),
+            cookies: cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+        });
+    } catch (err) {
+        console.error('[CF绕过] 失败:', err.message);
+        res.status(500).send(`CF绕过失败: ${err.message}`);
+    } finally {
+        if (browser) await browser.close();
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => console.log(`多功能中转服务运行中: ${PORT}`));
