@@ -61,7 +61,10 @@ async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
 
-    const url  = `${site}${tid}/page-${page}`;
+    let url  = `${site}${tid}/page-${page}`;
+    if(tid != '/best/' && tid != '/video/') {
+        url = page > 1 ? `${site}/categories/page-${page}` : `${site}${tid}`
+    }
     const html = await request(url);
     const $    = load(html);
     const list = parseCards($);

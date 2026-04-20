@@ -5,20 +5,36 @@ import { config } from './config.js';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://supjav.com/zh';
 
-const FLARE_URL = config.FLARE_URL;
+// const FLARE_URL = config.FLARE_URL;
+const SERVER_API = config.CF_API;
 
-async function request(url) {
-    const resp = await axios.post(FLARE_URL, {
-        cmd: 'request.get',
-        url: url,
-        maxTimeout: 60000,
-    });
-    return resp.data.solution.response;
+async function request(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'  // 必须加上这个，对应你 server.js 里的 AUTH_KEY
+        }, {
+            timeout: 60000,
+            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        // 如果这里报错 403，就说明是 key 的问题
+        // 如果报错 404，说明 SERVER_API 地址写错了
+        throw e;
+    }
 }
 
 function parseVods($) {
     const cards = [];
-    $('.post').each((_, e) => {
+    $('.clearfix .post').each((_, e) => {
         const href    = $(e).find('a').attr('href') || '';
         const title   = $(e).find('a').attr('title') || '';
         const cover   = ($(e).find('.thumb').attr('data-original') || '').replace('!320x216.jpg', '');
@@ -52,14 +68,9 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    const html = await request(`${site}/${tid}/page/${page}`);
-    const $    = load(html);
-
-    if ($('title').text() === 'Just a moment...') {
-        throw new Error('Cloudflare challenge detected, please open in browser first.');
-    }
-
+    let url = `${site}/${tid}/page/${page}`
+    const html = await request(url);
+    const $    = load(html.html);
     const list = parseVods($);
     return { page, pagecount: page + 1, list };
 }
@@ -67,9 +78,9 @@ async function category(inReq, _outResp) {
 async function detail(inReq, _outResp) {
     const id   = inReq.body.id;
     const html = await request(id);
-    const $    = load(html);
+    const $    = load(html.html);
 
-    const name = $('meta[name="keywords"]').attr('content') || '';
+    const name = $('meta[name="description"]').attr('content') || '';
     const des  = $('meta[name="description"]').attr('content') || '';
 
     const tracks = [];
@@ -168,7 +179,7 @@ async function search(inReq, _outResp) {
     const page = parseInt(inReq.body.page) || 1;
 
     const html = await request(`${site}/page/${page}?s=${text}`);
-    const $    = load(html);
+    const $    = load(html.html);
     const list = parseVods($);
 
     return { list };
