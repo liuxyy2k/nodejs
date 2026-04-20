@@ -111,6 +111,7 @@ async function detail(inReq, _outResp) {
             vod_pic:       pic,
             vod_play_from: 'memojav',
             vod_play_url:  `播放$${playUrl}`,
+            vod_content:   description,
         }],
     };
 }
