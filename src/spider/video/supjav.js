@@ -13,6 +13,7 @@ async function request(targetUrl) {
         const resp = await axios.post(SERVER_API, {
             url: targetUrl,
             referer: site + '/',
+            force: true,
             key: 'mira123'  // 必须加上这个，对应你 server.js 里的 AUTH_KEY
         }, {
             timeout: 60000,
