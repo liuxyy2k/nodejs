@@ -59,7 +59,6 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const data = await request(site);
-    console.log(data.html)
     const $    = load(data.html);
     cfCheck($);
 
