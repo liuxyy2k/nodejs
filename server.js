@@ -1,178 +1,68 @@
-import express from 'express';
-import { gotScraping } from 'got-scraping';
-import { chromium } from 'playwright';
-
-const app = express();
-app.use(express.json());
-
-const PORT = 3001;
-const AUTH_KEY = 'mira123';
-const PROXY_URL = 'http://127.0.0.1:7897';
-
-app.post('/proxy', async (req, res) => {
-    const { url, referer, key, sniff } = req.body;
-
-    // 1. 安全校验
-    if (key !== AUTH_KEY) return res.status(403).send('Unauthorized');
-    if (!url) return res.status(400).send('Missing URL');
-
-    // --- 场景 A: Playwright 嗅探模式 (当 sniff 为 true 时) ---
-    if (sniff) {
-        console.log(`[嗅探模式] 目标: ${url}`);
-        let browser;
-        try {
-            browser = await chromium.launch({ headless: true });
-            const context = await browser.newContext({
-                proxy: { server: PROXY_URL },
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            });
-            const page = await context.newPage();
-
-            let m3u8Url = null;
-            // 监听请求嗅探 m3u8
-            page.on('request', request => {
-                const u = request.url();
-                if (u.includes('.m3u8') && !u.includes('ads')) {
-                    m3u8Url = u;
-                }
-            });
-
-            // 拦截图片视频提速
-            await page.route('**/*.{png,jpg,jpeg,gif,webp,mp4}', route => route.abort());
-
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            
-            // 循环等待最多 8 秒直到抓到链接
-            let timer = 0;
-            while (!m3u8Url && timer < 8) {
-                await page.waitForTimeout(1000);
-                timer++;
-            }
-
-            if (m3u8Url) {
-                return res.json({ m3u8: m3u8Url });
-            } else {
-                return res.status(404).send('未嗅探到 m3u8');
-            }
-        } catch (err) {
-            return res.status(500).send(`嗅探失败: ${err.message}`);
-        } finally {
-            if (browser) await browser.close();
-        }
-    }
-
-    // --- 场景 B: 普通 got-scraping 抓取模式 ---
-    console.log(`[普通请求] 目标: ${url}`);
-    try {
-        const response = await gotScraping({
-            url: url,
-            proxyUrl: PROXY_URL,
-            http2: true,
-            headers: {
-                'Referer': referer || '',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            },
-            timeout: { request: 30000 },
-            https: { rejectUnauthorized: false }
-        });
-        res.send(response.body);
-    } catch (error) {
-        console.error('抓取失败:', error.message);
-        res.status(500).send(`代理转发失败: ${error.message}`);
-    }
-});
-
-
-function isCfChallenge(html) {
-    return (
-        html.includes('cf-browser-verification') ||
-        html.includes('cf_chl_opt') ||
-        html.includes('challenge-platform') ||
-        html.includes('Just a moment') ||
-        html.includes('jschl_vc') ||
-        html.includes('Checking your browser')
-    );
-}
-
-// 路由二 Playwright 过 Cloudflare /cf 
 app.post('/cf', async (req, res) => {
-    const { url, referer , key } = req.body;
-    // 1. 安全校验
+    const { url, referer, key } = req.body;
     if (key !== AUTH_KEY) return res.status(403).send('Unauthorized');
     if (!url) return res.status(400).send('Missing URL');
 
-    console.log(`[CF绕过模式] 目标: ${url}`);
+    console.log(`[统一浏览器模式] ${url}`);
+
     let browser;
     try {
         browser = await chromium.launch({
             headless: true,
             args: [
                 '--no-sandbox',
-                '--disable-setuid-sandbox',
                 '--disable-blink-features=AutomationControlled',
-                '--disable-infobars',
-                '--window-size=1920,1080',
-                '--disable-dev-shm-usage',
             ],
         });
 
         const context = await browser.newContext({
             proxy: { server: PROXY_URL },
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
             viewport: { width: 1920, height: 1080 },
             locale: 'zh-CN',
-            timezoneId: 'Asia/Shanghai',
-            extraHTTPHeaders: {
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                ...(referer ? { Referer: referer } : {}),
-            },
         });
 
         const page = await context.newPage();
 
-        // 注入脚本隐藏自动化特征
+        // ✅ 隐藏自动化特征
         await page.addInitScript(() => {
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
-            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
         });
 
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // ✅ 过 CF
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
 
-        // 最多等待 15 秒直到挑战通过
-        let passed = false;
-        for (let i = 0; i < 15; i++) {
-            await page.waitForTimeout(1000);
-            if (!isCfChallenge(await page.content())) {
-                console.log(`[CF绕过] 通过，耗时约 ${i + 1}s`);
-                passed = true;
-                break;
-            }
-            // 第 3 秒模拟鼠标移动
-            if (i === 3) {
-                await page.mouse.move(
-                    Math.random() * 500 + 200,
-                    Math.random() * 300 + 100
-                );
-            }
-        }
+        await page.waitForFunction(
+            () => document.title !== 'Just a moment...' && document.title !== '请稍候…',
+            { timeout: 20000 }
+        );
 
-        if (!passed) return res.status(403).send('CF 挑战未通过，请更换 IP 或代理');
+        // ✅ 在浏览器里直接发请求（关键！！！）
+        const data = await page.evaluate(async (targetUrl, ref) => {
+            const res = await fetch(targetUrl, {
+                headers: {
+                    'Referer': ref || location.href,
+                    'Accept': '*/*'
+                },
+                credentials: 'include'
+            });
 
-        const cookies = await context.cookies();
+            const text = await res.text();
+            return {
+                status: res.status,
+                body: text
+            };
+        }, url, referer);
+
         return res.json({
-            html: await page.content(),
-            finalUrl: page.url(),
-            cookies: cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+            ...data,
+            finalUrl: page.url()
         });
+
     } catch (err) {
-        console.error('[CF绕过] 失败:', err.message);
-        res.status(500).send(`CF绕过失败: ${err.message}`);
+        console.error(err);
+        res.status(500).send(err.message);
     } finally {
         if (browser) await browser.close();
     }
 });
-
-app.listen(PORT, '0.0.0.0', () => console.log(`多功能中转服务运行中: ${PORT}`));
