@@ -38,6 +38,10 @@ async function home(_inReq, _outResp) {
 
     const classes = [
         {
+            type_id: '/',
+            type_name: '首页'
+        },
+        {
             type_id: '/video/',
             type_name: '最近更新'
         },
@@ -60,9 +64,11 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
     let url  = `${site}${tid}/page-${page}`;
-    if(tid != '/best/' && tid != '/video/') {
+    if(tid === '/') {
+        url  = `${site}${tid}`;
+    }
+    if(tid != '/best/' && tid != '/video/' && tid != '/') {
         url = page > 1 ? `${site}/categories/page-${page}` : `${site}${tid}`
     }
     const html = await request(url);
