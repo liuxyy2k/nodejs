@@ -47,13 +47,12 @@ async function category(inReq, _outResp) {
         const title = $(element).find('.video-title').text().trim();
         const cover = $(element).find('img').attr('src');
         const duration = $(element).find('.duration').text().trim();
-        const author = $(element).find('.info').eq(1).text().trim();
         if (href) {
             videos.push({
                 vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
-                vod_remarks: `${author} | ${duration}`,
+                vod_remarks: `${duration}`,
             });
         }
     });
@@ -109,13 +108,12 @@ async function search(inReq, _outResp) {
         const title = $(element).find('.video-title').text().trim();
         const cover = $(element).find('img').attr('src');
         const duration = $(element).find('.duration').text().trim();
-        const author = $(element).find('.info').eq(1).text().trim();
         if (href) {
             videos.push({
                 vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
-                vod_remarks: `${author} | ${duration}`,
+                vod_remarks: `${duration}`,
             });
         }
     });
