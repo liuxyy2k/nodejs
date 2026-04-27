@@ -152,7 +152,7 @@ async function play(inReq, _outResp) {
 
 async function search(inReq, _outResp) {
     const text = encodeURIComponent(inReq.body.wd);
-    const url = `${siteUrl}/cn/search/${text}`;
+    const url = `${siteUrl}/search/q-${text}/type-porn`;
     const html = await request(url);
     const $ = load(html);
     const list = parseVods($);
