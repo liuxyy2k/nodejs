@@ -87,8 +87,8 @@ app.post('/proxy', async (req, res) => {
     try {
 		const body = await curlFetch(url, PROXY_URL, referer);
 		// ✅ 加这个检测，返回拦截页也触发降级
-		if (isCfChallenge(body) || body.trim().length < 200) {
-			throw new Error('curl 返回拦截页，降级 Playwright');
+		if (body.includes('Just a moment') || body.includes('just a moment')) {
+			throw new Error('curl 返回 CF 拦截页');
 		}
 		res.send(body);
     } catch (error) {
