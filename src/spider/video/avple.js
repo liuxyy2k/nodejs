@@ -121,7 +121,6 @@ async function category(inReq, _outResp) {
     let by = ext?.by || ''
     const url  = `${site}${tid}${page}/${by === '' ? 'date' : by}`
     const html = await request(url);
-    console.log(html)
     const $    = load(html);
     const list = parseCards($);
 
