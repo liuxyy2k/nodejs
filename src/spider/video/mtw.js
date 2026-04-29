@@ -86,7 +86,10 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-    let url = `${site}${tid}page/${page}/`
+    let url = `${site}${tid}${page}/`
+    if(tid === '/order/today/') {
+        url = `${site}${tid}page/${page}/`
+    }
     if(tid === '') {
         url = `${site}/page/${page}/`;
     }
