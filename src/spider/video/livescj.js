@@ -12,6 +12,7 @@ const sources = [
     { name: '松视2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lc529180405/caicai/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/%E7%BA%AF%E5%8D%81%E5%85%AB.txt' },
     { name: '色播',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/lib/sbjh.m3u' },
     { name: '岛国',  url: 'https://proxy.api.030101.xyz/files.catbox.moe/49yydm.m3u' },
+    { name: '女优库',  url: 'https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/nyk.m3u' },
     { name: '18+',   url: 'https://gh-proxy.org/https://github.com/lc529180405/caicai/blob/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/ss.txt' },
     { name: '虎牙2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lalifeier/IPTV/1b775bcdb5aceb97bb1cecbac10e31ca7eb3d1d3/m3u/huya.m3u' },
     { name: '斗鱼2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lalifeier/IPTV/1b775bcdb5aceb97bb1cecbac10e31ca7eb3d1d3/m3u/douyu.m3u' },
