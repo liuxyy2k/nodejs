@@ -16,7 +16,7 @@ const headers = {
 };
 
 async function request(url) {
-    const resp = await axios.get(url, { headers, timeout: 10000 });
+    const resp = await axios.get(url, { headers, timeout: 10000});
     return resp.data;
 }
 
@@ -24,13 +24,14 @@ function parseList(html) {
     const $    = load(html);
     const seen = new Set();
     const list = [];
-
+    const data = $('#__NUXT_DATA__').text() || ''
+    const raw = JSON.parse(data)
     $('.aspect-ratio').each((_, e) => {
         const href    = $(e).find('.listing_a').attr('href') || '';
         if (seen.has(href)) return;
         const title   = $(e).find('.video_title').text().trim();
         const imgEl   = $(e).find('img');
-        const pic     = imgEl.attr('data-src') || imgEl.attr('src') || '';
+        const pic     = getCover(raw, href.split('/')[3])
         const remarks = $(e).find('.absolute_top_left').text();
         if (href && title) {
             seen.add(href);
@@ -44,6 +45,93 @@ function parseList(html) {
     });
 
     return list;
+}
+
+function findCover(decoded, targetId) {
+    const list = decoded?.data?.data || [];
+
+    const item = list.find(v => v.id === targetId);
+
+    return item?.img || null;
+}
+
+function getList(raw) {
+  const api = raw[3];
+
+  for (const key in api) {
+    if (key.includes('/search/movie')) {
+      const pageObj = raw[api[key].data];   // data:503
+      return raw[pageObj.data];             // 真正列表
+    }
+  }
+
+  return [];
+}
+
+function getCover(raw, targetId) {
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+
+      // 只处理有 id 和 img 的对象
+      if (typeof item.id === 'number' && typeof item.img === 'number') {
+
+        const realId = raw[item.id];
+
+        if (realId === targetId) {
+          return raw[item.img] || null;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+function decodeNuxtPayload(raw) {
+  const cache = new Map();
+
+  function decode(value) {
+    // 基础类型直接返回
+    if (value === null || typeof value !== 'object') {
+      return value;
+    }
+
+    // 防止循环引用
+    if (cache.has(value)) {
+      return cache.get(value);
+    }
+
+    // 数组处理
+    if (Array.isArray(value)) {
+      const res = [];
+      cache.set(value, res);
+
+      for (let i = 0; i < value.length; i++) {
+        res[i] = decode(value[i]);
+      }
+      return res;
+    }
+
+    // 对象处理（重点）
+    const obj = {};
+    cache.set(value, obj);
+
+    for (const key in value) {
+      const v = value[key];
+
+      // ⭐ 关键：如果是数字，说明是索引
+      if (typeof v === 'number' && raw[v] !== undefined) {
+        obj[key] = decode(raw[v]);
+      } else {
+        obj[key] = decode(v);
+      }
+    }
+
+    return obj;
+  }
+
+  return decode(raw);
 }
 
 async function init(_inReq, _outResp) {
