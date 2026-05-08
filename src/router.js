@@ -107,6 +107,7 @@ import pinse from "./spider/video/91pinse.js";
 import movie from "./spider/video/movieffm.js";
 import mtw from "./spider/video/mtw.js";
 import wwgz from "./spider/video/wwgz.js";
+import dsys from "./spider/video/dsys.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
@@ -134,7 +135,7 @@ const getSpiders = async (server) => {
         cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, 
         video91, sp91, pron91, porn99, porna91, j18Tv, haose, po85, qstv, dnaav, rou, uua, wyt, ssp, mitaotun, pinse, movie,
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu,
-        av123, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
+        av123, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
         kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
     const t4Data = await getT4(server)
