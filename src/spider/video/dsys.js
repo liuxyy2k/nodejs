@@ -2,11 +2,15 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';  // npm i uuid
 
-const host  = 'https://api.230110.xyz';
-const phost = 'https://cdn.230110.xyz';
+const host  = 'https://dsav.app/';
+const phost = 'https://cdni155n8.230110.xyz';
 
 const AES_KEY = Buffer.from('OPQT123412FRANME');
 const AES_IV  = Buffer.from('MRDCQP12QPM13412');
+
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const headers = {
     origin:       host,
@@ -16,7 +20,7 @@ const headers = {
 
 // ─── HTTP Client ──────────────────────────────────────────────────────────────
 
-const http = axios.create({ timeout: 15_000, headers });
+const http = axios.create({ timeout: 15_000, headers,httpsAgent : agent});
 
 // ─── Crypto Helpers ───────────────────────────────────────────────────────────
 
@@ -99,6 +103,7 @@ async function init(_inReq, _outResp) {
 async function home(_inReq, _outResp) {
     const b64 = '9XSPkyFMrOOG34JSg//ZosMof45cyBo9hwZMZ5rvI6Yz/ZZlXWIf8/644OzwW+FNIOdJ61R/Lxjy1tqN+ZzokxtiVzb8LjYAkh6GFudwAUXFt9yS1ZjAxC3tDKrQsJQLk3nym0s00DBBzLBntRBDFz7nbba+OOBuQOZpL3CESGL42l4opdoViQLhO/dIizY1kIOk2NxxpDC9Z751gPl1ctHWuLWhuLG/QWgNWi/iHScjKrMHJKcC9GQHst/4Q3dgZ03eQIIVB6jvoV1XXoBCz6fjM/jM3BXpzSttT4Stglwy93gWuNWuZiKypHK2Q0lO10oM0ceRW2a0fPGId+rNYMRO3cR/C0ZueD4cmTAVOuxVr9ZZSP8/nhD0bHyAPONXtchIDJb0O/kdFHk2KTJfQ5q4fHOyzezczc4iQDV/R0S8cGZKM14MF+wytA/iljfj43H0UYqq5pM+MCUGRTdYEtuxCp0+A+DiOhNZwY/Km/TgBoGZQWGbpljJ2LAVnWhxX+ickLH7zuR/FeIwP/R8zOuR+8C8UlT9eHTqtvfNzaGdFxt316atHy8TNjRO7J5a177mqsHs3ziG0toDDzLDCbhRUjFgVA3ktahhXiWaaCo/ZGSJAA8TDO5DYqnJ0JDaX0ILPj8QB5zxrHYmRE8PboIr3RBAjz1sREbaHfjrUjoh29ePhlolLV00EvgoxP5knaqt5Ws/sq5IG57qKCAPgqXzblPLHToJGBtukKhLp8jbGJrkb6PVn4/jysks0NGE';
     const classes = aesDecrypt(b64);
+    console.log(classes)
     return { class: classes, list: [], filters: {} };
 }
 
@@ -215,9 +220,9 @@ async function localProxy(param) {
 
 export default {
     meta: {
-        key:  'dsysav',
+        key:  'dsav',
         name: 'DSYS',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);
