@@ -668,7 +668,7 @@ async function search(_inReq, _outResp) {
 export default {
     meta: {
         key:  'multilive',
-        name: '多平台直播',
+        name: '🔥多平台直播',
         type: 3,
     },
     api: async (fastify) => {

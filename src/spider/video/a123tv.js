@@ -256,7 +256,7 @@ async function play(req, reply) {
 export default {
     meta: {
         key: '123Tv',
-        name: '123Tv',
+        name: '🔥123Tv',
         type: 3
     },
     api: async (fastify) => {

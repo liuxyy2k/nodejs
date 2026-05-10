@@ -369,7 +369,7 @@ export default {
 
     meta:{
         key:"missav",
-        name:"MissAV",
+        name:"🔥MissAV",
         type:3
     },
 

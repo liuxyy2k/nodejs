@@ -190,7 +190,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'cg51',
-        name: '51吃瓜',
+        name: '🔥51吃瓜',
         type: 3,
     },
     api: async (fastify) => {

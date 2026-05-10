@@ -164,7 +164,7 @@ async function search(inReq, _outResp) {
 export default {
   meta: {
     key: 'muou',
-    name: '木偶',
+    name: '🔥木偶',
     type: 3,
   },
   api: async (fastify) => {

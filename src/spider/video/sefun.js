@@ -221,7 +221,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  '7sefun',
-        name: '七色番',
+        name: '🔥七色番',
         type: 3,
     },
     api: async (fastify) => {

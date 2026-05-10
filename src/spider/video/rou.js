@@ -170,7 +170,7 @@ function _atob(b64) {
 export default {
     meta: {
         key: 'rouvideo',
-        name: '肉视频',
+        name: '🔥肉视频',
         type: 3,
     },
     api: async (fastify) => {

@@ -320,7 +320,7 @@ async function proxy(inReq, outResp) {
 export default {
     meta: {
         key:  'awxVideo',
-        name: 'awxVideo',
+        name: '🔥awxVideo',
         type: 3,
     },
     api: async (fastify) => {

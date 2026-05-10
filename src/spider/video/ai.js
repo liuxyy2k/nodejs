@@ -153,7 +153,7 @@ function base64decode(str) {
 export default {
     meta: {
         key: 'girigirilove',
-        name: 'ギリギリ动漫',
+        name: '🔥ギリギリ动漫',
         type: 3
     },
     api: async (fastify) => {

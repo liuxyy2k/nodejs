@@ -137,7 +137,7 @@ export default {
 
     meta:{
         key:'sebo',
-        name:'色播聚合',
+        name:'🔥色播聚合',
         type:3
     },
 

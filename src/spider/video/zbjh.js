@@ -335,7 +335,7 @@ async function localProxy(inReq, reply) {
 export default {
     meta: {
         key:  'stripol',
-        name: 'Stripol',
+        name: '🔥Stripol',
         type: 3,
     },
     api: async (fastify) => {

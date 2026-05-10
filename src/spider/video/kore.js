@@ -116,7 +116,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'koreanpornmovie',
-        name: 'KoreaPorn',
+        name: '🔥KoreaPorn',
         type: 3
     },
     api: async (fastify) => {

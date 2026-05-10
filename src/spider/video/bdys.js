@@ -240,7 +240,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'bdys', name: '哔滴影视', type: 3 },
+    meta: { key: 'bdys', name: '🔥哔滴影视', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

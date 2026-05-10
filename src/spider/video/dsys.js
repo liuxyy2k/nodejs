@@ -221,7 +221,7 @@ async function localProxy(param) {
 export default {
     meta: {
         key:  'dsav',
-        name: 'DSYS',
+        name: '🔥DSYS',
         type: 3,
     },
     api: async (fastify) => {

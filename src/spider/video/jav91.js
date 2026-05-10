@@ -123,7 +123,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: '91jav',
-        name: '91Jav',
+        name: '🔥91Jav',
         type: 3,
         indexs: 1,
     },

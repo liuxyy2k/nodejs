@@ -172,7 +172,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'xiangjiao',
-        name: '香蕉视频',
+        name: '🔥香蕉视频',
         type: 3,
     },
     api: async (fastify) => {

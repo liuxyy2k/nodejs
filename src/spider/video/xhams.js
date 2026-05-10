@@ -133,7 +133,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'xhamster',
-        name: 'xHamster',
+        name: '🔥xHamster',
         type: 3,
     },
     api: async (fastify) => {

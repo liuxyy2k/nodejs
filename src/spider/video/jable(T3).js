@@ -140,7 +140,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'jableT3', name: 'Jable(T3)', type: 3 },
+    meta: { key: 'jableT3', name: '🔥Jable(T3)', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

@@ -267,7 +267,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'wanwu',
-        name: '玩物社区',
+        name: '🔥玩物社区',
         type: 3
     },
     api: async (fastify) => {

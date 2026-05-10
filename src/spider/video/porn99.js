@@ -109,7 +109,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: '99porn',
-        name: '99porn',
+        name: '🔥99porn',
         type: 3,
     },
     api: async (fastify) => {

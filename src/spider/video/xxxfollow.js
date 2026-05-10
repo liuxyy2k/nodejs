@@ -143,7 +143,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'xxxFollow',
-        name: 'xxxFollow',
+        name: '🔥xxxFollow',
         type: 3,
     },
     api: async (fastify) => {

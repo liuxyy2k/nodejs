@@ -241,7 +241,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'chaturbate',
-        name: 'Chaturbate',
+        name: '🔥Chaturbate',
         type: 3,
     },
     api: async (fastify) => {

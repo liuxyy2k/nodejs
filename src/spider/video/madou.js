@@ -121,7 +121,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'madou',
-        name: '麻豆社',
+        name: '🔥麻豆社',
         type: 3,
     },
     api: async (fastify) => {

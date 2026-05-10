@@ -242,7 +242,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'vvideos',
-        name: 'Vv视频',
+        name: '🔥Vv视频',
         type: 3,
     },
     api: async (fastify) => {

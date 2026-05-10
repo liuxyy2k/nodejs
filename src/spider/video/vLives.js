@@ -201,7 +201,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'vlives',
-        name: 'V大秀直播',
+        name: '🔥V大秀直播',
         type: 3,
     },
     api: async (fastify) => {

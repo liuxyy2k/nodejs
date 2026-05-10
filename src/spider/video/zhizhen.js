@@ -174,7 +174,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'zhizhen',
-        name: '至臻',
+        name: '🔥至臻',
         type: 3,
     },
     api: async (fastify) => {
