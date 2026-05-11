@@ -7,6 +7,7 @@ const DEF_PIC = 'https://ghproxy.net/https://raw.githubusercontent.com/hjdhnx/hi
 
 const sources = [
     { name: '库佬',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u'           },
+
     { name: '蚂蚁',  url: 'https://ge.html-5.me/ii/%E9%BB%84%E8%9A%82%E8%9A%81%E5%85%88%E9%94%8B%E6%8E%A8%E6%B5%81%E6%BA%90.txt' },
     { name: '松视',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/lives.txt' },
     { name: '松视2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lc529180405/caicai/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/%E7%BA%AF%E5%8D%81%E5%85%AB.txt' },
@@ -14,6 +15,8 @@ const sources = [
     { name: '岛国',  url: 'https://proxy.api.030101.xyz/files.catbox.moe/49yydm.m3u' },
     { name: '女优库',  url: 'https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/nyk.m3u' },
     { name: '18+',   url: 'https://gh-proxy.org/https://github.com/lc529180405/caicai/blob/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/ss.txt' },
+    { name: '港台大陆',   url: 'https://gh-proxy.org/https://raw.githubusercontent.com/FGBLH/FG/d2adea8e6de1b0c22e2d7a28f99a317445f586b1/%E6%B8%AF%E5%8F%B0%E5%A4%A7%E9%99%86' },
+    { name: 'xxx资源',   url: 'https://gh-proxy.org/https://raw.githubusercontent.com/FGBLH/FG/d2adea8e6de1b0c22e2d7a28f99a317445f586b1/xxx%E8%A7%86%E9%A2%91%E8%B5%84%E6%BA%90' },
     { name: '虎牙2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lalifeier/IPTV/1b775bcdb5aceb97bb1cecbac10e31ca7eb3d1d3/m3u/huya.m3u' },
     { name: '斗鱼2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lalifeier/IPTV/1b775bcdb5aceb97bb1cecbac10e31ca7eb3d1d3/m3u/douyu.m3u' },
     { name: 'Lives',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lalifeier/IPTV/1b775bcdb5aceb97bb1cecbac10e31ca7eb3d1d3/m3u/Live.m3u' },
