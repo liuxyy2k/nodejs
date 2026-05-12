@@ -77,35 +77,35 @@ var index_config_default = {
   t4: {
     list: [
       {
-        name: "糖心次元php",
+        name: "🔥糖心次元",
         address: "https://caicai.us.kg/糖心次元.php"
       },
       {
-        name: "AIvin|AV",
+        name: "🔥AIvin",
         address: "http://lbapiby.com/api.php/provide/vod/at/json"
       },
       {
-        name: "桃花资源|AV",
+        name: "🔥桃花资源",
         address: "https://thzy1.me/api.php/provide/vod/"
       },
       {
-        name: "越南资源|AV",
+        name: "🔥越南资源",
         address: "https://vnzyz.com/api.php/provide/vod/"
       },
       {
-        name: "八天资源|AV",
+        name: "🔥八天资源",
         address: "https://8day.icu/api.php/provide/vod/"
       },
       {
-        name: "91视频|AV",
+        name: "🔥91视频",
         address: "https://91av.cyou/api.php/provide/vod/"
       },
       {
-        name: "小丝袜|AV",
+        name: "🔥小丝袜",
         address: "https://www.siwazyw.tv/api.php/provide/vod/at/json"
       },
       {
-        name: "湿园|AV",
+        name: "🔥湿园",
         address: "https://xxavs.com/api.php/provide/vod/at/json"
       }
     ]
