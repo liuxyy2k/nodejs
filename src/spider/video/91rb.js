@@ -1,161 +1,207 @@
 import axios from 'axios';
-import { load } from 'cheerio';
-import { config } from './config.js';
-import CryptoJS from 'crypto-js';
+import * as cheerio from 'cheerio';
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://www.r1091.com';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// const agent = new HttpsProxyAgent(
+//     'http://127.0.0.1:7897'
+// );
 
-import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const site = 'https://www.91rb.com';
 
+const headers = {
+    'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    Referer:           site + '/',
+};
 
-async function request(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
-        httpsAgent: agent
-    });
-    return resp.data;
+const http = axios.create({ timeout: 15_000, headers});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function ensureId(s) {
+    const m = String(s).match(/(\d+)/);
+    return m ? m[1] : String(s);
 }
+
+function absUrl(url) {
+    if (!url) return url;
+    const u = url.trim();
+    if (u.startsWith('//'))  return 'https:' + u;
+    if (u.startsWith('/'))   return site + u;
+    return u;
+}
+
+function parseSrcsetFirst(srcset) {
+    if (!srcset) return '';
+    return srcset.split(',')[0].trim().split(' ')[0];
+}
+
+function coverFallback(vid) {
+    try {
+        const iv    = parseInt(vid);
+        const group = iv - (iv % 1000);
+        return `https://rimg.iomycdn.com/videos_screenshots/${group}/${iv}/preview.jpg`;
+    } catch {
+        return '';
+    }
+}
+
+function buildListUrl(tid, pg) {
+    const path   = tid.replace(/^\/|\/$/g, '') || 'latest-updates';
+    const suffix = String(pg) !== '1' ? `/${pg}/` : '/';
+    return `${site}/${path}${suffix}`;
+}
+
+function parseListPage($, page) {
+    const videos = [];
+    const seen   = new Set();
+
+    $('main a[href*="/videos/"]').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const m    = href.match(/\/videos\/(\d+)\//);
+        if (!m || href.includes('/login')) return;
+
+        const vid = m[1];
+        if (seen.has(vid)) return;
+        seen.add(vid);
+
+        let title = '';
+        let pic   = '';
+        const img = $(el).find('img').first();
+
+        if (img.length) {
+            title = (img.attr('alt') || '').trim();
+            pic   = (img.attr('src') || img.attr('data-src') || img.attr('data-original') || '').trim();
+            if (!pic) pic = parseSrcsetFirst(img.attr('data-srcset') || img.attr('srcset') || '');
+            pic = absUrl(pic);
+        } else {
+            title = ($(el).text() || '').trim();
+        }
+
+        title = title || `视频 ${vid}`;
+        if (!pic || pic.startsWith('data:')) pic = coverFallback(vid);
+
+        videos.push({ vod_id: href, vod_name: title, vod_pic: pic, vod_remarks: '' });
+    });
+
+    return { list: videos, page: String(page), pagecount: 9999, limit: 48, total: 0 };
+}
+
+async function fetchPage(url) {
+    const { data } = await http.get(url);
+    return cheerio.load(data);
+}
+
+// ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function init(_inReq, _outResp) {
     return {};
 }
 
 async function home(_inReq, _outResp) {
-    let classes = [
-        { type_id: 'https://www.r1091.com//latest-updates/',        type_name: '最近上传' },
-        { type_id: 'https://www.r1091.com//most-favourited/',         type_name: '收藏最多' },
-        { type_id: 'https://www.r1091.com//most-popular/', type_name: '热门视频' }
+    const classes = [
+        { type_id: 'latest-updates',                          type_name: '最新上传' },
+        { type_id: 'most-popular',                            type_name: '热门视频' },
+        { type_id: 'most-favourited',                         type_name: '收藏最多' },
+        { type_id: 'tags/av2/',                               type_name: '日本AV'  },
+        { type_id: 'tags/jav/',                               type_name: 'jav'     },
+        { type_id: 'tags/20c3f16d021b069ce3af1da50b15bd83/',  type_name: '韩国'    },
     ];
-    let url = `${site}/categories/`
-    const html = await request(url)
-    const $ = load(html);
-    $('.thumb').each((_, element) => {
-        const href = $(element).find('a').attr('href') || ''
-        const name = $(element).find('a').attr('title') || ''
-        classes.push (
-            {
-                type_id: href,
-                type_name: name
-            }
-        )
-    }); 
-    let filterObj = {}
-    return { class: classes, filters: filterObj };
+
+    let list = [];
+    try {
+        const $ = await fetchPage(buildListUrl('latest-updates', '1'));
+        list = parseListPage($, '1').list;
+    } catch { /* ignore */ }
+
+    return { class: classes, list, filters: {} };
 }
 
 async function category(inReq, _outResp) {
-    const typeurl = inReq.body.id;
-    const page = inReq.body.page || 1;
-    let url = `${typeurl}?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=&${page}&_=${Date.now()}`;
-    const html = await request(url);
-    const $ = load(html);
+    const tid = inReq.body.id;
+    const pg  = inReq.body.page || '1';
 
-    let videos = [];
-    $('.thumb').each((_, element) => {
-        const href = $(element).find('a').attr('href');
-        const title = $(element).find('.title').text().trim() || '';
-        const cover = $(element).find('.lazy-load').attr('data-webp');
-        const time = $(element).find('.time').text();
-        const type = $(element).find('.qualtiy').text();
-        if (href) {
-            videos.push({
-                vod_id: href,
-                vod_name: title,
-                vod_pic: cover,
-                vod_remarks: time + ' ' + type,
-            });
-        }
-    });
-
-    return { page: parseInt(page), list: videos };
+    try {
+        const $ = await fetchPage(buildListUrl(tid, pg));
+        return parseListPage($, pg);
+    } catch {
+        return { list: [], page: pg, pagecount: 1, limit: 48, total: 0 };
+    }
 }
 
-
-
 async function detail(inReq, _outResp) {
-    const url = inReq.body.id;
-    let html = await request(url);
-    const $ = load(html);
-    console.log(html)
-    const name = $('meta[property="og:title"]').attr('content') || '';
-    const pic  = $('meta[property="og:image"]').attr('content') || '';
-    const description = $('meta[property="og:description"]').attr('content') || '';
-    // const json = $('script[type="application/ld+json"]').text() || '';
-    // const data = JSON.parse(json)
-    // const embedResp = await request(data.embedUrl);
-    // const videoUrl = embedResp.match(/video_url:\s*'([^']+)'/)?.[1];
-    let videoUrls = []
-    $('.video-js source').each((_, element) => {
-        const videoUrl = $(element).attr('src');
-        videoUrls.push(videoUrl)
-    });
-        // 拼接播放地址（多线路用#隔开）
-    const playUrl = videoUrls.map((item, index) => {
-        return `播放${index + 1}$${item}`;
-    }).join('#');
+    const vid        = inReq.body.id;
+    const detailUrl  = `${site}/videos/${vid}/`;
+    let   name       = `视频 ${vid}`;
+    let   pic        = '';
+
+    // try {
+    //     const { data } = await http.get(detailUrl, { maxRedirects: 5 });
+    //     const $        = cheerio.load(data);
+    //     name           = $('h1').text().trim() || name;
+    //     pic            = $('meta[property="og:image"]').attr('content')?.trim()
+    //                   || $('meta[name="twitter:image"]').attr('content')?.trim()
+    //                   || '';
+    //     if (pic) pic = absUrl(pic);
+    // } catch { /* ignore */ }
+
+    // if (!pic) pic = coverFallback(vid);
+
     return {
         list: [{
-            vod_id: url,
-            vod_name: name,
-            vod_pic: pic,
-            vod_play_from: '91热爆',
-            vod_play_url: playUrl
-        }]
+            vod_id:        vid,
+            vod_name:      name,
+            vod_pic:       pic,
+            vod_play_from: '91RB',
+            vod_play_url:  `正片$${vid}`,
+        }],
     };
 }
 
 async function play(inReq, _outResp) {
-    const id = inReq.body.id
-    return {
-        parse: 0,
-        url: id,
-        header: { 'User-Agent': UA, 'Referer': site + '/' },
-    };
+    const vid   = inReq.body.id;
+    const match = vid.match(/\/videos\/(\d+)\/([^/]+)\//);
+    let id = ''
+    let k = ''
+    if (match) {
+         id = match[1];
+         k = match[2];
+    }
+    const group = parseInt(id) - (parseInt(id) % 1000);
+    const m3u8  = `https://91rbnet.gslb-al.com/hls/contents/videos/${group}/${id}/${id}.mp4/index.m3u8?k=${k}&t=${Date.now()}`;
+
+    return { parse: 0, url: m3u8, header: headers };
 }
 
 async function search(inReq, _outResp) {
-    const text = encodeURIComponent(inReq.body.wd);
-    const page = inReq.body.pg || 1;
-    const url = `${site}/vod/search.html?wd=${text}`;
+    const key = encodeURIComponent(inReq.body.wd || '');
+    const pg  = inReq.body.pg || '1';
+    const url = pg === '1'
+        ? `${site}/search/${key}/`
+        : `${site}/search/${key}/${pg}/`;
 
-    const html = await request(url);
-    const $ = load(html);
-
-    let videos = [];
-    $('.thumb').each((_, element) => {
-        const href = $(element).find('a').attr('href');
-        const title = $(element).find('.title').text().trim() || '';
-        const cover = $(element).find('.lazy-load').attr('data-webp');
-        const time = $(element).find('.time').text();
-        const type = $(element).find('.qualtiy').text();
-        if (href) {
-            videos.push({
-                vod_id: href,
-                vod_name: title,
-                vod_pic: cover,
-                vod_remarks: time + ' ' + type,
-            });
-        }
-    });
-
-    return { list: videos };
+    try {
+        const $ = await fetchPage(url);
+        return parseListPage($, pg);
+    } catch {
+        return { list: [], page: pg, pagecount: 1, total: 0 };
+    }
 }
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
     meta: {
-        key: '91rb',
+        key:  '91rb',
         name: '🔥91热爆',
         type: 3,
     },
     api: async (fastify) => {
-        fastify.post('/init', init);
-        fastify.post('/home', home);
+        fastify.post('/init',     init);
+        fastify.post('/home',     home);
         fastify.post('/category', category);
-        fastify.post('/detail', detail);
-        fastify.post('/play', play);
-        fastify.post('/search', search);
+        fastify.post('/detail',   detail);
+        fastify.post('/play',     play);
+        fastify.post('/search',   search);
     },
 };

@@ -112,6 +112,10 @@ import ncxxx from "./spider/video/ncxxx.js";
 import awxVideo from "./spider/video/awxVideo.js";
 import avdb from "./spider/video/avdb.js";
 import kb911 from "./spider/video/kb911.js";
+import rb91 from "./spider/video/91rb.js";
+import mrcx from "./spider/video/mrcx.js";
+import ss91 from "./spider/video/91ss.js";
+import lyt from "./spider/video/luyitian.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
@@ -136,9 +140,9 @@ const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, livescj,
         sbjh, chatur, cms4, xnxxLive, vlives, vVideos, cj, jptt, tt, ai, animei, hanime, hanime2, hdm18, xjsp, 
-        cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx,
-        video91, sp91, pron91, porn99, porna91, kb911, j18Tv, haose, po85, qstv, dnaav, rou, uua, wyt, ssp, mitaotun, pinse, movie, 
-        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, badNew, awxVideo,
+        cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, 
+        video91, sp91, pron91, porn99, porna91, kb911, j18Tv, haose, po85, qstv, dnaav, rou, uua, wyt, ssp, mitaotun, pinse, movie, mrcx, ss91,  
+        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, badNew, awxVideo, rb91, lyt, 
         av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
         kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
