@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const site = 'https://91shenshi.com';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36';
@@ -7,6 +10,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const http = axios.create({
     timeout: 15_000,
     headers: { 'User-Agent': UA },
+    httpsAgent: agent,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -137,7 +141,7 @@ export default {
     meta: {
         key:  '91shenshi',
         name: '🔥91绅士',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);
