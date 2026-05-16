@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-import { HttpsProxyAgent } from 'https-proxy-agent';
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const site = 'https://91shenshi.com';
 
@@ -10,7 +10,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const http = axios.create({
     timeout: 15_000,
     headers: { 'User-Agent': UA },
-    httpsAgent: agent,
+    // httpsAgent: agent,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

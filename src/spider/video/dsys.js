@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 
-const host = 'https://apiutuxgg.230110.xyz';
+const host = 'https://apiyhrb0l.230110.xyz';
 const phost = 'https://cdn.230110.xyz';
 
 // AES
@@ -153,10 +153,10 @@ function buildHttpSignature(body) {
 
     // 签名字符串
     const signingString =
-`"@method": POST
-"@target-uri": https://apiutuxgg.230110.xyz/v1
-"content-digest": ${contentDigest}
-"@created": ${created}`;
+    `"@method": POST
+    "@target-uri": ${host}/v1
+    "content-digest": ${contentDigest}
+    "@created": ${created}`;
 
     // HMAC SHA256
     const signatureValue = crypto
