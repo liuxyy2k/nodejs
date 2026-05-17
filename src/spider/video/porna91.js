@@ -2,6 +2,10 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91porna.com';
 
@@ -10,31 +14,11 @@ const PORT   = process.env.DEV_HTTP_PORT || 9988;
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
+        // httpsAgent: agent
 
     });
     return resp.data;
 }
-
-// function getImgUrl($el) {
-//     const src = $el.attr('data-src') || '';
-//     const enc = extractImgFromOnload($el.attr('onload') || '');
-//     const t   = enc || src;
-//     if (!t) return '';
-//     if (enc || shouldDecrypt(t)) {
-//         return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(t))}`;
-//     }
-//     return absUrl(t);
-// }
-
-// function extractImgFromOnload(onload) {
-//     const m = (onload || '').match(/load(?:Share)?Img\s*\([^,]+,\s*['"]([^'"]+)['"]/);
-//     return m ? m[1] : '';
-// }
-
-// function shouldDecrypt(url) {
-//     const u = (url || '').toLowerCase();
-//     return ['pic.gylhaa.cn','pic.mpevng.cn','pic.wrhawe.cn', 'new.slfpld.cn', '/upload_01/', '/upload/','/xiao'].some(x => u.includes(x));
-// }
 
 function proxyImgUrl(raw) {
     return `http://127.0.0.1:${PORT}/spider/porna91/3/img?url=${encodeURIComponent(e64(raw))}`;
@@ -142,20 +126,16 @@ async function home(_inReq, _outResp) {
         { type_id: 'comic/av/cate?type=update', type_name: '最近更新AV' },
         { type_id: 'comic/av/cate?type=new', type_name: '最近上市AV' },
         { type_id: 'comic/av/cate?type=hot', type_name: '热门AV' },
-        { type_id: '/moviesets/souhoutanhua', type_name: '瘦猴探花' },
-        { type_id: '/moviesets/hourujingxuan', type_name: '后入精选' },
-        { type_id: '/moviesets/koubaotunjing', type_name: '口爆吞精' },
-        { type_id: '/moviesets/ximengyao', type_name: '奚梦瑶' },
-        { type_id: '/moviesets/xiaobaoxunhua', type_name: '小宝探花' },
-        { type_id: '/moviesets/xingganheisi', type_name: '性感黑丝' },
-        { type_id: '/moviesets/zipaitoupai', type_name: '自拍偷拍' },
-        { type_id: '/moviesets/fengkuangzuoai', type_name: '疯狂做爱' },
-        { type_id: '/moviesets/91tanhua', type_name: '91探花' },
-        { type_id: '/moviesets/18j', type_name: '18禁' },
-        { type_id: '/moviesets/91dashen', type_name: '91大神' },
-        { type_id: '/moviesets/huwailuchu', type_name: '户外漏出' },
-        { type_id: '/moviesets/taiwanwailiu', type_name: '台湾外流' },
-        { type_id: '/moviesets/chaochui', type_name: '潮吹喷水' },
+        { type_id: '/index/search?keyword=探花', type_name: '91探花' },
+        { type_id: '/index/video?category=original', type_name: '国产原创' },
+        { type_id: '/index/search?keyword=吃瓜+黑料+爆料', type_name: '吃瓜爆料' },
+        { type_id: '/index/search?keyword=熟女', type_name: '熟女' },
+        { type_id: '/index/search?keyword=萝莉', type_name: '萝莉' },
+        { type_id: '/index/search?keyword=动漫', type_name: '动漫' },
+        { type_id: '/index/search?keyword=换妻', type_name: '换妻' },
+        { type_id: '/index/search?keyword=内射', type_name: '内射' },
+        { type_id: '/index/search?keyword=按摩', type_name: '按摩' },
+        { type_id: '/moviesets', type_name: '精选合集' },
         { type_id: 'now_hot', type_name: '当前最热' },
         { type_id: 'new_update', type_name: '最近更新' },
         { type_id: 'original', type_name: '91原创' },
@@ -174,21 +154,48 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-    let url = ''
-    if(tid.startsWith('comic')) {
-        url = `${site}/${tid}`;
-    } else if (tid.startsWith('/')) {
-        url = `${site}${tid}`;
-    } else {
-        url = `${site}/comic/index/video?category=${tid}`;
+    let list = []
+
+    if(tid === '/moviesets') {
+        let url = `${site}/moviesets/${page}`;
+        const html = await request(url);
+        const $ = load(html);
+        $('div.video-item').each((_, element) => {
+            const imgEl = $(element).find('.w-full').attr('data-src') ;
+            const url = $(element).find('.flex').attr('href') || '';
+            const name = $(element).find('.w-full').attr('alt') || '';
+            const count = $(element).find('.items-center span').eq(1).text().trim();
+            list.push({
+                vod_id:   `folder_${url}`,
+                vod_name: name,
+                vod_pic: imgEl.length ? proxyImgUrl(imgEl) : '',
+                vod_remarks: count,
+                vod_tag:  'folder',
+            });
+        });
+
+    } else if (tid.startsWith('folder_')) {
+        const url = tid.replace('folder_', '');
+        let url2 = `${site}${url}/page/${page}`;
+        const html = await request(url2);
+        const $ = load(html);
+        list = parseVods($);
+    } else  {
+        let url = ''
+        if(tid.startsWith('comic')) {
+            url = `${site}/${tid}`;
+        } else if (tid.startsWith('/')) {
+            url = `${site}${tid}`;
+        } else {
+            url = `${site}/comic/index/video?category=${tid}`;
+        }
+    
+        if (page > 1) url += `&page=${page}`;
+
+        const html = await request(url);
+        const $ = load(html);
+        list = parseVods($);
     }
-   
-    if (page > 1) url += `&page=${page}`;
-
-    const html = await request(url);
-    const $ = load(html);
-    const list = parseVods($);
-
     return { page, pagecount: page + 1, list };
 }
 
@@ -202,30 +209,25 @@ async function detail(inReq, _outResp) {
     const year = $('meta[property="video:release_date"]').attr('content') || '';
 
     let playUrl = '';
-    const scriptEl = $('div.player-container script').first();
-    const obfuscated = scriptEl.length ? scriptEl.html() || '' : '';
-
-    if (obfuscated) {
-        const unpacked = unpack(obfuscated);
-
-        const imgMatch = unpacked.match(/img=([^&]+)/);
-        const img = imgMatch ? imgMatch[1] : '';
-
-        const uMatch = unpacked.match(/encodeURIComponent\("([^"]+)"\)/);
-        const uRaw = uMatch ? uMatch[1] : '';
-
-        const t = Math.floor(Math.floor(Date.now() / 1000) / 1800);
-        const uEncoded = encodeURIComponent(uRaw);
-
-        const jsUrl = `${site}/index/detail_play.js?id=${id}&img=${img}&ads=https%3A%2F%2Fphtstcw.xyz&u=${uEncoded}&t=${t}`;
-        const jsContent = await request(jsUrl);
-
-        const unpacked2 = unpackUrl(jsContent);
-        const m3u8Match = unpacked2.match(/data-url="([^"]+)"/);
-        if (m3u8Match) {
-            playUrl = m3u8Match[1];
-        }
-    }
+    const match = html.match(
+        /eval\(function\(p,a,c,k,e,d\)\{[\s\S]+?\}\('[\s\S]+?'\.split\('\|'\),0,\{\}\)\)/
+    );
+    let packed = match?.[0] || '';
+    packed = packed.replace(/^eval/, '');
+    const ob = eval(packed);
+    const base = ob.match(/\/index\/detail_play\?[\s\S]*?&u=/)?.[0] || '';
+    const u = ob.match(/encodeURIComponent\("([^"]+)"/)?.[1] || '';
+    const t = Math.floor(Date.now() / 1000 / 1800);
+    let finalUrl =
+        base +
+        encodeURIComponent(u) +
+        '&t=' + t;
+    let jsContent = await request(site + finalUrl);
+    jsContent = jsContent.replace(/^eval/, '');
+    const unpacked2 = eval(jsContent);
+   
+    playUrl = unpacked2.match(/https?:\/\/[^'"]+\.m3u8[^'"]*/i)?.[0];
+    
 
     return {
         list: [{
