@@ -100,7 +100,6 @@ async function category(inReq, _outResp) {
     let list = []
     if (tid === 'mrdg') {
         let url = `${site}/category/${tid}/${page}/`;
-        console.log(url);
         const html = await request(url);
         const $ = load(html);
         $('article').each((_, element) => {
