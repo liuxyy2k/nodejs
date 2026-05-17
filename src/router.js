@@ -139,13 +139,13 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, livescj,
-        sbjh, chatur, cms4, xnxxLive, vlives, vVideos, cj, jptt, tt, ai, animei, hanime, hanime2, hdm18, xjsp, 
-        cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, 
-        video91, sp91, pron91, porn99, porna91, kb911, j18Tv, haose, po85, qstv, dnaav, rou, uua, wyt, ssp, mitaotun, pinse, movie, mrcx, ss91,  
-        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, badNew, awxVideo, rb91, lyt, tube,
+        douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, ai, animei, hanime, hanime2, hdm18,
+        livescj, sbjh, chatur, cms4, xnxxLive, vlives, vVideos, cj, 
+        cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, jptt,  xjsp,
+        video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, wyt, ssp, mitaotun, movie, mrcx, lyt, 
+        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, 
         av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
-        kore, beeg, kbjfan, pornhub, ppphub, theporn, xvideos, xhams, xxxFollow
+        kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
     const t4Data = await getT4(server)
     t4Data.forEach(item => {
