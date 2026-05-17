@@ -6,7 +6,12 @@ const site = 'https://91porn.com/v.php';
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
+        headers: { 
+            'User-Agent': UA ,
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+
+
+        },
     });
     return resp.data;
 }
@@ -37,8 +42,14 @@ async function category(inReq, _outResp) {
     const page = inReq.body.page || 1;
     let url = `${site}?category=${id}&viewtype=basic`;
     if (page > 1) url += `&page=${page}`;
-
-    const html = await request(url);
+    const resp = await axios.post(url, {'session_language': 'cn_CN'}, {
+        headers: {
+            'User-Agent': UA,
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Content-Type': 'application/json',
+        },
+    });
+    let html = resp.data;
     const $ = load(html);
 
     let videos = [];
