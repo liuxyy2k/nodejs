@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const site = 'https://hohoj.tv';
 const cateUrl = site + '/search';
 const detailUrl = site + '/video?id=';
@@ -14,18 +18,38 @@ async function request(url) {
         headers: {
             'User-Agent': UA,
             'Referer': 'https://hohoj.tv/'
-        }
+        },
+        // httpsAgent: agent
     });
     return resp.data;
+}
+
+async function parseVods($) {
+    const items = [];
+    $('div.video-item a').each((_, el) => {
+        const pic = $(el).find('img').attr('src');
+        const name = $(el).find('img').attr('alt');
+        const url = $(el).attr('href');
+        const remark = $(el).find('.me-2').text() || '';
+        if (!pic || pic.endsWith('.gif') || !name) return;
+        const id = url.split('=')[1];
+        items.push({
+            vod_id: id,
+            vod_name: name,
+            vod_pic: pic,
+            vod_remarks: remark.trim(),
+            style: { ratio: 1.77, type: 'rect' }
+        });
+    });
+    return items
 }
 
 /* ================== 首页 ================== */
 async function home() {
     let classes = [];
-    let list = [];
 
-    const typeIdList = ["censored&order=latest", "uncensored", "chinese", "europe"];
-    const typeNameList = [" 最新日本A片", "无码", "中文字幕", "欧美"];
+    const typeIdList = ["censored&order=latest", "uncensored", "chinese", "europe","all_models"];
+    const typeNameList = [" 最新日本A片", "无码", "中文字幕", "欧美", "女优"];
 
     for (let i = 0; i < typeNameList.length; i++) {
         classes.push({
@@ -36,60 +60,53 @@ async function home() {
 
     const html = await request(site);
     const $ = load(html);
+    let list = await parseVods($);
 
-    $('div.video-item a').each((_, el) => {
-        const pic = $(el).find('img').attr('src');
-        const name = $(el).find('img').attr('alt');
-        const url = $(el).attr('href');
-
-        if (!pic || pic.endsWith('.gif') || !name) return;
-
-        const id = url.split('=')[1];
-
-        list.push({
-            vod_id: id,
-            vod_name: name,
-            vod_pic: pic
-        });
-    });
-
-    return {
-        class: classes,
-        list: list
-    };
+    return {class: classes,list: list};
 }
 
 /* ================== 分类 ================== */
 async function category(inReq) {
     const tid = inReq.body.id;
     const pg = inReq.body.page || 1;
+    let list = []
+    
 
-    let target = searchUrl + tid;
-
-    if (parseInt(pg) > 1) {
-        target = target + '&p=' + pg;
-    }
-
-    const html = await request(target);
-    const $ = load(html);
-
-    let list = [];
-
-    $('div.video-item a').each((_, el) => {
-        const pic = $(el).find('img').attr('src');
-        const name = $(el).find('img').attr('alt');
-        const url = $(el).attr('href');
-
-        if (!pic || pic.endsWith('.gif') || !name) return;
-
-        const id = url.split('=')[1];
-
-        list.push({
-            vod_id: id,
-            vod_name: name,
-            vod_pic: pic
+    if(tid === 'all_models') {
+      let target = site + '/' +  tid;
+        if (parseInt(pg) > 1) {
+            target = target + '?p=' + pg;
+        }
+        const html = await request(target);
+        const $ = load(html);
+        $('.model-list .model').each((_, el) => {
+            const pic = $(el).find('img').attr('src');
+            const name = $(el).find('.model-name').text() || '';
+            const url = $(el).find('a').attr('href');
+            if (!pic || pic.endsWith('.gif') || !name) return;
+            list.push({
+                 vod_id:   `folder_${url}`,
+                 vod_name: name.trim(),
+                 vod_pic:  pic,
+                 vod_tag:  'folder',
+                 style:    { ratio: 1.77, type: 'rect' },
+            });
         });
-    });
+    } else if(tid.startsWith('folder_')) { 
+         let url = tid.replace('folder_', '');
+         url = site + url + '&p=' + pg;
+         const html = await request(url);
+         const $ = load(html);
+         list = await parseVods($);
+    } else {
+        let target = searchUrl + tid;
+        if (parseInt(pg) > 1) {
+            target = target + '&p=' + pg;
+        }
+        const html = await request(target);
+        const $ = load(html);
+        list = await parseVods($);
+    }
 
     return {
         page: parseInt(pg),
@@ -111,6 +128,7 @@ async function detail(inReq) {
 
         const name = $('meta[property="og:title"]').attr('content');
         const pic = $('meta[property="og:image"]').attr('content');
+        const desc = $('meta[property="og:description"]').attr('content');
         const year = $('div.ms-auto span').text();
 
         const embedUrl = site + '/embed?id=' + id;
@@ -125,7 +143,8 @@ async function detail(inReq) {
             vod_pic: pic,
             vod_year: year ? year.replace('上市於 ', '') : '',
             vod_play_from: 'Hohoj',
-            vod_play_url: '播放$' + playUrl
+            vod_play_url: '播放$' + playUrl,
+            vod_content: desc,
         });
     }
 
@@ -153,21 +172,7 @@ async function search(inReq) {
     const html = await request(searchUrl + wd + '/');
     const $ = load(html);
 
-    let list = [];
-
-    $('div.video-img-box').each((_, el) => {
-        const pic = $(el).find('img').attr('data-src');
-        const url = $(el).find('a').attr('href');
-        const name = $(el).find('div.detail > h6').text();
-
-        const id = url.split('/')[4];
-
-        list.push({
-            vod_id: id,
-            vod_name: name,
-            vod_pic: pic
-        });
-    });
+    let list = await parseVods($);
 
     return {
         list: list
