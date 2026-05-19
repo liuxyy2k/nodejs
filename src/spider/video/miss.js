@@ -156,11 +156,11 @@ async function parseVods($) {
         const vod_remarks = $(el).find(".left-1").text().trim()
         const vod_duration = $(el).find(".right-1").text().trim()
         items.push({
-            vod_id,
-            vod_name,
-            vod_pic,
-            vod_remarks,
-            vod_duration
+            vod_id: vod_id, 
+            vod_name: vod_name, 
+            vod_pic: vod_pic,
+            vod_remarks: vod_duration,
+            style: { ratio: 1.77, type: 'rect' }
         })
     })
 
@@ -199,7 +199,7 @@ async function category(inReq){
         $(".grid.grid-cols-2 div").each((i,el)=>{
             const vod_id = $(el).find(".text-nord13").first().attr("href")
             const vod_name = $(el).find(".text-nord13").text().trim()
-            const vod_pic = ''
+            const vod_pic = 'https://cdn.jsdelivr.net/gh/liuxyy2k/y2kspider@main/64453ad9dd1734d1c8a8460b8b047790.webp'
             const count = $(el).find(".text-nord10").text().trim()
             list.push({
                 vod_id:   `folder_${vod_id}`,
