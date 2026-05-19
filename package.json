@@ -58,6 +58,7 @@
     "js-beautify": "^1.15.4",
     "json-bigint": "1.0.0",
     "jsonpath-plus": "10.3.0",
+    "mysql2": "^3.22.3",
     "node-json-db": "2.3.0",
     "node-libcurl": "^4.1.0",
     "node-rsa": "1.1.1",

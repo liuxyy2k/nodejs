@@ -4,6 +4,7 @@ import { load } from 'cheerio';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { promisify } from 'util';
+import mysql from 'mysql2/promise';
 import { execFile } from 'child_process';
 const execFileAsync = promisify(execFile);
 chromium.use(StealthPlugin());
@@ -12,8 +13,89 @@ const app = express();
 app.use(express.json());
 
 const PORT = 3001;
+//代理
 const PROXY_URL = 'http://127.0.0.1:7897';
 const OMIM_BASE = 'https://www.omim.org';
+
+// ── 数据库连接池 ──────────────────────────────────────────────
+const db = mysql.createPool({
+    host: '192.168.0.44',
+    port: 3991,    
+    user: 'root',
+    password: `*8ZiGKj@^9_0z1H63Y`,
+    database: 'knowledge_test',
+    waitForConnections: true,
+    connectionLimit: 10,
+});
+
+// ── 从数据库读取待爬取的 MIM 号 ───────────────────────────────
+async function getPendingMimNumbers() {
+    const [rows] = await db.query(
+        `SELECT OMIM_Number FROM mim2gene WHERE type != 'moved/removed'`
+    );
+    return rows.map(r => r.OMIM_Number);
+}
+
+// ── 入库 ──────────────────────────────────────────────────────
+async function saveOmimEntry(data) {
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        // 基因疾病关系表
+        if (data.phenotypeMap?.length) {
+            for (const item of data.phenotypeMap) {
+                await conn.query(
+                    `INSERT INTO gene_omim_phenotype
+                        (omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [data.mimNumber, item.geneMim ? item.geneMim : data.mimNumber, item.gene ? item.gene : data.symbol, item.phenotypeMim, item.inheritance, item.mappingKey, item.phenotype, data.description || '']
+                );
+            } 
+        }
+
+        //疾病描述表
+        if (data.description) {
+            await db.query(
+                'DELETE FROM gene_omim_description WHERE omim = ?',
+                [data.mimNumber]
+            );
+            await conn.query(
+                `INSERT INTO gene_omim_description
+                    (omim, text_content, description, create_time, update_time)
+                VALUES (?, ?, ?, NOW(), NOW())`,
+                [data.mimNumber, '', data.description]
+            );
+        }
+
+        // 疾病表型表
+        if (data.clinicalSynopsis?.length) {
+            await conn.query(
+                'DELETE FROM omim_phenotype_hpo WHERE phenotype_mim_number = ?',
+                [data.mimNumber]
+            );
+            for (const item of data.clinicalSynopsis) {
+                await conn.query(
+                    `INSERT INTO omim_phenotype_hpo (phenotype_mim_number, hpo_id, create_time)
+                        VALUES (?, ?, NOW())`,
+                    [data.mimNumber, item]
+                );
+            }
+        }
+        await conn.commit();
+        console.log(`[入库] ${data.mimNumber} 完成`);
+    } catch (err) {
+        await conn.rollback();
+        // 标记失败
+        await db.query(
+            'UPDATE mim2gene SET status = ? WHERE OMIM_Number = ?',
+            ['failed', data.mimNumber]
+        );
+        throw err;
+    } finally {
+        conn.release();
+    }
+}
 
 // ── CF Cookie 缓存（沿用原逻辑，25 分钟） ──────────────────────
 const cfCookieCache = new Map();
@@ -122,7 +204,7 @@ async function bypassCF(url, referer) {
             console.log('[CF绕过] 成功，检测到 OMIM 内容');
         } catch {
             // 截图留证，方便排查
-            await page.screenshot({ path: `./cf_fail_${Date.now()}.png`, fullPage: true });
+            // await page.screenshot({ path: `./cf_fail_${Date.now()}.png`, fullPage: true });
             const title = await page.title();
             throw new Error(`CF 未通过，当前页面标题: ${title}`);
         }
@@ -286,6 +368,53 @@ function parseOmimSearch(html) {
 //  路由
 // ════════════════════════════════════════════════════════════════
 
+// ── 批量爬取入库（从数据库读任务） ───────────────────────────
+app.get('/omim/crawl', async (req, res) => {
+     const force = req.query.force === 'true';
+
+    let mimNumbers;
+    try {
+        mimNumbers = await getPendingMimNumbers();
+    } catch (err) {
+        return res.status(500).json({ error: '读取数据库失败: ' + err.message });
+    }
+
+    if (!mimNumbers.length) {
+        return res.json({ message: '没有待处理的任务' });
+    }
+
+    console.log(`[批量爬取] 共 ${mimNumbers.length} 条待处理`);
+    res.json({ message: `开始处理 ${mimNumbers.length} 条`, mimNumbers });
+
+    // 异步跑，不阻塞响应
+    (async () => {
+        for (const mim of mimNumbers) {
+            const url = `${OMIM_BASE}/entry/${mim}?search=${mim}`;
+            console.log(`[爬取] ${url}`);
+            try {
+                const { html } = await getHtml(url, force);
+                const data = parseOmimEntry(html);
+
+                if (data.error) {
+                    console.error(`[解析失败] ${mim}:`, data.error);
+                    await db.query(
+                        'UPDATE mim2gene SET status = ? WHERE OMIM_Number = ?',
+                        ['failed', data.mimNumber]
+                    );
+                } else {
+                    await saveOmimEntry(data);
+                }
+            } catch (err) {
+                console.error(`[失败] ${mim}:`, err.message);
+            }
+
+            // 每条间隔 5~8 秒
+            await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
+        }
+        console.log('[批量爬取] 全部完成');
+    })();
+});
+
 /**
  * POST /omim/entry
  * body: { mimNumber: "143100", force: false }
@@ -301,6 +430,8 @@ app.post('/omim/entry', async (req, res) => {
     try {
         const { html, cookies, fromCache } = await getHtml(url, force);
         const data = parseOmimEntry(html);
+        //入库
+        await saveOmimEntry(data);
         return res.json({ ...data});
     } catch (err) {
         console.error('[OMIM Entry] 失败:', err.message);
@@ -430,12 +561,10 @@ app.get('/omim/cookie', async (req, res) => {
     res.send(result);
 });
 
-// ── 健康检查 ────────────────────────────────────────────────────
-app.get('/health', (_, res) => res.json({ ok: true, cacheSize: cfCookieCache.size }));
-
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`OMIM 爬虫服务运行中: http://0.0.0.0:${PORT}`);
     console.log('POST /omim/entry   { mimNumber }');
+    console.log('GET  /omim/crawl');
     console.log('POST /omim/search  { query }');
     console.log('POST /omim/batch   { mimNumbers[] }');
     console.log('POST /omim/gene    { geneSymbol }');
