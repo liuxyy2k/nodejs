@@ -47,9 +47,9 @@ async function saveOmimEntry(data) {
             for (const item of data.phenotypeMap) {
                 await conn.query(
                     `INSERT INTO gene_omim_phenotype
-                        (omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                    [data.mimNumber, item.geneMim ? item.geneMim : data.mimNumber, item.gene ? item.gene : data.symbol, item.phenotypeMim, item.inheritance, item.mappingKey, item.phenotype, data.description || '']
+                        (prefix, omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [data.prefix, data.mimNumber, item.geneMim ? item.geneMim : data.mimNumber, item.gene ? item.gene : data.symbol, item.phenotypeMim, item.inheritance, item.mappingKey, item.phenotype, data.description || '']
                 );
             } 
         }
@@ -121,7 +121,7 @@ async function fetchWithCookie(url, cookieStr, referer) {
     const host = new URL(url).host;
     const response = await gotScraping({
         url,
-        proxyUrl: PROXY_URL,
+        // proxyUrl: PROXY_URL,
         http2: true,
         headers: {
             Cookie: cookieStr,
@@ -150,7 +150,7 @@ async function bypassCF(url, referer) {
             '--disable-blink-features=AutomationControlled', // ← 关键
             '--use-gl=swiftshader',                          // ← 不能 disable-gpu
             '--enable-webgl',
-            `--proxy-server=http://127.0.0.1:7897`,
+            `--proxy-server=${PROXY_URL}`,                  //代理设置
         ],
     });
 
