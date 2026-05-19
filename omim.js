@@ -19,11 +19,11 @@ const OMIM_BASE = 'https://www.omim.org';
 
 // ── 数据库连接池 ──────────────────────────────────────────────
 const db = mysql.createPool({
-    host: '192.168.0.44',
-    port: 3991,    
+    host: '127.0.0.1',
+    port: 3306,    
     user: 'root',
-    password: `*8ZiGKj@^9_0z1H63Y`,
-    database: 'knowledge_test',
+    password: `vP3f9%i3`,
+    database: 'ruoyi',
     waitForConnections: true,
     connectionLimit: 10,
 });
