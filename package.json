@@ -49,6 +49,7 @@
     "dayjs": "1.11.10",
     "dotenv": "^17.3.1",
     "esbuild-server": "0.3.0",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "fastify": "4.26.0",
     "got-scraping": "^4.2.1",

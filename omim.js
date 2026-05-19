@@ -6,6 +6,9 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { promisify } from 'util';
 import mysql from 'mysql2/promise';
 import { execFile } from 'child_process';
+import ExcelJS from 'exceljs';
+import path from 'path';
+
 const execFileAsync = promisify(execFile);
 chromium.use(StealthPlugin());
 
@@ -95,6 +98,52 @@ async function saveOmimEntry(data) {
     } finally {
         conn.release();
     }
+}
+
+// ── 保存到excl ──────────────────────────────────────────────────────
+async function saveOmimEntryToExcel(data) {
+    const filePath = path.resolve(`./omim_${data.mimNumber}_${Date.now()}.xlsx`);
+    const workbook = new ExcelJS.Workbook();
+
+    // ── Sheet1：基因疾病关系表（对应 gene_omim_phenotype）──────
+    const phenoSheet = workbook.addWorksheet('gene_omim_phenotype');
+    phenoSheet.addRow(['prefix', 'omim_number', 'gene_locus_mim_number', 'symbol',
+        'phenotype_mim_number', 'inheritance', 'pheno_map_key', 'phenotype', 'description']);
+    for (const item of data.phenotypeMap || []) {
+        phenoSheet.addRow([
+            data.prefix,
+            data.mimNumber,
+            item.geneMim || data.mimNumber,
+            item.gene || data.symbol || '',
+            item.phenotypeMim || '',
+            item.inheritance || '',
+            item.mappingKey || '',
+            item.phenotype || '',
+            data.description || '',
+        ]);
+    }
+
+    // ── Sheet2：疾病描述表（对应 gene_omim_description）─────────
+    const descSheet = workbook.addWorksheet('gene_omim_description');
+    descSheet.addRow(['omim', 'text_content', 'description']);
+    if (data.description) {
+        descSheet.addRow([data.mimNumber, '', data.description]);
+    }
+
+    // ── Sheet3：HPO 表（对应 omim_phenotype_hpo）────────────────
+    const hpoSheet = workbook.addWorksheet('omim_phenotype_hpo');
+    hpoSheet.addRow(['phenotype_mim_number', 'hpo_id']);
+    const hpoIds = [];
+    for (const section of data.clinicalSynopsis || []) {
+        hpoIds.push(item);
+    }
+    for (const hpoId of hpoIds) {
+        hpoSheet.addRow([data.mimNumber, hpoId]);
+    }
+
+    await workbook.xlsx.writeFile(filePath);
+    console.log(`[Excel] 已保存: ${filePath}`);
+    return filePath;
 }
 
 // ── CF Cookie 缓存（沿用原逻辑，25 分钟） ──────────────────────
