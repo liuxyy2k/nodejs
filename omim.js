@@ -55,6 +55,14 @@ async function saveOmimEntry(data) {
                     [data.prefix, data.mimNumber, item.geneMim ? item.geneMim : data.mimNumber, item.gene ? item.gene : data.symbol, item.phenotypeMim, item.inheritance, item.mappingKey, item.phenotype, data.description || '']
                 );
             } 
+        } else {
+            // 没有关系数据时，至少插入一行基本信息，确保 OMIM_Number 在表中有记录
+            await conn.query(
+                `INSERT INTO gene_omim_phenotype
+                    (prefix, omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                [data.prefix, data.mimNumber, data.mimNumber, data.symbol || '', '', '', '', '', data.description || '']
+            );
         }
 
         //疾病描述表
