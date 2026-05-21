@@ -61,7 +61,7 @@ async function saveOmimEntry(data) {
                 `INSERT INTO gene_omim_phenotype
                     (prefix, omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                [data.prefix, data.mimNumber, data.mimNumber, data.symbol || '', '', '', '', '', data.description || '']
+                [data.prefix, data.mimNumber, data.prefix == '*' ? data.mimNumber : '', data.symbol || '', '', '', '', '', data.description || '']
             );
         }
 
