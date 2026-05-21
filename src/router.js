@@ -117,6 +117,7 @@ import mrcx from "./spider/video/mrcx.js";
 import ss91 from "./spider/video/91ss.js";
 import lyt from "./spider/video/luyitian.js";
 import tube from "./spider/video/tube.js";
+import ds51 from "./spider/video/51ds.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
@@ -141,7 +142,7 @@ const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, ai, animei, hanime, hanime2, hdm18,
         livescj, sbjh, chatur, cms4, xnxxLive, vlives, vVideos, cj, 
-        cg51, aw51, bl51, sp51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, jptt,  xjsp,
+        cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, jptt,  xjsp,
         video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, wyt, ssp, mitaotun, movie, mrcx, lyt, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, 
         av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, avtoday, taiav, xojav, supjav, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,

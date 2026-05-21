@@ -69,6 +69,9 @@ async function home(inReq){
         {type_id:"dm291/today-hot",type_name:"今日热门"},
         {type_id:"dm169/cn/weekly-hot",type_name:"本周热门"},
         {type_id:"dm263/cn/monthly-hot",type_name:"本月热门"},
+        {type_id:"cn/actresses",type_name:"女优一览"},
+        {type_id:"cn/genres",type_name:"类型"},
+        {type_id:"cn/makers",type_name:"发行商"},
         {type_id:"dm2093/cn/genres/VR",type_name:"VR"},
         {type_id:"dm23/siro",type_name:"素人siro"},
         {type_id:"dm21/luxu",type_name:"素人luxu"},
@@ -88,23 +91,14 @@ async function home(inReq){
         {type_id:"dm15/cn/furuke",type_name:"Furuke"},
         {type_id:"cn/klive",type_name:"韩国直播"},
         {type_id:"cn/clive",type_name:"中国直播"}
-
-
     ]
-
-
     let actors=[]
 
     try{
-
-        actors = (await db.getData("/missavActors")||[])
-            .filter(v=>v.enabled)
-            .map(v=>v.name)
+        actors = (await db.getData("/missavActors")||[]).filter(v=>v.enabled).map(v=>v.name)
 
     }catch{}
-
     const filters = {}
-
     const options=[
 
         {
@@ -153,7 +147,25 @@ async function home(inReq){
 
 }
 
+async function parseVods($) {
+    const items = [];
+    $(".thumbnail").each((i,el)=>{
+        const vod_id = $(el).find(".text-secondary").attr("href")
+        const vod_name = $(el).find(".text-secondary").text().trim().replace(/\s+/g," ")
+        const vod_pic = $(el).find(".w-full").attr("data-src")
+        const vod_remarks = $(el).find(".left-1").text().trim()
+        const vod_duration = $(el).find(".right-1").text().trim()
+        items.push({
+            vod_id: vod_id, 
+            vod_name: vod_name, 
+            vod_pic: vod_pic,
+            vod_remarks: vod_duration,
+            style: { ratio: 1.77, type: 'rect' }
+        })
+    })
 
+    return items
+}
 
 // ================= 分类 =================
 
@@ -161,59 +173,69 @@ async function category(inReq){
     const db = inReq.server.db
     let id = inReq.body.id
     let page = inReq.body.page || 1
-    const filters = inReq.body.filters || {}
-    if(page===0) page=1
+    let list = []
 
-    if(filters.actor && filters.actor!=="all"){
-        id = `cn/actresses/${encodeURIComponent(filters.actor)}`
-    }
-    if(filters.filt && filters.filt!=="all"){
-        id += `?filters=${filters.filt}`
-    }
-    if(filters.sort){
-        const sep = id.includes("?")?"&":"?"
-        id += `${sep}sort=${filters.sort}`
-    }
-    id += id.includes("?")?`&page=${page}`:`?page=${page}`
-
-    const site = await getSite(db)
-    const html = await request(`${site}/${id}`,db)
-    const $ = load(html)
-    const list=[]
-
-
-    $(".thumbnail").each((i,el)=>{
-        const vod_id = $(el).find(".text-secondary").attr("href")
-        const vod_name = $(el)
-            .find(".text-secondary")
-            .text()
-            .trim()
-            .replace(/\s+/g," ")
-        const vod_pic = $(el)
-            .find(".w-full")
-            .attr("data-src")
-
-        const vod_remarks = $(el)
-            .find(".left-1")
-            .text()
-            .trim()
-
-        const vod_duration = $(el)
-            .find(".right-1")
-            .text()
-            .trim()
-
-        list.push({
-            vod_id,
-            vod_name,
-            vod_pic,
-            vod_remarks,
-            vod_duration
+    if(id === "cn/actresses") {
+        let url = `${DEFAULT_SITE}/${id}?page=${page}`
+        const html = await request(url)
+        const $ = load(html)
+        $(".gap-4.gap-y-8 li").each((i,el)=>{
+            const vod_id = $(el).find('a').eq(0).attr("href")
+            const vod_name = $(el).find("h4").text().trim()
+            const vod_pic = $(el).find(".w-full").attr("data-src") || $(el).find(".w-full").attr("src")
+            const count = $(el).find(".text-nord10").first().text().trim()
+            list.push({
+                vod_id:   `folder_${vod_id}`,
+                vod_name: vod_name.trim(),
+                vod_pic:  vod_pic,
+                vod_tag:  'folder',
+                style:    { ratio: 1.77, type: 'rect' },
+            })
+        })
+    } else if(id === "cn/genres" || id === "cn/makers") { 
+        let url = `${DEFAULT_SITE}/${id}?page=${page}`
+        const html = await request(url)
+        const $ = load(html)
+        $(".grid.grid-cols-2 div").each((i,el)=>{
+            const vod_id = $(el).find(".text-nord13").first().attr("href")
+            const vod_name = $(el).find(".text-nord13").text().trim()
+            const vod_pic = 'https://cdn.jsdelivr.net/gh/liuxyy2k/y2kspider@main/64453ad9dd1734d1c8a8460b8b047790.webp'
+            const count = $(el).find(".text-nord10").text().trim()
+            list.push({
+                vod_id:   `folder_${vod_id}`,
+                vod_name: vod_name.trim(),
+                vod_pic:  vod_pic,
+                vod_tag:  'folder',
+                style:    { ratio: 1.77, type: 'rect' },
+            })
         })
 
-    })
+    } else if (id.startsWith("folder_")) {
+        const url = id.replace('folder_', '');
+        const html = await request(url);
+        const $ = load(html)
+        list= await parseVods($);
+    } else {
+        const filters = inReq.body.filters || {}
+        if(page===0) page=1
+        if(filters.actor && filters.actor!=="all"){
+            id = `cn/actresses/${encodeURIComponent(filters.actor)}`
+        }
+        if(filters.filt && filters.filt!=="all"){
+            id += `?filters=${filters.filt}`
+        }
+        if(filters.sort){
+            const sep = id.includes("?")?"&":"?"
+            id += `${sep}sort=${filters.sort}`
+        }
+        id += id.includes("?")?`&page=${page}`:`?page=${page}`
+        const site = await getSite(db)
+        const html = await request(`${site}/${id}`,db)
+        const $ = load(html)
+        list= await parseVods($);
+    }
 
-
+    
     return {
         page,
         pagecount:list.length<12?page:page+1,
@@ -271,17 +293,11 @@ async function detail(inReq){
 // ================= 播放 =================
 
 async function play(inReq){
-
     const db = inReq.server.db
-
     const site = await getSite(db)
-
     return {
-
         parse:0,
-
         url:inReq.body.id,
-
         header:{
             "User-Agent":UA,
             "Referer":site
@@ -311,82 +327,30 @@ async function search(inReq){
 
     const $ = load(html)
 
-    const list=[]
-
-
-    $(".thumbnail").each((i,el)=>{
-
-        const vod_id = $(el).find(".text-secondary").attr("href")
-
-        const vod_name = $(el)
-            .find(".text-secondary")
-            .text()
-            .trim()
-            .replace(/\s+/g," ")
-
-        const vod_pic = $(el)
-            .find(".w-full")
-            .attr("data-src")
-
-        const vod_remarks = $(el)
-            .find(".left-1")
-            .text()
-            .trim()
-
-        const vod_duration = $(el)
-            .find(".right-1")
-            .text()
-            .trim()
-
-        list.push({
-            vod_id,
-            vod_name,
-            vod_pic,
-            vod_remarks,
-            vod_duration
-        })
-
-    })
-
-
+    const list= a
     return {
-
         page,
-
         pagecount:list.length<12?page:page+1,
-
         list
 
     }
 
 }
 
-
-
 // ================= 导出 =================
 
 export default {
-
     meta:{
         key:"missav",
         name:"🔥MissAV",
         type:3
     },
-
     api: async (fastify)=>{
-
         fastify.post("/init",init)
-
         fastify.post("/home",home)
-
         fastify.post("/category",category)
-
         fastify.post("/detail",detail)
-
         fastify.post("/play",play)
-
         fastify.post("/search",search)
-
     }
-
 }
