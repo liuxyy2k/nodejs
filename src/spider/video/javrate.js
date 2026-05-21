@@ -4,6 +4,7 @@ import { config } from './config.js';
 
 const siteUrl = 'https://www.javrate.com';
 const searchUrl = siteUrl + '/search/';
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 const SERVER_API = config.SERVER_API;
@@ -57,6 +58,9 @@ async function home(_inReq, _outResp) {
             { type_id: '/menu/uncensored', type_name: '无码A片' },
             { type_id: '/menu/censored', type_name: '日本A片' },
             { type_id: '/menu/chinese', type_name: '国产AV' },
+            { type_id: '/actor/list', type_name: 'AV女优' },
+            { type_id: '/issuer', type_name: 'A片片商' },
+            { type_id: '/keywords/movie', type_name: '分类找片' },
             { type_id: '/best', type_name: '最多人看' }
     ];
     return { class: classes, filters: {} };
@@ -65,13 +69,84 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const pg = inReq.body.page || 1;
-    let url = `${siteUrl}${tid}`;
-    if( pg > 1) {
-        url = `${siteUrl}${tid}/5-2-${pg}`
+    let list = [];
+    if(tid === '/actor/list') {
+         let url = `${siteUrl}${tid}`;
+         if( pg > 1) {
+            url = `${siteUrl}${tid}/1-0-${pg}.html`
+        }
+        const html = await request(url);
+        const $ = load(html);
+        $('.actor-card').each((_, element) => {
+            const pic = $(element).find('img').attr('src') || '';
+            const url = $(element).find('.actress-card-link').attr('href') || '';
+            const name = $(element).find('.actress-card-link').attr('title') || '';
+            const remark = $(element).find('.right').text().trim() || '';
+            list.push({
+                vod_id: `folder_${url}`,
+                vod_name: name,
+                vod_pic: pic,
+                vod_remarks: remark,
+                style: { ratio: 1.77, type: 'rect' },
+            });
+        });
+    } else if(tid === '/issuer') {
+         let url = `${siteUrl}${tid}`;
+         if( pg > 1) {
+            url = `${siteUrl}${tid}?page=${pg}&sort=3`
+        }
+        const html = await request(url);
+        const $ = load(html);
+        $('.col-xl-3').each((_, element) => {
+            const pic = $(element).find('.issuer-box').attr('style') || '';
+            const url = $(element).find('.issuer-box').attr('href') || '';
+            const name = $(element).find('h2').text().trim() || '';
+            const remark = $(element).find('.fg-light1').text().trim() || '';
+            const match = pic.match(/url\(['"]?(.*?)['"]?\)/);
+            list.push({
+                vod_id: `folder_${url}`,
+                vod_name: name,
+                vod_pic: match[1],
+                vod_remarks: remark,
+                style: { ratio: 1.77, type: 'rect' },
+            });
+        });
+    } else if(tid === '/keywords/movie') {
+         let url = `${siteUrl}${tid}`;
+         if( pg > 1) {
+            url = `${siteUrl}${tid}?page=${pg}&sort=3`
+        }
+        const html = await request(url);
+        const $ = load(html);
+        $('.series-box').each((_, element) => {
+            const pic = $(element).attr('style') || '';
+            const url = $(element).attr('href') || '';
+            const name = $(element).find('h3').text().trim() || '';
+            const remark = $(element).find('label').text().trim() || '';
+            const match = pic.match(/url\(['"]?(.*?)['"]?\)/);
+            list.push({
+                vod_id: `folder_${url}`,
+                vod_name: name,
+                vod_pic: match[1],
+                vod_remarks: remark,
+                style: { ratio: 1.77, type: 'rect' },
+            });
+        });
+    } else if (tid.startsWith('folder_')) {
+        const url = tid.replace('folder_', '');
+        const html = await request(siteUrl + url);
+        const $ = load(html);
+        list = parseVods($);
+    } else {
+        let url = `${siteUrl}${tid}`;
+        if( pg > 1) {
+            url = `${siteUrl}${tid}/5-2-${pg}`
+        }
+        const html = await request(url);
+        const $ = load(html);
+        list = parseVods($);
     }
-    const html = await request(url);
-    const $ = load(html);
-    const list = parseVods($);
+    
 
     return {
         page: parseInt(pg),
