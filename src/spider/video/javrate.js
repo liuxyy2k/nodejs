@@ -87,6 +87,7 @@ async function category(inReq, _outResp) {
                 vod_name: name,
                 vod_pic: pic,
                 vod_remarks: remark,
+                vod_tag:  'folder',
                 style: { ratio: 1.77, type: 'rect' },
             });
         });
@@ -107,6 +108,7 @@ async function category(inReq, _outResp) {
                 vod_id: `folder_${url}`,
                 vod_name: name,
                 vod_pic: match[1],
+                vod_tag:  'folder',
                 vod_remarks: remark,
                 style: { ratio: 1.77, type: 'rect' },
             });
@@ -129,6 +131,7 @@ async function category(inReq, _outResp) {
                 vod_name: name,
                 vod_pic: match[1],
                 vod_remarks: remark,
+                vod_tag:  'folder',
                 style: { ratio: 1.77, type: 'rect' },
             });
         });
@@ -138,7 +141,7 @@ async function category(inReq, _outResp) {
         const $ = load(html);
         list = parseVods($);
     } else {
-        let url = `${siteUrl}${tid}`;
+        let url = `${siteUrl}${tid.replace('folder_', '')}`;
         if( pg > 1) {
             url = `${siteUrl}${tid}/5-2-${pg}`
         }
