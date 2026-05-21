@@ -15,11 +15,9 @@ const KEY_COOKIE = "/missavCookie"
 const SERVER_API = config.SERVER_API;
 
 // ================= 请求工具 =================
-
 async function getSite(db){
     return DEFAULT_SITE
 }
-
 async function request(targetUrl) {
     try {
         const resp = await axios.post(SERVER_API, {
@@ -44,24 +42,15 @@ async function request(targetUrl) {
     }
 }
 
-
-
 // ================= init =================
 
 async function init(){
-
     return {}
-
 }
 
-
-
 // ================= 首页 =================
-
 async function home(inReq){
-
     const db = inReq.server.db
-
     const classes = [
         {type_id:"dm515/cn/new",type_name:"最近更新"},
         {type_id:"dm590/cn/release",type_name:"新作上市"},
@@ -146,7 +135,6 @@ async function home(inReq){
     return {class:classes,filters}
 
 }
-
 async function parseVods($) {
     const items = [];
     $(".thumbnail").each((i,el)=>{
@@ -235,7 +223,6 @@ async function category(inReq){
         list= await parseVods($);
     }
 
-    
     return {
         page,
         pagecount:list.length<12?page:page+1,
@@ -273,11 +260,10 @@ async function detail(inReq){
                 url: `${SURRIT}${uuid}/${line.trim()}`
             })
         }
-        
+    
         // 从高到低排序
         res.sort((a, b) => b.resolution - a.resolution)
     }
-
     return {
         list:[{
             vod_id: url,
@@ -302,39 +288,26 @@ async function play(inReq){
             "User-Agent":UA,
             "Referer":site
         }
-
     }
-
 }
-
 
 
 // ================= 搜索 =================
 
 async function search(inReq){
-
     const db = inReq.server.db
-
     let page = inReq.body.page || 1
-
     if(page===0) page=1
-
     const wd = encodeURIComponent(inReq.body.wd)
-
     const site = await getSite(db)
-
     const html = await request(`${site}/cn/search/${wd}?page=${page}`,db)
-
     const $ = load(html)
-
     const list= a
     return {
         page,
         pagecount:list.length<12?page:page+1,
         list
-
     }
-
 }
 
 // ================= 导出 =================
