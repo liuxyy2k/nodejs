@@ -13,6 +13,7 @@ const sources = [
     { name: '松视2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lc529180405/caicai/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/%E7%BA%AF%E5%8D%81%E5%85%AB.txt' },
     { name: '色播',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/lib/sbjh.m3u' },
     { name: '岛国',  url: 'https://proxy.api.030101.xyz/files.catbox.moe/49yydm.m3u' },
+    { name: '监控',  url: 'https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/%E7%9B%91%E6%8E%A7.m3u' },
     { name: '女优库',  url: 'https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/nyk.m3u' },
     { name: '18+',   url: 'https://gh-proxy.org/https://github.com/lc529180405/caicai/blob/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/ss.txt' },
     { name: '港台大陆',   url: 'https://gh-proxy.org/https://raw.githubusercontent.com/FGBLH/FG/d2adea8e6de1b0c22e2d7a28f99a317445f586b1/%E6%B8%AF%E5%8F%B0%E5%A4%A7%E9%99%86' },
