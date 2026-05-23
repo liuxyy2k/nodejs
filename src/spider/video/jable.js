@@ -30,10 +30,15 @@ async function home(_inReq, _outResp) {
             type_id: site + '/new-release/',
             type_name: '最新上市',
         },
-         {
+        {
             type_id: site + '/hot/',
             type_name: '热门影片',
+        },
+        {
+            type_id: site + '/models/',
+            type_name: '女优列表',
         }
+
     ];
     const ignore = ['首页'];
     $('.container .col-6.col-sm-4.col-lg-3').each((_, e) => {
@@ -151,13 +156,46 @@ async function home(_inReq, _outResp) {
                 ]
             }
         ],
+     'https://jable.tv/models/': [
+            {
+                key: 'by',
+                name: '排序',
+                value: [
+                    { n: '名称顺序',     v: 'title' },
+                    { n: '热度优先',     v: 'avg_videos_popularity' },
+                    { n: '最近更新',     v: 'last_content_date' },
+                    { n: '最多影片',     v: 'total_videos' }   
+                ]
+            }
+        ],
     }
     return { class: classes, filters: filterObj };
+}
+
+async function parseVods($) {
+    const items = [];
+    $('#list_videos_common_videos_list .container .row > div').each((_, element) => {
+        const href = $(element).find('.title a').attr('href');
+        const title = $(element).find('.title a').text();
+        const cover = $(element).find('.img-box img').attr('data-src');
+        const duration = $(element).find('.label').text();
+        if (href) {
+            items.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: duration,
+            });
+        }
+    });
+
+    return items
 }
 
 async function category(inReq, _outResp) {
     const typeurl = inReq.body.id;
     const page = inReq.body.page || 1;
+    let videos = [];
     let ext = inReq.body.filters;
     if (typeof ext === 'string') {
         try {
@@ -168,30 +206,47 @@ async function category(inReq, _outResp) {
     }
     ext = ext || {}
     let by = ext?.by || ''
-    const url = `${typeurl}?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=${by}&from=${page}&_=${Date.now()}`;
-    const html = await request(url, {
-        'referer': typeurl,
-        'Origin': site,
-        'X-requested-with': 'XMLHttpRequest',
-    });
-    const $ = load(html);
+    if(typeurl == 'https://jable.tv/models/') {
+        let url = `${typeurl}?mode=async&function=get_block&block_id=list_models_models_list&sort_by=${by}&from=${page}&_=${Date.now()}`;
+        console.log(url)
+        const html = await request(url, {
+            'referer': typeurl,
+            'Origin': site,
+            'X-requested-with': 'XMLHttpRequest',
+        });
+        const $ = load(html);
+        $('.horizontal-img-box').each((_, element) => {
+            const href = $(element).find('a').attr('href');
+            const title = $(element).find('.title').text();
+            const cover = $(element).find('.d-md-none').attr('src');
+            const duration = $(element).find('.detail span').text();
+            if (href) {
+                videos.push({
+                    vod_id: `folder_${href}`,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: duration,
+                    vod_tag:  'folder',
+                    style:    { ratio: 1.77, type: 'rect' },
+                });
+            }
+        });
 
-    let videos = [];
-    $('#list_videos_common_videos_list .container .row > div').each((_, element) => {
-        const href = $(element).find('.title a').attr('href');
-        const title = $(element).find('.title a').text();
-        const cover = $(element).find('.img-box img').attr('data-src');
-        const duration = $(element).find('.label').text();
-        if (href) {
-            videos.push({
-                vod_id: href,
-                vod_name: title,
-                vod_pic: cover,
-                vod_remarks: duration,
-            });
-        }
-    });
-
+    }else if(typeurl.startsWith('folder_')) {
+        const url = typeurl.replace('folder_', '');
+        const html = await request(url);
+        const $ = load(html);
+        videos = await parseVods($);
+    } else {
+        let url = `${typeurl}?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=${by}&from=${page}&_=${Date.now()}`;
+        const html = await request(url, {
+            'referer': typeurl,
+            'Origin': site,
+            'X-requested-with': 'XMLHttpRequest',
+        });
+        const $ = load(html);
+        videos = await parseVods($);
+    }
     return { page: parseInt(page), list: videos };
 }
 
