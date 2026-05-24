@@ -160,8 +160,6 @@ async function detail(inReq, _outResp) {
     let m3u8 = ''
     if (match) {
         const objStr = match[1];
-        console.log(objStr);
-
         // 如果需要解析成对象
         const obj = JSON.parse(objStr.replace(/\\\//g, '/')); // 修正 \/ 为 /
         name = obj.vod_data.vod_name
