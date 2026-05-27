@@ -1,3 +1,6 @@
 {
-    "suirui_did": "67e7c9fa4774c6e42f5b8db771e6e4dd"
+    "suirui_did": "67e7c9fa4774c6e42f5b8db771e6e4dd",
+    "awxVideo": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJwdWJsaWMiLCJleHAiOjE3ODI0NzQxMjgsImlzc3VlciI6ImNvbS5idXR0ZXJmbHkiLCJzdWIiOiJhc2lnbiIsInVzZXJJZCI6NTY0NjE5NX0.WfoImJwQ7svW_GjGkcygJ-CfeSM0qAmR2Qn5hV0FW-8"
+    }
 }

@@ -39,7 +39,7 @@ let token = '';
 
 // ─── HTTP Client ──────────────────────────────────────────────────────────────
 
-const http = axios.create({ timeout: 15_000, headers: BASE_HEADERS });
+const http = axios.create({ timeout: 15_000, headers: BASE_HEADERS});
 
 // ─── Crypto / Decode Helpers ──────────────────────────────────────────────────
 
@@ -192,7 +192,7 @@ function formatList(items, proxyBase) {
     return items.map((d) => ({
         vod_id:      `${d.id}@@${d.videoUrl}`,
         vod_name:    d.title,
-        vod_pic:     `${proxyBase}?imgUrl=${encodeURIComponent(`https://8d864d288532ce24.cdn.jiashule.com/${d.coverImg}`)}`,
+        vod_pic:     `${proxyBase}?imgUrl=${encodeURIComponent(`https://huygd.jiekrrj.cn/${d.coverImg}`)}`,
         vod_remarks: `观看：${d.watchTimes} 次`,
     }));
 }
