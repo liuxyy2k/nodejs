@@ -2,13 +2,13 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
 
-const site = 'https://xiang512.xiang.party/xcpd';
+const site = 'https://xiang512.xiang.party';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36';
 
 const http = axios.create({
     timeout: 15_000,
-    headers: { 'User-Agent': UA, Referer: site },
+    headers: { 'User-Agent': UA, Referer: site }
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -29,9 +29,7 @@ function parseCards($) {
             if (!a.length) return;
 
             const href  = a.attr('href') || '';
-            const idMatch = href.match(/\/vod(?:detail|play)\/(\d+)/);
-            if (!idMatch) return;
-            const vod_id = idMatch[1];
+            const vod_id = href;
 
             const pic  = a.find('img').attr('src') || '';
             const info = item.find('.video-info');
@@ -79,7 +77,7 @@ async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const pg  = parseInt(inReq.body.page) || 1;
 
-    const { data } = await http.get(`${site}/vodtype/${tid}-${pg}.html`);
+    const { data } = await http.get(`${site}/xcpd/vodtype/${tid}-${pg}.html`);
     const $ = cheerio.load(data);
 
     // 解析总页数：共XX条数据,当前X/N页
@@ -93,9 +91,8 @@ async function category(inReq, _outResp) {
 }
 
 async function detail(inReq, _outResp) {
-    const vid = Array.isArray(inReq.body.id) ? inReq.body.id[0] : String(inReq.body.id).split(',')[0];
-
-    const { data } = await http.get(`${site}/voddetail/${vid}.html`);
+    const vid = inReq.body.id;
+    const { data } = await http.get(`${site}${vid}`);
     const $ = cheerio.load(data);
 
     const title = $('h1.appel-title').text().trim()
@@ -110,48 +107,22 @@ async function detail(inReq, _outResp) {
 
     const fromList = [];
     const urlList  = [];
-
-    // 方案一：.detail-tab + ul.detail-play-list
-    const tabs1  = $('.detail-tab li a');
-    const blocks = $('ul.detail-play-list').toArray();
-    if (blocks.length) {
-        blocks.forEach((block, i) => {
-            const lineName = tabs1.eq(i).text().trim() || `线路${i + 1}`;
-            const urls = [];
-            $(block).find('a').each((_, a) => {
-                const href = $(a).attr('href') || '';
-                if (!href) return;
-                const name = $(a).text().trim() || `第${urls.length + 1}集`;
-                urls.push(`${name}$${absUrl(href)}`);
-            });
-            if (urls.length) { fromList.push(lineName); urlList.push(urls.join('#')); }
-        });
+    let playUrl = '';
+    let playFrom = '';
+    const match = data.match(/var\s+player_aaaa\s*=\s*(\{.*?\})<\/script>/s);
+    if (match) {
+        const obj = JSON.parse(match[1]);
+        playUrl = obj.url;
+        playFrom = obj.from;
     }
-
-    // 方案二：.ff-playurl-tab
-    if (!fromList.length) {
-        const tabs2 = $('.ff-playurl-tab li a');
-        $('.ff-playurl-tab-pane').each((i, block) => {
-            const lineName = tabs2.eq(i).text().trim() || `线路${i + 1}`;
-            const urls = [];
-            $(block).find('a').each((_, a) => {
-                const href = $(a).attr('href') || '';
-                if (!href) return;
-                const name = $(a).text().trim() || `第${urls.length + 1}集`;
-                urls.push(`${name}$${absUrl(href)}`);
-            });
-            if (urls.length) { fromList.push(lineName); urlList.push(urls.join('#')); }
-        });
-    }
-
     return {
         list: [{
             vod_id:        vid,
             vod_name:      title,
             vod_pic:       pic,
             vod_content:   desc,
-            vod_play_from: fromList.join('$$$'),
-            vod_play_url:  urlList.join('$$$'),
+            vod_play_from: playFrom,
+            vod_play_url:  playUrl,
         }],
     };
 }
@@ -218,7 +189,7 @@ export default {
     meta: {
         key:  'xcpd',
         name: '🔥香肠派对',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);
