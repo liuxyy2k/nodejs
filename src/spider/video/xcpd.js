@@ -122,7 +122,7 @@ async function detail(inReq, _outResp) {
             vod_pic:       pic,
             vod_content:   desc,
             vod_play_from: playFrom,
-            vod_play_url:  playUrl,
+            vod_play_url:  '播放$'+playUrl,
         }],
     };
 }
