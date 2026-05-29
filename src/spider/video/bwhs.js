@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+
 const site = 'https://c-you.hair';
 
 const UA_MOBILE  = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36';
@@ -8,7 +9,7 @@ const UA_IPHONE  = 'Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleW
 
 const http = axios.create({
     timeout: 10_000,
-    headers: { 'User-Agent': UA_MOBILE },
+    headers: { 'User-Agent': UA_MOBILE }
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,14 +109,9 @@ async function detail(inReq, _outResp) {
         const lines = infoText.split('\n').map((l) => l.trim()).filter(Boolean);
         content = lines[lines.length - 1] || '';
     }
-    let playUrl = '';
-    let playFrom = '在线播放';
-    const match = data.match(/var\s+player_aaaa\s*=\s*(\{.*?\})<\/script>/s);
-    if (match) {
-        const obj = JSON.parse(match[1]);
-        playUrl = obj.url;
-        playFrom = obj.from;
-    }
+
+    const playHref = $('a[href*="/vodplay/"]').attr('href') || '';
+    const playUrl  = playHref ? `播放$${playHref}` : '';
 
     return {
         list: [{
@@ -129,7 +125,7 @@ async function detail(inReq, _outResp) {
             vod_director:  '',
             vod_remarks:   duration,
             vod_content:   content,
-            vod_play_from: playFrom,
+            vod_play_from: '在线播放',
             vod_play_url:  playUrl,
         }],
     };
@@ -137,40 +133,22 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     const pid     = inReq.body.id;
-    const playUrl = site + pid;
+    let playUrl = site + pid;
+    const { data } = await http.get(playUrl);
+    const $        = cheerio.load(data);
 
+    const playaaa = $('.bofang_box').find('script').text()
+    const jsonStr = playaaa
+    .replace('var player_aaaa=', '')
+    .trim()
+    .replace(/;$/, ''); // 去掉最后分号
+    const obj = JSON.parse(jsonStr);
+    playUrl = obj.url;
     const base = {
         parse:  1,
         url:    playUrl,
         header: { 'User-Agent': UA_IPHONE },
     };
-
-    try {
-        const { data: html } = await http.get(playUrl);
-
-        // 1. player_data JSON
-        const pdMatch = html.match(/var\s+player_data\s*=\s*(\{.*?\});/s);
-        if (pdMatch) {
-            try {
-                const obj = JSON.parse(pdMatch[1]);
-                if (obj.url) return { ...base, parse: 0, url: obj.url };
-            } catch { /* ignore */ }
-        }
-
-        // 2. iframe
-        const ifrMatch = html.match(/<iframe[^>]+src="([^"]+)"/);
-        if (ifrMatch) return { ...base, parse: 1, url: ifrMatch[1] };
-
-        // 3. video src
-        const vidMatch = html.match(/<video[^>]+src="([^"]+)"/);
-        if (vidMatch) return { ...base, parse: 0, url: vidMatch[1] };
-
-        // 4. source src
-        const srcMatch = html.match(/<source[^>]+src="([^"]+)"/);
-        if (srcMatch) return { ...base, parse: 0, url: srcMatch[1] };
-
-    } catch { /* ignore */ }
-
     // 兜底：交给壳子嗅探
     return base;
 }
