@@ -108,9 +108,14 @@ async function detail(inReq, _outResp) {
         const lines = infoText.split('\n').map((l) => l.trim()).filter(Boolean);
         content = lines[lines.length - 1] || '';
     }
-
-    const playHref = $('a[href*="/vodplay/"]').attr('href') || '';
-    const playUrl  = playHref ? `播放$${playHref}` : '';
+    let playUrl = '';
+    let playFrom = '在线播放';
+    const match = data.match(/var\s+player_aaaa\s*=\s*(\{.*?\})<\/script>/s);
+    if (match) {
+        const obj = JSON.parse(match[1]);
+        playUrl = obj.url;
+        playFrom = obj.from;
+    }
 
     return {
         list: [{
@@ -124,7 +129,7 @@ async function detail(inReq, _outResp) {
             vod_director:  '',
             vod_remarks:   duration,
             vod_content:   content,
-            vod_play_from: '在线播放',
+            vod_play_from: playFrom,
             vod_play_url:  playUrl,
         }],
     };
@@ -189,7 +194,7 @@ async function search(inReq, _outResp) {
 
 export default {
     meta: {
-        key:  'madou',
+        key:  'madouhs',
         name: '🔥豹纹黑丝',
         type: 3,
     },
