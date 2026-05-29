@@ -191,7 +191,7 @@ export default {
     meta: {
         key:  'madou',
         name: '🔥豹纹黑丝',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);
