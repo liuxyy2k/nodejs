@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-const site = 'https://ypv.mfx1vpy.com:51888';
+const site = 'https://gac.hpyt73xa.com:52000';
 
 import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
