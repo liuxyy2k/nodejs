@@ -107,6 +107,10 @@ var index_config_default = {
       {
         name: "🔥湿园",
         address: "https://xxavs.com/api.php/provide/vod/at/json"
+      },
+      {
+        name: "🔥欧美大秀",
+        address: "https://oumeidaxiu.liuxy01999.workers.dev/"
       }
     ]
   },
