@@ -1,173 +1,183 @@
 import axios from 'axios';
-import { load } from 'cheerio';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const site = 'https://123av.com/zh';
+const site = 'https://123av.fun';
 
-async function request(url, headers = {}) {
-    const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA, ...headers },
-        httpsAgent: agent
-    });
-    return resp.data;
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+const http = axios.create({
+    timeout: 15_000,
+    headers: {
+        'User-Agent':      UA,
+        Accept:            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+    },
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDuration(seconds) {
+    const dur = parseInt(seconds) || 0;
+    const h   = Math.floor(dur / 3600);
+    const m   = Math.floor((dur % 3600) / 60);
+    const s   = dur % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
-function parseCards($) {
-    const list = [];
-    $('.box-item').each((_, element) => {
-        const href     = $(element).find('.thumb a').attr('href') || '';
-        const subTitle = $(element).find('.detail').text().trim();
-        const duration = $(element).find('.duration').text().trim();
-        const style    = $(element).find('img').attr('data-src') || '';
+function extractVideoList(html) {
+    if (!html) return [];
+    const videos = [];
+    const cardRe = /<a\s+([^>]*data-src="https:\/\/static\.123av\.fun\/[^"]+\.m3u8"[^>]*)>(.*?)<\/a>/gs;
 
-        list.push({
-            vod_id:      href,
-            vod_name:    subTitle,
-            vod_pic:     style,
-            vod_remarks: duration,
-        });
-    });
-    return list;
+    for (const [, attrs, content] of html.matchAll(cardRe)) {
+        try {
+            const srcM    = attrs.match(/data-src="(https:\/\/static\.123av\.fun\/[^"]+\.m3u8)"/);
+            const idM     = attrs.match(/data-id="(\d+)"/);
+            if (!srcM || !idM) continue;
+
+            const posterM = attrs.match(/data-poster="([^"]*)"/);
+            const durM    = attrs.match(/data-duration="(\d+)"/);
+            const titleM  = content.match(/<xwya-video[^>]*alt="([^"]*)"/);
+
+            const vid = idM[1];
+            videos.push({
+                vod_id:      vid,
+                vod_name:    titleM ? titleM[1].trim() : `视频${vid}`,
+                vod_pic:     posterM ? posterM[1] : '',
+                vod_remarks: durM ? formatDuration(durM[1]) : '',
+            });
+        } catch { /* ignore */ }
+    }
+    return videos;
 }
+
+// ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function init(_inReq, _outResp) {
     return {};
 }
 
 async function home(_inReq, _outResp) {
-    const classes = []
-    const html = await request(site);
-    const $    = load(html);
-    $('.has-child ul li a').each((_, element) => {
-         const typeId = $(element).attr('href') || '';
-         const typeName = $(element).text() || '';
-         classes.push({
-            type_id: typeId,
-            type_name: typeName
-         })
-    });
-    return { class: classes, filters: {} };
+    let list = [];
+    try {
+        const { data } = await http.get(`${site}/publish-time/sort-desc/page-1`);
+        list = extractVideoList(data);
+    } catch { /* ignore */ }
+
+    return {
+        class: [
+            { type_id: 'publish-time/sort-desc',  type_name: '最新发布' },
+            { type_id: 'view-count/sort-desc',     type_name: '最多播放' },
+            { type_id: 'comment-count/sort-desc',  type_name: '最多评论' },
+            { type_id: 'favorite-count/sort-desc', type_name: '最多收藏' },
+            { type_id: 'explore',                  type_name: '探索发现' },
+            { type_id: 'list',                     type_name: '排行榜'   },
+        ],
+        list,
+        filters: {},
+    };
 }
 
 async function category(inReq, _outResp) {
     const tid  = inReq.body.id;
-    const page = parseInt(inReq.body.page) || 1;
+    const pg   = parseInt(inReq.body.page) || 1;
 
-    let url = `${site}/${tid}?page=${page}`
-    console.log(url)
-    const html = await request(url);
-    const $    = load(html);
-    const list = parseCards($);
-
-    return { page, pagecount: page + 1, list };
-}
-
-async function getJumpConfig() {
-    const url  = 'https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732707176882/jiduo.txt';
-    const text = await request(url);
-    const name  = (text.match(/s1='(.*?)'/) || [])[1] || '';
-    const jumps = (text.match(/s2='(.*?)'/) || [])[1] || '';
-    return { name, jumps };
+    const { data } = await http.get(`${site}/${tid}/page-${pg}`);
+    return {
+        page:      pg,
+        pagecount: 999,
+        limit:     20,
+        total:     999 * 20,
+        list:      extractVideoList(data),
+    };
 }
 
 async function detail(inReq, _outResp) {
-    const did    = inReq.body.id;
-    const [path, pic] = did.split('@');
+    const vid = inReq.body.id;
 
-    const html = await request(`${site}/${path}`);
-    const $    = load(html);
+    try {
+        const { data: html } = await http.get(`${site}/detail/${vid}`);
 
-    // 基本信息
-    const dianzan = ' ' + (html.match(/<span ref="counter">(.*?)</) || [])[1] + '人点赞❤';
-    const fbrqArr = [...html.matchAll(/<span>(.*?)<\/span>/g)].map(m => m[1]);
+        const srcM    = html.match(/data-src="(https:\/\/static\.123av\.fun\/[^"]+\.m3u8)"/);
+        const posterM = html.match(/data-poster="([^"]*)"/);
+        const titleM  = html.match(/<h1[^>]*>([^<]+)<\/h1>/)
+                     || html.match(/property="og:title"\s+content="([^"]*)"/);
+        const descM   = html.match(/property="og:description"\s+content="([^"]*)"/);
+        const durM    = html.match(/data-duration="(\d+)"/);
 
-    const durMatch = html.match(/时长:([\s\S]*?)<\/div>/);
-    const durSpans = durMatch ? [...durMatch[0].matchAll(/<span>(.*?)<\/span>/g)].map(m => m[1]).join(' ') : '';
+        const m3u8     = srcM?.[1]    || '';
+        const vod_pic  = posterM?.[1] || '';
+        const vod_name = titleM?.[1]?.trim() || '';
 
-    const genre     = $('span.genre').text().trim();
-    const content   = `集多为您介绍剧情📢 ${genre} 时长:${durSpans}${dianzan}`
-                        .replace(/,/g, ' ').replace(/\n/g, ' ').replace(/\//g, ' ');
-
-    const dirMatch  = html.match(/制作人:([\s\S]*?)<\/div>/);
-    const director  = dirMatch ? [...dirMatch[0].matchAll(/href=".*?">(.*?)<\/a>/g)].map(m => m[1]).join(' ') + ' 集多' : '集多';
-
-    const actMatch  = html.match(/女演员:([\s\S]*?)<\/div>/);
-    const actor     = actMatch ? [...actMatch[0].matchAll(/>(.*?)<\/a>/g)].map(m => m[1]).join(' ') + ' 乐哥' : '乐哥';
-
-    const tagMatch  = html.match(/标签:([\s\S]*?)<\/div>/);
-    const remarks   = tagMatch ? [...tagMatch[0].matchAll(/>(.*?)<\/a>/g)].map(m => m[1]).join(' ') : '';
-
-    const yearMatch = html.match(/发布日期:([\s\S]*?)<\/div>/);
-    const year      = yearMatch ? ([...yearMatch[0].matchAll(/<span>(.*?)<\/span>/g)].map(m => m[1]).join(' ')) : '';
-
-    // 播放地址
-    let playUrl  = '';
-    let playFrom = ''
-    const qianMatch = html.match(/Movie\(\{id:\s*(\d+),/);
-    if (qianMatch) {
-        const qian    = qianMatch[1];
-        const ajaxData = await request(`${site}/ajax/v/${qian}/videos`);
-        const url1    = ajaxData.result?.watch?.[0]?.url || '';
-
-        if (url1) {
-            const playerHtml = await request(`${url1}?poster=${pic}`);
-            playUrl  = (playerHtml.match(/stream&quot;:&quot;(.*?)&/) || [])[1]?.replace(/\\/g, '') || '';
-            playFrom = '集多专线';
-        }
+        return {
+            list: [{
+                vod_id:        vid,
+                vod_name,
+                vod_pic,
+                vod_remarks:   durM ? formatDuration(durM[1]) : '',
+                vod_content:   descM?.[1] || '',
+                vod_play_from: '短视频',
+                vod_play_url:  m3u8 ? `正片$${m3u8}` : '',
+                type_name:     '短视频',
+                vod_year:      '',
+                vod_area:      '',
+                vod_director:  '',
+                vod_actor:     '',
+            }],
+        };
+    } catch {
+        return { list: [] };
     }
-
-    return {
-        list: [{
-            vod_id:        did,
-            vod_director:  director,
-            vod_actor:     actor,
-            vod_remarks:   remarks,
-            vod_year:      year,
-            vod_content:   content,
-            vod_play_from: playFrom,
-            vod_play_url:  playUrl,
-        }],
-    };
 }
 
 async function play(inReq, _outResp) {
-    const url = inReq.body.id;
-    return {
-        parse: 0,
-        url,
-        header: {
-            'User-Agent': UA,
-            'Referer': 'https://avtoday.io/player?s=' + url.replace('/video/',''),
-        },
-    };
+    const pid = inReq.body.id;
+
+    const base = { header: { 'User-Agent': UA, Referer: `${site}/` } };
+
+    // 已经是 m3u8 直接播放
+    if (pid.startsWith('http') && pid.includes('.m3u8')) {
+        return { ...base, parse: 0, url: pid };
+    }
+
+    // 详情页二次提取
+    if (pid.includes('/detail/')) {
+        try {
+            const { data: html } = await http.get(pid);
+            const m = html.match(/data-src="(https:\/\/static\.123av\.fun\/[^"]+\.m3u8)"/);
+            if (m) return { ...base, parse: 0, url: m[1] };
+        } catch { /* ignore */ }
+    }
+
+    return { ...base, parse: 1, url: pid };
 }
 
 async function search(inReq, _outResp) {
-    const text = encodeURIComponent(inReq.body.wd || '');
-    const page = parseInt(inReq.body.pg) || 1;
+    const key = encodeURIComponent(inReq.body.wd || '');
+    const pg  = parseInt(inReq.body.pg) || 1;
 
-    const html = await request(`${site}/search?s=${text}&page=${page}`);
-    const $    = load(html);
-    const list = parseCards($);
-
-    return { list };
+    try {
+        const { data } = await http.get(`${site}/search/${key}/page-${pg}`);
+        return { page: pg, pagecount: 99, limit: 20, total: 99 * 20, list: extractVideoList(data) };
+    } catch {
+        return { list: [] };
+    }
 }
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
     meta: {
-        key: '123av',
-        name: '🔥123AV',
+        key:  '123av',
+        name: '🔥123AV短视频',
         type: 3,
     },
     api: async (fastify) => {
-        fastify.post('/init', init);
-        fastify.post('/home', home);
+        fastify.post('/init',     init);
+        fastify.post('/home',     home);
         fastify.post('/category', category);
-        fastify.post('/detail', detail);
-        fastify.post('/play', play);
-        fastify.post('/search', search);
+        fastify.post('/detail',   detail);
+        fastify.post('/play',     play);
+        fastify.post('/search',   search);
     },
 };
