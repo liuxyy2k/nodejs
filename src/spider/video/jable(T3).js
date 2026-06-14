@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const siteUrl = 'https://jable.tv';
+import { config } from './config.js';
+const SERVER_API = config.SERVER_API;
 
 const headers = {
     'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -9,13 +11,25 @@ const headers = {
     Referer:           'https://jable.tv/',
 };
 
-async function request(url, headers = {}) {
-    const resp = await axios.get(url, {
-        headers
-    });
-    return resp.data;
-}
+async function request(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'
+        }, {
+            timeout: 60000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
 
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        throw e;
+    }
+}
 function postList(html, pg) {
     const list   = [];
     if (!html) return { list, page: pg, pagecount: pg, limit: 24, total: 9999 };

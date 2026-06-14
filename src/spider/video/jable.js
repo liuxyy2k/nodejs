@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import { config } from './config.js';
 
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
@@ -7,13 +8,26 @@ import { load } from 'cheerio';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://jable.tv';
+const SERVER_API = config.SERVER_API;
 
-async function request(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
-        // httpsAgent: agent
-    });
-    return resp.data;
+async function request(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'
+        }, {
+            timeout: 60000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        throw e;
+    }
 }
 
 async function init(_inReq, _outResp) {

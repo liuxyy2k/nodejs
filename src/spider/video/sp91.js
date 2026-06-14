@@ -1,14 +1,35 @@
 import axios from 'axios';
 import { load } from 'cheerio';
+import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://91porny.com';
+const site = 'https://jiuse.io';
 
-async function request(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
-    });
-    return resp.data;
+const SERVER_API = config.SERVER_API;
+
+
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
+async function request(targetUrl) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url: targetUrl,
+            referer: site + '/',
+            key: 'mira123'
+        }, {
+            timeout: 60000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return resp.data;
+    } catch (e) {
+        console.log('中转请求失败:', e.message);
+        throw e;
+    }
 }
 
 function parseVods($) {
@@ -44,11 +65,11 @@ async function home(_inReq, _outResp) {
         type_name: typeNameList[i],
     }));
 
-    const html = await request(site);
-    const $ = load(html);
-    const list = parseVods($);
+    // const html = await request(site);
+    // const $ = load(html);
+    // const list = parseVods($);
 
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
