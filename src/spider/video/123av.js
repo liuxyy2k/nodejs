@@ -168,7 +168,7 @@ async function search(inReq, _outResp) {
 
 export default {
     meta: {
-        key:  '123av',
+        key:  '123dsp',
         name: '🔥123AV短视频',
         type: 3,
     },

@@ -3,11 +3,11 @@ import { load } from 'cheerio';
 import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-const site = 'https://gac.hpyt73xa.com:52000';
+const site = 'https://354.iwqz0li.com:51666';
 
-import { HttpsProxyAgent } from 'https-proxy-agent';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const AES_CBC_KEY = Buffer.from(
   new TextEncoder().encode("H0Z%7n#k$H8*M7xSE^N@8xXZPG*RZ&wY")
@@ -23,7 +23,7 @@ const AES_KEY_LENGTH    = 256;
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
-        httpsAgent: agent
+        // httpsAgent: agent
     });
     return resp.data;
 }
@@ -173,10 +173,10 @@ async function home(_inReq, _outResp) {
     let url = 'https://sfa.r87xx5s.com:51111/api/video/home?channel=sjb'
     const data = await request(url);
     const result = await decrypt(data.data, data.key);
-    console.log(result[3]);
+    // console.log(result);
     result.forEach(item => {
         classes.push({
-            type_id: `${item.id}`,
+            type_id: `${item.id}-${item.type}`,
             type_name: item.title,
         });
     });
@@ -185,8 +185,9 @@ async function home(_inReq, _outResp) {
 
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
+    let tidArr = tid.split('-');
     const page = parseInt(inReq.body.page) || 1;
-    let url = `https://sfa.r87xx5s.com:51111/api/video/getList?channel=sjb&id=${tid}&type=label&page=${page}&size=24`
+    let url = `https://sfa.r87xx5s.com:51111/api/video/getList?channel=sjb&id=${tidArr[0]}&type=${tidArr[1]}&page=${page}&size=24`
     const data = await request(url);
     const result = await decrypt(data.data, data.key);
     let list = [];
