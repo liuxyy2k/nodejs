@@ -132,6 +132,7 @@ import uumb from "./spider/video/uumb.js";
 import xads from "./spider/video/xingaidashi.js";
 import luoli from "./spider/video/luoliAV.js";
 import xmlive from "./spider/video/xmlive.js";
+import yt from "./spider/video/yt.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 // import baseset from "./spider/video/baseset.js";
 import mogg from "./spider/video/mogg.js";
@@ -154,7 +155,7 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, ai, animei, hanime, hanime2, hdm18, xmlive,
+        douban, leijing, panta, wogg, zhizhen, nsp, duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, ai, animei, hanime, hanime2, hdm18, xmlive, yt, bzhan,  
         livescj, sbjh, chatur, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili,  av123dsp,
         cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, cgbk, mtw, ncxxx, jptt,  xjsp, jiujiu, bwhs, adtv, luoli,
         video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads,

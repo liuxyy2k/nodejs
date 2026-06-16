@@ -4,7 +4,7 @@ import { config } from './config.js';
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 
-const DEFAULT_SITE = "https://missav.live"
+const DEFAULT_SITE = "https://missav.ws"
 
 const KEY_SITE = "/missavSite"
 const KEY_COOKIE = "/missavCookie"
