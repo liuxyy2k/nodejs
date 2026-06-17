@@ -42,7 +42,7 @@ async function parseVods($) {
     const items = [];
 
     $('article').each((_, element) => {
-        const rawPic = $(element).find('script').text().trim();
+        const rawPic = $(element).find('meta[itemprop="image"]').attr('content') || '';
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.post-card-bottom-text').text().trim();
         const date  = $(element).find('span[itemprop="datePublished"]').text().trim();

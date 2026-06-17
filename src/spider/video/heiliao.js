@@ -20,7 +20,7 @@ async function request(reqUrl) {
 }
 
 function getImgUrl($el) {
-    const src = $el.attr('src') || $el.attr('data-src') || '';
+    const src = $el.attr('z-image-loader-url') || $el.attr('data-src') || '';
     const enc = extractImgFromOnload($el.attr('onload') || '');
     const t   = enc || src;
     if (!t) return '';
