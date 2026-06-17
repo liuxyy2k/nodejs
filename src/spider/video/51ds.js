@@ -9,7 +9,7 @@ import crypto from 'crypto';
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://bean.cecrswtk.cc';
+const site = 'https://breathe.sjmukrahk.cc';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
