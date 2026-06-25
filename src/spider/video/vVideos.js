@@ -5,9 +5,9 @@ import crypto from 'crypto';
 const siteUrl = 'https://872.9n5c2.com';
 const searchUrl = siteUrl + '/drama/search/result?keyword=';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -18,7 +18,7 @@ const headers = {
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 async function request(url) {
-    const resp = await axios.get(url, { headers});
+    const resp = await axios.get(url, { headers, httpsAgent: agent });
     return resp.data;
 }
 
@@ -105,10 +105,9 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    const url = `https://kk2.hi86jxxr.com/api/v2/home/public/nav/list?channel=vvsjb&cate=video_long`;
+    const url = `https://vqh.z4shq2v.com:51666/api/v3/home/public/nav/list?channel=vvsjb&cate=video_long`;
 
     const resp = await request(url);
-
     const list = await decrypt(resp.data, resp.key);
     const classes = (list?.list ?? list ?? []).map(item => ({
         type_id: `${item.tid ?? ''}-${item.type ?? ''}`,
