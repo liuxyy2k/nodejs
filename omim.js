@@ -8,6 +8,7 @@ import mysql from 'mysql2/promise';
 import { execFile } from 'child_process';
 import ExcelJS from 'exceljs';
 import path from 'path';
+import axios from 'axios';
 
 const execFileAsync = promisify(execFile);
 chromium.use(StealthPlugin());
@@ -17,16 +18,28 @@ app.use(express.json());
 
 const PORT = 3001;
 //代理
-const PROXY_URL = 'http://127.0.0.1:7897';
+const PROXY_URL = 'socks5://127.0.0.1:7897';
 const OMIM_BASE = 'https://www.omim.org';
+
+const FLARE_URL = 'http://43.143.23.150:8191/v1';
+
+
+async function request(url) {
+    const resp = await axios.post(FLARE_URL, {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
+    });
+    return resp.data.solution.response;
+}
 
 // ── 数据库连接池 ──────────────────────────────────────────────
 const db = mysql.createPool({
-    host: '127.0.0.1',
-    port: 3306,    
-    user: 'root',
-    password: `vP3f9%i3`,
-    database: 'ruoyi',
+    host: 'xxxx',
+    port: xxx,    
+    user: 'xxx',
+    password: `xxxxx`,
+    database: 'xxxxx',
     waitForConnections: true,
     connectionLimit: 10,
 });
@@ -34,7 +47,7 @@ const db = mysql.createPool({
 // ── 从数据库读取待爬取的 MIM 号 ───────────────────────────────
 async function getPendingMimNumbers() {
     const [rows] = await db.query(
-        `SELECT OMIM_Number FROM mim2gene WHERE type != 'moved/removed'`
+        `SELECT OMIM_Number FROM mim2gene WHERE type != 'moved/removed' and status is null`
     );
     return rows.map(r => r.OMIM_Number);
 }
@@ -61,7 +74,7 @@ async function saveOmimEntry(data) {
                 `INSERT INTO gene_omim_phenotype
                     (prefix, omim_number, gene_locus_mim_number, symbol, phenotype_mim_number, Inheritance, pheno_map_key, phenotype, description, create_time, update_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                [data.prefix, data.mimNumber, data.prefix == '*' ? data.mimNumber : '', data.symbol || '', '', '', '', '', data.description || '']
+                [data.prefix, data.mimNumber, data.mimNumber || '', data.symbol || '', '', '', '', '', data.description || '']
             );
         }
 
@@ -94,6 +107,11 @@ async function saveOmimEntry(data) {
             }
         }
         await conn.commit();
+        // 标记完成
+        await db.query(
+            'UPDATE mim2gene SET status = ? WHERE OMIM_Number = ?',
+            ['success', data.mimNumber]
+        );
         console.log(`[入库] ${data.mimNumber} 完成`);
     } catch (err) {
         await conn.rollback();
@@ -250,21 +268,32 @@ async function bypassCF(url, referer) {
 
         await page.route('**/*.{png,jpg,jpeg,gif,webp,mp4,woff,woff2}', route => route.abort());
 
-        // ← waitUntil 改成 load，等 CF 的 JS 有机会执行
-        await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+        await page.goto('https://ip.oxylabs.io/location', { waitUntil: 'load' });
+        const ipInfo = await page.evaluate(() => document.body.innerText);
+        console.log('[IP信息]', ipInfo);
 
-        // ← 不等 title，直接等 OMIM 自己的内容元素出现
-        try {
-            await page.waitForSelector('#content, #mimContent, .entry', {
-                timeout: 60000,
-            });
-            console.log('[CF绕过] 成功，检测到 OMIM 内容');
-        } catch {
-            // 截图留证，方便排查
-            // await page.screenshot({ path: `./cf_fail_${Date.now()}.png`, fullPage: true });
+        await page.goto('https://www.ipqualityscore.com/api/json/ip/[YOUR_FREE_KEY]', { waitUntil: 'load' });
+        const quality = await page.evaluate(() => document.body.innerText);
+        console.log('[IP质量]', quality);
+
+        // goto
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        // 等 CF 放行（最多等30秒）
+        for (let i = 0; i < 10; i++) {
             const title = await page.title();
-            throw new Error(`CF 未通过，当前页面标题: ${title}`);
+            console.log(`[CF检测] title: ${title}`);
+
+            if (!title.includes('Just a moment') && !title.includes('Attention Required')) {
+                console.log('[CF] 已通过，进入目标页');
+                break;
+            }
+
+            if (i === 9) throw new Error(`CF 始终未通过: ${title}`);
+            await new Promise(r => setTimeout(r, 3000));
         }
+
+        // 等目标页内容渲染
+        await page.waitForSelector('#content, #mimContent, .entry', { timeout: 30000 });
         
         const cookies = await context.cookies();
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
@@ -316,16 +345,18 @@ function parseOmimEntry(html) {
         return { error: '页面解析失败', title: $('title').text() };
     }
     // ── MIM号 + 前缀符号 ──────────────────────────────────────
-    result.prefix = mainDiv.find('.text-danger strong').first().text().trim(); // #  * % +
+    result.prefix = safeText(mainDiv.find('.text-danger strong').first()); // #  * % +
+    console.log(result.prefix);
     // 1. 抓取 OMIM 编号及前缀符号
     const numberSpan = mainDiv.find('span.h3 .mim-font');
-    const mimSign = numberSpan.find('strong').text().trim(); // 例如: "#"
+    const mimSign = safeText(numberSpan.find('strong')); // 例如: "#"
     // 移除符号和多余换行，只保留纯数字
     const mimNumber = numberSpan.text().replace(mimSign, '').replace(/\s+/g, '').trim();
     result.mimNumber = mimNumber;
+    console.log(result.mimNumber);
     //── 基因 ─────────────────────────────────────────────────
-    result.symbol = mainDiv.find('#approvedGeneSymbols').next('p').find('.mim-tip-hint').text().trim();
-
+    result.symbol = safeText(mainDiv.find('#approvedGeneSymbols').next('p').find('.mim-tip-hint'));
+    console.log(result.symbol);
     // ── 基因疾病关系表格 ────────────────────
     result.phenotypeMap = [];
     let currentLocation = '';
@@ -363,8 +394,8 @@ function parseOmimEntry(html) {
             phenotypeMim:  $(cols[colIndex + 1]).text().trim(),
             inheritance:   $(cols[colIndex + 2]).text().trim(),
             mappingKey:    $(cols[colIndex + 3]).text().trim(),
-            gene:          $(cols[colIndex + 4])?.text()?.trim() || '',
-            geneMim:       $(cols[colIndex + 5])?.text()?.trim() || '',
+            gene:          safeText($(cols[colIndex + 4])),
+            geneMim:       safeText($(cols[colIndex + 5])),
         });
     });
 
@@ -389,14 +420,18 @@ function parseOmimEntry(html) {
     // });
 
     // ── 疾病描述 ───────────────────────────────────────────────
-    result.description = mainDiv.find('div#mimDescriptionFold .mim-text-font p').text().trim();
-
+    result.description = safeText(mainDiv.find('div#mimDescriptionFold .mim-text-font p'));
+    console.log(result.description);
     // ── 创建/编辑时间 ─────────────────────────────────────────
-    const createDate = mainDiv.find('#creationDate').next('div').find('.col-lg-6.col-md-6.col-sm-6.col-xs-6').text().trim() || ''
-    result.creationDate = createDate.split(' : ')[1].trim();
-    const editHis = mainDiv.find('#editHistory').next('div').find('.col-lg-6.col-md-6.col-sm-6.col-xs-6').text().trim() || ''
-    result.editDate = editHis.split(' : ')[1].trim();
+    // const createDate = mainDiv.find('#creationDate').next('div').find('.col-lg-6.col-md-6.col-sm-6.col-xs-6').text().trim() || ''
+    // result.creationDate = createDate.split(' : ')[1].trim();
+    // const editHis = mainDiv.find('#editHistory').next('div').find('.col-lg-6.col-md-6.col-sm-6.col-xs-6').text().trim() || ''
+    // result.editDate = editHis.split(' : ')[1].trim();
     return result;
+}
+
+function safeText(el) {
+    return el?.text?.()?.trim?.() || '';
 }
 
 /**
@@ -449,7 +484,8 @@ app.get('/omim/crawl', async (req, res) => {
             const url = `${OMIM_BASE}/entry/${mim}?search=${mim}`;
             console.log(`[爬取] ${url}`);
             try {
-                const { html } = await getHtml(url, force);
+                // const { html } = await getHtml(url, force);
+                const html = await request(url);
                 const data = parseOmimEntry(html);
 
                 if (data.error) {
@@ -485,7 +521,7 @@ app.post('/omim/entry', async (req, res) => {
     console.log(`[OMIM Entry] 请求: ${url}`);
 
     try {
-        const { html, cookies, fromCache } = await getHtml(url, force);
+        const html = await request(url);
         const data = parseOmimEntry(html);
         //入库
         await saveOmimEntry(data);
