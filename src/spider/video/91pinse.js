@@ -50,18 +50,17 @@ async function category(inReq, _outResp) {
     const $ = load(html);
 
     let videos = [];
-    $('.group').each((_, element) => {
+    $('.video-card').each((_, element) => {
         const href = $(element).find('a').attr('href');
-        const title = $(element).find('.link-hover').text().trim() || '';
+        const title = $(element).find('.video-card-title').text().trim() || '';
         const cover = $(element).find('img').attr('src');
-        const time = $(element).find('.left-1').text();
-        const type = $(element).find('.right-1').text();
+        const time = $(element).find('.video-duration').text();
         if (href) {
             videos.push({
                 vod_id: href,
                 vod_name: title,
                 vod_pic: cover,
-                vod_remarks: time + ' ' + type,
+                vod_remarks: time 
             });
         }
     });
