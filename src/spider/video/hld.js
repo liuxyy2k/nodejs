@@ -18,18 +18,18 @@ async function request(reqUrl, headers = {}) {
     return resp.data;
 }
 
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
+}
+
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
+}
+
+
 
 const AES_KEY = 'f5d965df75336270';
 const AES_IV  = '97b60394abc2fbe1';
-function imgDecrypt(buf) {
-    const data = Buffer.from(buf);
-    const key  = Buffer.from('2019ysapp7527');
-    // 只有前100字节做了 XOR，后面不动
-    for (let i = 0; i < 100 && i < data.length; i++) {
-        data[i] ^= key[i % key.length];
-    }
-    return data;
-}
 
 function isImgMagic(buf) {
     return (
@@ -143,7 +143,7 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-    let url = `${site}/${tid}${page}/`;
+    let url = `${site}${tid}${page}/`;
     if(tid === '') {
         url = `${site}/page/${page}/`;
     }
