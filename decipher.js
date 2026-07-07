@@ -30,8 +30,8 @@ async function request(url) {
 
 // ── 数据库连接池 ──────────────────────────────────────────────
 const db = mysql.createPool({
-    host: 'xxxxxx',
-    port: xxxx,    
+    host: 'xxxxx',
+    port: xxx,    
     user: 'xxx',
     password: `xxxxx`,
     database: 'xxxx',
@@ -126,7 +126,7 @@ async function saveCnvEntry(list) {
         if(list?.length) {
             for (const item of list) {
                 await conn.query(
-                    `INSERT INTO cnv_decipher (syndrome_name, chrom, chr_start, chr_end, genotype, variant_class, size, grade, description, fanyi, create_time)
+                    `INSERT INTO cnv_decipher1 (syndrome_name, chrom, chr_start, chr_end, genotype, variant_class, size, grade, description, fanyi, create_time)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
                     [item.syndrome_name, item.chrom, item.chr_start, item.chr_end, item.genotype, item.variant_class, item.size, item.grade, item.description || '', item.fanyi || '']
                 );
@@ -159,7 +159,7 @@ async function saveCnvClingenEntry(item) {
         //     } 
         // }
         await conn.query(
-            `INSERT INTO cnv_clingen
+            `INSERT INTO cnv_clingen1
                 (region_name, location, hs, ts, \`key\`, hi_comments, ts_comments, hi_comments_fanyi, ts_comments_fanyi, create_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
             [item.name, item.location, item.hs, item.ts, item.key, item.hi_comments, item.ts_comments, item.hi_comments_fanyi || '', item.ts_comments_fanyi || '']
@@ -294,12 +294,12 @@ app.get('/cnv/clingen/entry', async (req, res) => {
  */
 app.get('/cnv/fanyi', async (req, res) => {
      const [rows] = await db.query(
-        `SELECT id,region_name FROM cnv_clingen`
+        `SELECT id,syndrome_name FROM cnv_decipher1`
     );
     for(const row of rows) {
-        const fanyi = await youDaoTranslation(row.region_name);
+        const fanyi = await youDaoTranslation(row.syndrome_name);
         await db.query(
-            `UPDATE cnv_clingen SET region_fanyi = ? WHERE id = ?`,
+            `UPDATE cnv_decipher1 SET syndrome_fanyi = ? WHERE id = ?`,
             [fanyi, row.id]
         );
     }   

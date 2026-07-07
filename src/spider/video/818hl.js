@@ -4,6 +4,8 @@ import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+const PORT   = process.env.DEV_HTTP_PORT || 9988;
+
 let hostUrl = 'https://cell.lacdfsq.cc/';
 const imgCache = new Map();
 
@@ -110,6 +112,10 @@ function getImg(scriptText, $el, proxyBase) {
     return '';
 }
 
+function proxyImgUrl(raw) {
+    return `http://127.0.0.1:${PORT}/spider/hlw818/3/img?url=${encodeURIComponent(e64(raw))}`;
+}
+
 function getList($, selector, tid = '', proxyBase = '') {
     const videos = [];
     const isFolder = tid.includes('/mrdg');
@@ -127,7 +133,7 @@ function getList($, selector, tid = '', proxyBase = '') {
         videos.push({
             vod_id:      href + (isFolder ? '@folder' : ''),
             vod_name:    title,
-            vod_pic:     pic,
+            vod_pic:     proxyImgUrl(pic),
             vod_remarks: item.find('time').text() || '',
             vod_tag:     isFolder ? 'folder' : '',
             style:       { type: 'rect', ratio: 1.33 },
@@ -338,13 +344,39 @@ async function proxyHandler(inReq, outResp) {
     return outResp.status(404).send('');
 }
 
+async function imgProxy(inReq, reply) {
+    try {
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${hostUrl}/`,
+                'Origin':     hostUrl,
+            },
+            responseType: 'arraybuffer',
+            timeout:      10000,
+        });
+
+        const decrypted = aesImg(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
+    }
+}
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
     meta: {
         key:  'hlw818',
         name: '🌈818黑料网',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);
@@ -353,6 +385,6 @@ export default {
         fastify.post('/detail',   detail);
         fastify.post('/play',     play);
         fastify.post('/search',   search);
-        fastify.get('/proxy',     proxyHandler);
+        fastify.get('/img',     imgProxy);
     },
 };
