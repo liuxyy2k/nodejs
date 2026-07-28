@@ -192,7 +192,7 @@ function formatList(items, proxyBase) {
     return items.map((d) => ({
         vod_id:      `${d.id}@@${d.videoUrl}`,
         vod_name:    d.title,
-        vod_pic:     `${proxyBase}?imgUrl=${encodeURIComponent(`https://huygd.jiekrrj.cn/${d.coverImg}`)}`,
+        vod_pic:     `${proxyBase}?imgUrl=${encodeURIComponent(`https://cjhecnimg.jiekrrj.cn/${d.coverImg}`)}`,
         vod_remarks: `观看：${d.watchTimes} 次`,
     }));
 }

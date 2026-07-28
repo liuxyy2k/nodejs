@@ -2,6 +2,10 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -9,7 +13,7 @@ const site = 'https://dycgweb.com';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
+        headers: { 'User-Agent': UA, ...headers }
     });
     return resp.data;
 }
@@ -121,12 +125,11 @@ async function detail(inReq, _outResp) {
     const url = `/player/${hash}/${idss}/${t}.js`;
     const js = await request(site + url);
     const unpacked = eval(js.replace('eval', ''))
-    const base64 = unpacked.match(/data-config=['"]([^'"]+)['"]/)?.[1];
-    let playUrl = ''
-    if (base64) {
-        playUrl = JSON.parse(Buffer.from(base64, 'base64').toString()).video.url;
-        console.log(playUrl)
-    }
+    const playUrl = unpacked.match(
+        /https?:\/\/[^"'\\\s]+\.m3u8[^"'\\\s]*/
+    )?.[0] || '';
+
+    console.log(playUrl);
     return {
         list: [{
             vod_id: id,

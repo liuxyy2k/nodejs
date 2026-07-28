@@ -6,15 +6,15 @@ import CryptoJS from 'crypto-js';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91pinse.com';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
-        // httpsAgent: agent
+        httpsAgent: agent
     });
     return resp.data;
 }
@@ -78,28 +78,27 @@ async function detail(inReq, _outResp) {
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic  = $('meta[property="og:image"]').attr('content') || '';
     const description = $('meta[property="og:description"]').attr('content') || '';
-    html = html.replace(/\\u003D/g, '=');
-
-    let results = [];
-    let regex = /['"]([A-Za-z0-9+/=]{100,})['"]/g; // 长一点，避免误匹配
-    let m;
-
-    while ((m = regex.exec(html)) !== null) {
-        try {
-            let decoded = Buffer.from(m[1], 'base64').toString();
-
-            if (decoded.includes('.m3u8')) {
-                results.push(decoded);
-            }
-        } catch(e){}
-    }
+    let play = site + `/api/videos/${url.split('/')[2]}/playback`
+    const resp = await axios.post(
+        play,
+        null,
+        {
+            headers: {
+                'User-Agent': UA,
+                'Referer': play,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            withCredentials: true,
+            httpsAgent: agent
+        }
+    );
     return {
         list: [{
             vod_id: url,
             vod_name: name,
             vod_pic: pic,
             vod_play_from: '91pinse',
-            vod_play_url: url ? `播放$${results[0]}` : ''
+            vod_play_url: `播放$${plat.data}`
         }]
     };
 }
