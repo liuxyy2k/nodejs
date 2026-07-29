@@ -526,7 +526,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'hscka',
-        name: '🔥hscka',
+        name: '🔥黄色仓库',
         type: 3,
     },
     api: async (fastify) => {
