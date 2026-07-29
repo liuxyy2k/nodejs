@@ -28,18 +28,18 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 async function request(url) {
     const resp = await axios.get(url, {
         headers: { 'User-Agent': UA },
-        httpsAgent: agent
+        // httpsAgent: agent
     });
     return resp.data;
 }
 
 // ── 数据库连接池 ──────────────────────────────────────────────
 const db = mysql.createPool({
-    host: 'xxxxx',
-    port: xxx,    
-    user: 'xxx',
-    password: `xxxxxx`,
-    database: 'xxxxx',
+    host: '127.0.0.1',
+    port: 3306, 
+    user: 'root',
+    password: 'vP3f9%i3',
+    database: 'ruoyi',
     waitForConnections: true,
     connectionLimit: 10,
 });
