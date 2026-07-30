@@ -13,6 +13,8 @@ const sources = [
     { name: '松视2',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/lc529180405/caicai/c66fb081ac1db9f0fe82116a3d38f136466f904d/18txt/%E7%BA%AF%E5%8D%81%E5%85%AB.txt' },
     { name: '色播',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/cluntop/tvbox/refs/heads/main/lib/sbjh.m3u' },
     { name: '岛国',  url: 'https://proxy.api.030101.xyz/files.catbox.moe/49yydm.m3u' },
+    { name: '至尊',  url: 'https://seep.eu.org/https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/%E8%87%B3%E5%B0%8A.m3u' },
+    { name: 'XXX',  url: 'https://seep.eu.org/https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/%F0%9D%99%B1%F0%9D%9A%81%F0%9D%99%B0%F0%9D%9A%89%F0%9D%99%B8%F0%9D%99%BB%20%F0%9F%87%A7%F0%9F%87%B7_XXX_2026-07-05T18-12-41.m3u' },
     { name: '监控',  url: 'https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/%E7%9B%91%E6%8E%A7.m3u' },
     { name: '女优库',  url: 'https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/nyk.m3u' },
     { name: '星影爆谷台',  url: 'https://seep.eu.org/https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/now%E6%98%9F%E5%BD%B1%E7%88%86%E8%B0%B7%E5%8F%B0.m3u' },
