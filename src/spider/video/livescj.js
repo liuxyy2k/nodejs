@@ -6,7 +6,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const DEF_PIC = 'https://ghproxy.net/https://raw.githubusercontent.com/hjdhnx/hipy-server/master/app/static/img/lives.jpg';
 
 const sources = [
-    { name: '库佬',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/Jsnzkpg/Jsnzkpg/Jsnzkpg/Jsnzkpg1.m3u'           },
+    { name: '直播',  url: 'https://seep.eu.org/https://raw.githubusercontent.com/wliqi495-create/jaychouqq/refs/heads/main/yingshi/txt/%E7%9B%B4%E6%92%AD.txt'           },
 
     { name: '蚂蚁',  url: 'https://ge.html-5.me/ii/%E9%BB%84%E8%9A%82%E8%9A%81%E5%85%88%E9%94%8B%E6%8E%A8%E6%B5%81%E6%BA%90.txt' },
     { name: '松视',  url: 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/lives.txt' },
