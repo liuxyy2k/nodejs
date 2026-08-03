@@ -157,6 +157,12 @@ import supjav1 from "./spider/video/supjav1.js";
 import stripol from "./spider/video/stripol.js";
 import tx from "./spider/video/tx.js";
 import fengye from "./spider/video/fengyeyy.js";
+import gg51 from "./spider/video/gg51.js";
+import hstream from "./spider/video/hstream.js";
+import lxtv5 from "./spider/video/5lxtv.js";
+import motv from "./spider/video/motv.js";
+import march from "./spider/video/march.js";
+import pmvhaven from "./spider/video/pmvhaven.js";
 import mitaoshipin from "./spider/video/mitaoshipin.js";
 import mrdld from "./spider/video/mrdld.js";
 import hanime1 from "./spider/video/hanime1.js";
@@ -190,7 +196,7 @@ const getSpiders = async (server) => {
         ai, animei, hanime, hanime2, hdm18, yt, p74, redgif, stripol,  hanime1, masexTv, 
         livescj, sbjh, chatur, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luoli, luanlunba,
-        video91, sp91, pron91, wm91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, wukong, porncloud, baokuanpk, x3av, dottaia, zsrenqi, wujiv4, hscka, 
+        video91, sp91, pron91, wm91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, gg51, hstream, lxtv5, motv, march, pmvhaven, wukong, porncloud, baokuanpk, x3av, dottaia, zsrenqi, wujiv4, hscka, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
         av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
