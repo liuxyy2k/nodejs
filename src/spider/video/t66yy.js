@@ -10,11 +10,8 @@ const PORT = process.env.DEV_HTTP_PORT || 9988;
 const site = 'https://t66yy.cc';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 const http = axios.create({
     timeout: 30_000,
-    httpsAgent,
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,
@@ -435,7 +432,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 't66yy',
-        name: 't66yy',
+        name: '🔥t66yy',
         type: 3,
     },
     api: async (fastify) => {
