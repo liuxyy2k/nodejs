@@ -154,7 +154,6 @@ import hl818 from "./spider/video/818hl.js";
 import redgif from "./spider/video/redgifs.js";
 import supjav1 from "./spider/video/supjav1.js";
 import stripol from "./spider/video/stripol.js";
-import tx from "./spider/video/tx.js";
 import fengye from "./spider/video/fengyeyy.js";
 import gg51 from "./spider/video/gg51.js";
 import hstream from "./spider/video/hstream.js";
@@ -197,7 +196,7 @@ import CMSFactory from "./spider/video/cms.js";
 
 const getSpiders = async (server) => {
     const spiders = [
-        douban, leijing, panta, wogg, zhizhen, nsp, tx, fengye,  duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, dy,  xmlive, pandaLive,
+        douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, dy,  xmlive, pandaLive,
         ai, animei, hanime, hanime2, hdm18, yt, p74, redgif, stripol,  hanime1, masexTv, 
         livescj, sbjh, chatur, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luoli, luanlunba,
