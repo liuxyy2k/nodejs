@@ -15,13 +15,11 @@ const DEBUG = true;
 const SKIP_CATS = new Set(['欧美色情', '日本BT', '国产BT']);
 
 const jar = new CookieJar();
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = wrapper(
     axios.create({
         jar,
         timeout: 30_000,
-        httpsAgent,
         validateStatus: () => true,
         headers: {
             'User-Agent': UA,
