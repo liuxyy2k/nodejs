@@ -151,7 +151,6 @@ import fullhd from "./spider/video/fullHd.js";
 import pandaLive from "./spider/video/pandaLive.js";
 import hld from "./spider/video/hld.js";
 import hl818 from "./spider/video/818hl.js";
-import wm91 from "./spider/video/91wm.js";
 import redgif from "./spider/video/redgifs.js";
 import supjav1 from "./spider/video/supjav1.js";
 import stripol from "./spider/video/stripol.js";
@@ -202,7 +201,7 @@ const getSpiders = async (server) => {
         ai, animei, hanime, hanime2, hdm18, yt, p74, redgif, stripol,  hanime1, masexTv, 
         livescj, sbjh, chatur, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luoli, luanlunba,
-        video91, sp91, pron91, wm91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, gg51, hstream, lxtv5, tbr, wnacg, motv, march, pmvhaven, wukong, porncloud, baokuanpk, x3av, dottaia, zsrenqi, wujiv4, hscka, 
+        video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, gg51, hstream, lxtv5, tbr, wnacg, motv, march, pmvhaven, wukong, porncloud, baokuanpk, x3av, dottaia, zsrenqi, wujiv4, hscka, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
         av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jablet3, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
