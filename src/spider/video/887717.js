@@ -23,11 +23,9 @@ const FALLBACK_CLASSES = [
     { type_id: 'fc2无码', type_name: 'FC2' },
 ];
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = axios.create({
     timeout: 15_000,
-    httpsAgent,
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,

@@ -36,11 +36,9 @@ let host = hosts[0];
 let categories = [];
 const cookieStore = new Map();
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = axios.create({
     timeout: 20_000,
-    httpsAgent,
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,
