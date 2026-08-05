@@ -44,11 +44,8 @@ const TAB_ID_MAP = {
     asian: '1',
 };
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 const http = axios.create({
     timeout: 10_000,
-    httpsAgent,
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,

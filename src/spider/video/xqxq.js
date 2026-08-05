@@ -273,7 +273,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'xqxq',
-        name: 'AV星球',
+        name: '🔥AV星球',
         type: 3,
     },
     api: async (fastify) => {

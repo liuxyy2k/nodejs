@@ -156,7 +156,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'uaaudio',
-        name: 'UAA[听]',
+        name: '🔥UAA[听]',
         type: 3,
     },
     api: async (fastify) => {
