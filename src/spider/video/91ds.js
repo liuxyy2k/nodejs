@@ -14,45 +14,45 @@ const UA =
 const XOR_KEY = 7;
 
 const MANUAL_CLASSES = [
-    ['/category/jrds/', '今日大赛'],
-    ['/category/rsds/', '热搜大赛'],
-    ['/category/mrds/', '每日大赛'],
-    ['/category/aidj/', 'AI短剧'],
-    ['/category/nsds/', '女神大赛'],
-    ['/category/llds/', '乱伦大赛'],
-    ['/category/xyds/', '学院大赛'],
-    ['/category/whds/', '网红大赛'],
-    ['/category/lyds/', '撸友看片'],
-    ['/category/sjbzq/', '优选投放区'],
-    ['/category/qwds/', '奇闻大赛'],
-    ['/category/mxds/', '明星吃瓜'],
-    ['/category/ntds/', '女同大赛'],
-    ['/category/wmds/', '污漫大赛'],
+    ['/category/jrds/', '今日大赛', 'iconfont icon-jrds'],
+    ['/category/rsds/', '热搜大赛', 'iconfont icon-rsds'],
+    ['/category/mrds/', '每日大赛', 'iconfont icon-mrds'],
+    ['/category/aidj/', 'AI短剧', 'iconfont icon-aidj'],
+    ['/category/nsds/', '女神大赛', 'iconfont icon-nsds'],
+    ['/category/llds/', '乱伦大赛', 'iconfont icon-llds'],
+    ['/category/xyds/', '学院大赛', 'iconfont icon-xyds'],
+    ['/category/whds/', '网红大赛', 'iconfont icon-whds'],
+    ['/category/lyds/', '撸友看片', 'iconfont icon-lyds'],
+    ['/category/sjbzq/', '优选投放区', 'iconfont icon-sjbzq'],
+    ['/category/qwds/', '奇闻大赛', 'iconfont icon-qwds'],
+    ['/category/mxds/', '明星吃瓜', 'iconfont icon-mxds'],
+    ['/category/ntds/', '女同大赛', 'iconfont icon-ntds'],
+    ['/category/wmds/', '污漫大赛', 'iconfont icon-wmds'],
 ];
 
+const CLASS_ICON_MAP = Object.fromEntries(MANUAL_CLASSES.map(([id, name, icon]) => [name, icon]));
+
 const HOT_TAGS = [
-    ['/tag/91大赛/', '🔥 91大赛'],
-    ['/tag/吃瓜/', '🍉 吃瓜'],
-    ['/tag/反差/', '😈 反差'],
-    ['/tag/自慰/', '💧 自慰'],
-    ['/tag/口交/', '👄 口交'],
-    ['/tag/巨乳/', '🍈 巨乳'],
-    ['/tag/后入/', '🐕 后入'],
-    ['/tag/母狗/', '🐶 母狗'],
-    ['/tag/反差婊/', '💋 反差婊'],
-    ['/tag/高颜值/', '✨ 高颜值'],
-    ['/tag/美乳/', '🍒 美乳'],
-    ['/tag/黑丝/', '🖤 黑丝'],
+    ['/tag/91大赛/', '91大赛', '🔥'],
+    ['/tag/吃瓜/', '吃瓜', '🍉'],
+    ['/tag/反差/', '反差', '😈'],
+    ['/tag/自慰/', '自慰', '💧'],
+    ['/tag/口交/', '口交', '👄'],
+    ['/tag/巨乳/', '巨乳', '🍈'],
+    ['/tag/后入/', '后入', '🐕'],
+    ['/tag/母狗/', '母狗', '🐶'],
+    ['/tag/反差婊/', '反差婊', '💋'],
+    ['/tag/高颜值/', '高颜值', '✨'],
+    ['/tag/美乳/', '美乳', '🍒'],
+    ['/tag/黑丝/', '黑丝', '🖤'],
 ];
 
 const EPISODE_RE = /^(.*?)(第\d+集)\s*(.*)$/;
 const SERIES_CLEAN_RE = /^(.*?)(第\d+集|\d+集|完整版|无码版|爆燃来袭|重磅流出|高能开场|重磅来袭|已完结).*/;
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = axios.create({
     timeout: 15_000,
-    httpsAgent,
     headers: {
         'User-Agent': UA,
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -233,11 +233,27 @@ async function fetchDynamicClasses() {
     return classes;
 }
 
+function buildHotSubclass() {
+    return HOT_TAGS.map(([id, name, emoji]) => ({
+        type_id: id,
+        type_name: `${emoji} ${name}`,
+    }));
+}
+
 function buildTagFilter() {
     return {
         key: 'tag',
         name: '热门标签',
-        value: [{ n: '默认', v: '' }, ...HOT_TAGS.map(([id, name]) => ({ n: name, v: id }))],
+        value: [{ n: '默认', v: '' }, ...HOT_TAGS.map(([id, name, emoji]) => ({ n: `${emoji} ${name}`, v: id }))],
+    };
+}
+
+function classEntry(typeId, typeName, typeIcon) {
+    return {
+        type_id: typeId,
+        type_name: typeName,
+        type_icon: typeIcon || CLASS_ICON_MAP[typeName] || 'iconfont icon-default',
+        subclass: buildHotSubclass(),
     };
 }
 
@@ -446,25 +462,19 @@ async function home(inReq, _outResp) {
     const dynamic = await fetchDynamicClasses();
     const seen = new Set();
     const classes = [];
+    const tagFilter = buildTagFilter();
 
     for (const c of dynamic) {
         if (seen.has(c.type_id)) continue;
         seen.add(c.type_id);
-        classes.push(c);
+        classes.push(classEntry(c.type_id, c.type_name));
     }
-    for (const [tid, name] of MANUAL_CLASSES) {
+    for (const [tid, name, icon] of MANUAL_CLASSES) {
         if (seen.has(tid)) continue;
         seen.add(tid);
-        classes.push({ type_id: tid, type_name: name });
-    }
-    // 热门标签也作为一级分类，方便直达
-    for (const [tid, name] of HOT_TAGS) {
-        if (seen.has(tid)) continue;
-        seen.add(tid);
-        classes.push({ type_id: tid, type_name: name });
+        classes.push(classEntry(tid, name, icon));
     }
 
-    const tagFilter = buildTagFilter();
     const filters = {};
     for (const c of classes) {
         if (String(c.type_id).startsWith('/category/')) {
@@ -473,7 +483,7 @@ async function home(inReq, _outResp) {
     }
 
     const html = await getHtml(site);
-    const list = html ? parseListHtml(html, inReq).slice(0, 20) : [];
+    const list = html ? parseListHtml(html, inReq) : [];
     return { class: classes, filters, list };
 }
 

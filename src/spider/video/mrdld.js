@@ -1,6 +1,14 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import crypto from 'crypto';
+import https from 'https';
+
+/**
+ * 每日大乱斗 - border/blood.bshzjjgq.cc
+ * 动态域名 + AES 图解密 + m3u8/ts 代理
+ */
+
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 const DYNAMIC_URLS = [
     'https://border.bshzjjgq.cc/',
@@ -10,8 +18,10 @@ const DYNAMIC_URLS = [
 let hostUrl = DYNAMIC_URLS[0];
 const imgCache = new Map();
 
+
 const http = axios.create({
     timeout: 15_000,
+    validateStatus: () => true,
     headers: {
         'User-Agent':      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Accept:            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -82,11 +92,11 @@ function procUrl(url, proxyBase) {
             }
             const key = crypto.createHash('md5').update(raw).digest('hex');
             imgCache.set(key, raw);
-            return proxyBase ? `${proxyBase}&type=cache&key=${key}` : '';
+            return proxyBase ? proxyUrl(proxyBase, { type: 'cache', key }) : '';
         } catch { return ''; }
     }
     url = absUrl(url);
-    return proxyBase ? `${proxyBase}&url=${e64(url)}&type=img` : url;
+    return proxyBase ? proxyUrl(proxyBase, { url: e64(url), type: 'img' }) : url;
 }
 
 function getImg(scriptText, $el, proxyBase) {
@@ -134,8 +144,13 @@ function getList($, selector, tid = '', proxyBase = '') {
 }
 
 function getProxyBase(inReq) {
-    const prefix = inReq.server?.prefix || '';
-    return `http://localhost:9988${prefix}/proxy`;
+    const prefix = inReq?.server?.prefix || '/spider/mrdg/3';
+    return `http://127.0.0.1:${PORT}${prefix}/proxy`;
+}
+
+function proxyUrl(base, params) {
+    const q = new URLSearchParams(params);
+    return `${base}?${q.toString()}`;
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -280,9 +295,21 @@ async function detail(inReq, _outResp) {
 }
 
 async function play(inReq, _outResp) {
-    const id    = inReq.body.id;
+    const id = String(inReq.body.id || '');
     const parse = /\.(m3u8|mp4|ts)/.test(id) ? 0 : 1;
-    return { parse, url: id, header: { 'User-Agent': http.defaults.headers['User-Agent'] } };
+    let url = id;
+    if (id.includes('.m3u8')) {
+        url = proxyUrl(getProxyBase(inReq), { url: e64(id), type: 'm3u8' });
+    }
+    return {
+        parse,
+        url,
+        header: {
+            'User-Agent': http.defaults.headers['User-Agent'],
+            Origin: hostUrl,
+            Referer: `${hostUrl}/`,
+        },
+    };
 }
 
 async function search(inReq, _outResp) {
@@ -317,7 +344,7 @@ async function proxyHandler(inReq, outResp) {
         const lines = res.data.split('\n').map((line) => {
             if (!line.includes('#EXT') && line.trim()) {
                 const full = line.startsWith('http') ? line : `${baseUrl}/${line}`;
-                return `${getProxyBase(inReq)}&url=${e64(full)}&type=ts`;
+                return proxyUrl(getProxyBase(inReq), { url: e64(full), type: 'ts' });
             }
             return line;
         });
@@ -333,7 +360,7 @@ async function proxyHandler(inReq, outResp) {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
-    meta: { key: 'mrdg', name: '🔥每日大乱斗', type: 3 },
+    meta: { key: 'mrdg', name: '🌈每日大乱斗', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);
