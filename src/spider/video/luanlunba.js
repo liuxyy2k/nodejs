@@ -18,8 +18,8 @@ const PUBLISH_PAGES = [
 ];
 
 const FALLBACK_CATS = [
-    { type_id: '1', type_name: '国产传媒' },
-    { type_id: '2', type_name: '国产剧情' },
+    { type_id: '1', type_name: '劲爆推荐' },
+    { type_id: '2', type_name: '精品爆料' },
     { type_id: '58', type_name: '网曝黑料' },
     { type_id: '3', type_name: '特色仓库' },
     { type_id: '69', type_name: '精品资源' },
@@ -807,7 +807,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'luanlunba',
-        name: '🔥2048核基地',
+        name: '2048核基地',
         type: 3,
     },
     api: async (fastify) => {
