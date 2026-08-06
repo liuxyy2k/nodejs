@@ -7,7 +7,7 @@ import https from 'https';
  * 加密 API (AES-CFB) + 图片 AES-CBC 代理
  */
 
-const PORT = process.env.DEV_HTTP_PORT || 9988;
+
 const host = 'https://dpi4.tbrapi.org';
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -46,6 +46,7 @@ const TAB_ID_MAP = {
 
 const http = axios.create({
     timeout: 10_000,
+    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,
@@ -61,7 +62,13 @@ function log(msg) {
 
 function getProxyBase(inReq) {
     const prefix = inReq?.server?.prefix || '/spider/tbr/3';
-    return `http://127.0.0.1:${PORT}${prefix}/proxy`;
+    const hostHeader = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host;
+    if (hostHeader) {
+        const proto = inReq?.headers?.['x-forwarded-proto'] || 'http';
+        return `${proto}://${hostHeader}${prefix}/proxy`;
+    }
+    const port = process.env.DEV_HTTP_PORT || 9988;
+    return `http://127.0.0.1:${port}${prefix}/proxy`;
 }
 
 function aesEncrypt(plaintext) {

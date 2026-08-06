@@ -1,95 +1,100 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
-// const agent = new HttpsProxyAgent(
-//     'http://127.0.0.1:7897'
-// );
+/**
+ * 91热爆 - https://rb.jnyk08.icu
+ * API: https://api.vuecloudrb.com
+ */
 
-const site = 'https://www.91rb.com';
+const site = 'https://rb.jnyk08.icu';
+const api = 'https://api.vuecloudrb.com';
 
-const headers = {
-    'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    Referer:           site + '/',
-};
+const http = axios.create({
+    timeout: 10_000,
+    validateStatus: () => true,
+    headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Referer: `${site}/`,
+        Origin: site,
+    },
+});
 
-const http = axios.create({ timeout: 15_000, headers});
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function ensureId(s) {
-    const m = String(s).match(/(\d+)/);
-    return m ? m[1] : String(s);
+function getHeaders() {
+    return {
+        'User-Agent': 'Mozilla/5.0',
+        Referer: `${site}/`,
+        Origin: site,
+    };
 }
 
-function absUrl(url) {
-    if (!url) return url;
-    const u = url.trim();
-    if (u.startsWith('//'))  return 'https:' + u;
-    if (u.startsWith('/'))   return site + u;
-    return u;
-}
-
-function parseSrcsetFirst(srcset) {
-    if (!srcset) return '';
-    return srcset.split(',')[0].trim().split(' ')[0];
-}
-
-function coverFallback(vid) {
+async function apiGet(path, params = {}) {
     try {
-        const iv    = parseInt(vid);
-        const group = iv - (iv % 1000);
-        return `https://rimg.iomycdn.com/videos_screenshots/${group}/${iv}/preview.jpg`;
+        const resp = await http.get(`${api}${path}`, { params, headers: getHeaders() });
+        if (resp.status !== 200) return null;
+        return resp.data;
+    } catch (e) {
+        console.log(`[91rb] apiGet error: ${e.message}`);
+        return null;
+    }
+}
+
+function formatTime(s) {
+    try {
+        const sec = parseInt(s || 0, 10) || 0;
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const ss = sec % 60;
+        if (h) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+        }
+        return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
     } catch {
         return '';
     }
 }
 
-function buildListUrl(tid, pg) {
-    const path   = tid.replace(/^\/|\/$/g, '') || 'latest-updates';
-    const suffix = String(pg) !== '1' ? `/${pg}/` : '/';
-    return `${site}/${path}${suffix}`;
+function getPic(item) {
+    return item?.video_img || item?.screenshot1 || '';
 }
 
-function parseListPage($, page) {
-    const videos = [];
-    const seen   = new Set();
-
-    $('main a[href*="/videos/"]').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const m    = href.match(/\/videos\/(\d+)\//);
-        if (!m || href.includes('/login')) return;
-
-        const vid = m[1];
-        if (seen.has(vid)) return;
-        seen.add(vid);
-
-        let title = '';
-        let pic   = '';
-        const img = $(el).find('img').first();
-
-        if (img.length) {
-            title = (img.attr('alt') || '').trim();
-            pic   = (img.attr('src') || img.attr('data-src') || img.attr('data-original') || '').trim();
-            if (!pic) pic = parseSrcsetFirst(img.attr('data-srcset') || img.attr('srcset') || '');
-            pic = absUrl(pic);
-        } else {
-            title = ($(el).text() || '').trim();
-        }
-
-        title = title || `视频 ${vid}`;
-        if (!pic || pic.startsWith('data:')) pic = coverFallback(vid);
-
-        videos.push({ vod_id: href, vod_name: title, vod_pic: pic, vod_remarks: '' });
-    });
-
-    return { list: videos, page: String(page), pagecount: 9999, limit: 48, total: 0 };
+function normalizeList(data) {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') {
+        return data.data || data.list_new?.data || data.list_hot?.data || [];
+    }
+    return [];
 }
 
-async function fetchPage(url) {
-    const { data } = await http.get(url);
-    return cheerio.load(data);
+function toVodItems(data) {
+    return normalizeList(data)
+        .filter((i) => i?.video_id || i?.id)
+        .map((i) => ({
+            vod_id: String(i.video_id || i.id || ''),
+            vod_name: i.title || i.name || '',
+            vod_pic: getPic(i),
+            vod_remarks: formatTime(i.duration),
+        }));
+}
+
+function buildPlayUrl(vid) {
+    const id = String(vid || '').trim();
+    let base;
+    if (/^\d+$/.test(id)) {
+        base = String(Math.floor(parseInt(id, 10) / 1000) * 1000);
+    } else {
+        base = id.slice(0, -3) + '000';
+    }
+    return `https://delivery.douyinpaly.com/hls/contents/videos/${base}/${id}/${id}.mp4/index.m3u8`;
+}
+
+function pageResult(data, pg) {
+    const content = data && typeof data === 'object' ? data : {};
+    return {
+        list: toVodItems(content),
+        page: pg,
+        pagecount: content.last_page || pg,
+        limit: 24,
+        total: content.total || 0,
+    };
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -100,108 +105,157 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: 'latest-updates',                          type_name: '最新上传' },
-        { type_id: 'most-popular',                            type_name: '热门视频' },
-        { type_id: 'most-favourited',                         type_name: '收藏最多' },
-        { type_id: 'tags/av2/',                               type_name: '日本AV'  },
-        { type_id: 'tags/jav/',                               type_name: 'jav'     },
-        { type_id: 'tags/20c3f16d021b069ce3af1da50b15bd83/',  type_name: '韩国'    },
+        { type_id: 'all', type_name: '推荐' },
+        { type_id: 'new', type_name: '最新' },
+        { type_id: 'hot', type_name: '热门' },
     ];
 
-    let list = [];
     try {
-        const $ = await fetchPage(buildListUrl('latest-updates', '1'));
-        list = parseListPage($, '1').list;
-    } catch { /* ignore */ }
+        const cate = await apiGet('/videos/classification', { page: 1, size: 50, categories: 0, sort: 'post_date' });
+        const content = cate?.content || [];
+        for (const i of content) {
+            if (i?.category_id) {
+                classes.push({ type_id: String(i.category_id), type_name: i.title || '' });
+            }
+        }
+    } catch {
+        /* ignore */
+    }
 
-    return { class: classes, list, filters: {} };
+    const data = await apiGet('/videos/index_byall', {
+        page: 1,
+        size: 24,
+        categories: 0,
+        sort: 'post_date',
+    });
+    const list = toVodItems(data?.content?.list_new || {});
+
+    return { class: classes, filters: {}, list };
 }
 
 async function category(inReq, _outResp) {
-    const tid = inReq.body.id;
-    const pg  = inReq.body.page || '1';
+    const tid = String(inReq.body.id || 'all');
+    const pg = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
 
-    try {
-        const $ = await fetchPage(buildListUrl(tid, pg));
-        return parseListPage($, pg);
-    } catch {
-        return { list: [], page: pg, pagecount: 1, limit: 48, total: 0 };
+    let content = {};
+
+    if (tid === 'all') {
+        const data = await apiGet('/videos/index', { page: pg, size: 24 });
+        content = data?.content || {};
+    } else if (tid === 'new') {
+        const data = await apiGet('/videos/index_byall', {
+            page: pg,
+            size: 24,
+            categories: 0,
+            sort: 'post_date',
+        });
+        content = data?.content?.list_new || {};
+    } else if (tid === 'hot') {
+        const data = await apiGet('/videos/index_byall', {
+            page: pg,
+            size: 24,
+            categories: 0,
+            sort: 'video_viewed',
+        });
+        content = data?.content?.list_hot || {};
+    } else if (tid.startsWith('tag_')) {
+        const data = await apiGet('/videos/list_bytags', {
+            page: pg,
+            size: 24,
+            categories: 0,
+            sort: 'post_date',
+            tags: tid.slice(4),
+        });
+        content = data?.content || {};
+    } else {
+        const data = await apiGet('/videos/index', {
+            page: pg,
+            size: 24,
+            categories: tid,
+            sort: 'post_date',
+        });
+        content = data?.content || {};
     }
+
+    return pageResult(content, pg);
 }
 
 async function detail(inReq, _outResp) {
-    const vid        = inReq.body.id;
-    const detailUrl  = `${site}/videos/${vid}/`;
-    let   name       = `视频 ${vid}`;
-    let   pic        = '';
+    const vid = String(inReq.body.id || '');
+    const data = await apiGet('/videos/detail', { id: vid });
+    const c = data?.content || {};
 
-    // try {
-    //     const { data } = await http.get(detailUrl, { maxRedirects: 5 });
-    //     const $        = cheerio.load(data);
-    //     name           = $('h1').text().trim() || name;
-    //     pic            = $('meta[property="og:image"]').attr('content')?.trim()
-    //                   || $('meta[name="twitter:image"]').attr('content')?.trim()
-    //                   || '';
-    //     if (pic) pic = absUrl(pic);
-    // } catch { /* ignore */ }
-
-    // if (!pic) pic = coverFallback(vid);
+    const name = c.title || vid;
+    const pic = c.video_img || '';
+    const tags = (c.tags || [])
+        .filter((i) => i && typeof i === 'object')
+        .map((i) => i.tag || '')
+        .filter(Boolean)
+        .join(',');
+    const cats = (c.categories || [])
+        .filter((i) => i && typeof i === 'object')
+        .map((i) => i.title || '')
+        .filter(Boolean)
+        .join(',');
 
     return {
-        list: [{
-            vod_id:        vid,
-            vod_name:      name,
-            vod_pic:       pic,
-            vod_play_from: '91RB',
-            vod_play_url:  `正片$${vid}`,
-        }],
+        list: [
+            {
+                vod_id: vid,
+                vod_name: name,
+                vod_pic: pic,
+                type_name: cats,
+                vod_year: c.post_date || '',
+                vod_area: '',
+                vod_remarks: formatTime(c.duration),
+                vod_actor: tags,
+                vod_director: '',
+                vod_content: name,
+                vod_play_from: '直连',
+                vod_play_url: `${name}$${vid}`,
+            },
+        ],
     };
 }
 
 async function play(inReq, _outResp) {
-    const vid   = inReq.body.id;
-    const match = vid.match(/\/videos\/(\d+)\/([^/]+)\//);
-    let id = ''
-    let k = ''
-    if (match) {
-         id = match[1];
-         k = match[2];
-    }
-    const group = parseInt(id) - (parseInt(id) % 1000);
-    const m3u8  = `https://91rbnet.gslb-al.com/hls/contents/videos/${group}/${id}/${id}.mp4/index.m3u8?k=${k}&t=${Date.now()}`;
-
-    return { parse: 0, url: m3u8, header: headers };
+    const vid = String(inReq.body.id || '').trim();
+    const url = buildPlayUrl(vid);
+    return {
+        parse: 0,
+        url,
+        header: getHeaders(),
+    };
 }
 
 async function search(inReq, _outResp) {
-    const key = encodeURIComponent(inReq.body.wd || '');
-    const pg  = inReq.body.pg || '1';
-    const url = pg === '1'
-        ? `${site}/search/${key}/`
-        : `${site}/search/${key}/${pg}/`;
+    const key = inReq.body.wd || '';
+    const pg = parseInt(inReq.body.pg || inReq.body.page || 1, 10) || 1;
 
-    try {
-        const $ = await fetchPage(url);
-        return parseListPage($, pg);
-    } catch {
-        return { list: [], page: pg, pagecount: 1, total: 0 };
-    }
+    const data = await apiGet('/videos/search', { keyword: key, page: pg, limit: 20 });
+    const content = data?.content || {};
+
+    return {
+        list: toVodItems(content),
+        page: pg,
+        pagecount: content.last_page || 1,
+        limit: 20,
+        total: content.total || 0,
+    };
 }
-
-// ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
     meta: {
-        key:  '91rb',
+        key: '91rb',
         name: '🔥91热爆',
         type: 3,
     },
     api: async (fastify) => {
-        fastify.post('/init',     init);
-        fastify.post('/home',     home);
+        fastify.post('/init', init);
+        fastify.post('/home', home);
         fastify.post('/category', category);
-        fastify.post('/detail',   detail);
-        fastify.post('/play',     play);
-        fastify.post('/search',   search);
+        fastify.post('/detail', detail);
+        fastify.post('/play', play);
+        fastify.post('/search', search);
     },
 };
