@@ -46,7 +46,6 @@ const TAB_ID_MAP = {
 
 const http = axios.create({
     timeout: 10_000,
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     validateStatus: () => true,
     headers: {
         'User-Agent': UA,

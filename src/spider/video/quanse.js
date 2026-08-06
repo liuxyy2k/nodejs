@@ -565,7 +565,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'quanse',
-        name: '权色视频',
+        name: '🔥权色视频',
         type: 3,
     },
     api: async (fastify) => {
