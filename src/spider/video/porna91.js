@@ -7,7 +7,6 @@ const DEFAULT_HOST = 'https://91porna.com';
 const PORT = process.env.DEV_HTTP_PORT || 9988;
 const META_KEY = 'porna91';
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const imgCache = new Map();
 
 let host = DEFAULT_HOST;
@@ -20,7 +19,6 @@ let headers = {
 
 const http = axios.create({
     timeout: 10000,
-    httpsAgent,
     validateStatus: () => true,
 });
 

@@ -205,7 +205,7 @@ export default {
     meta: {
         key:  'luoliav',
         name: '🔥萝莉AV',
-        type: 1,
+        type: 3,
     },
     api: async (fastify) => {
         fastify.post('/init',     init);

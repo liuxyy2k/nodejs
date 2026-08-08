@@ -5,11 +5,9 @@ const H = 'https://dag29jmgma1g.site';
 const U =
     'Mozilla/5.0 (Linux; Android 12; TFY-AN00 Build/HONORTFY-AN00; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.105 Mobile Safari/537.36 uni-app Html5Plus/1.0 (Immersed/33.0)';
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const http = axios.create({
     timeout: 10000,
-    httpsAgent,
     validateStatus: () => true,
     headers: {
         'User-Agent': U,
