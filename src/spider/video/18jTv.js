@@ -1,30 +1,50 @@
 import axios from 'axios';
-import { load } from 'cheerio';
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const site = 'https://18j.tv';
 
-async function request(url) {
-    const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA }
-    });
-    return resp.data;
+const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/124.0.0.0 Mobile Safari/537.36',
+    Referer: `${site}/`,
+};
+
+const httpClient = axios.create({
+    timeout: 12_000,
+    headers: HEADERS,
+});
+
+async function fetchHtml(url) {
+    const fullUrl = url.startsWith('http') ? url : site + url;
+    try {
+        const { data } = await httpClient.get(fullUrl);
+        return data || '';
+    } catch {
+        return '';
+    }
 }
 
-function parseCards($) {
-    const list = [];
-    $('.list li').each((_, element) => {
-        const href     = $(element).find('a').attr('href') || '';
-        const title    = $(element).find('.title').text().trim() || '';
-        const cover    = $(element).find('.lazy').attr('src') || '';
-        const subTitle = $(element).find('.vodlist_img span').text().trim();
-        if (!href || !title) return;
-        list.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: subTitle });
-    });
-    return list;
+function stripText(s) {
+    return String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
-
+function parseList(html) {
+    const out = [];
+    const seen = new Set();
+    const blocks = [...String(html || '').matchAll(/<div class="box">(.*?)<\/li>/gis)];
+    for (const [, block] of blocks) {
+        const m = block.match(/<a[^>]+href=["'](\/v\/(\d+)\/?)["'][^>]*title=["']([^"']+)["']/is);
+        if (!m || seen.has(m[2])) continue;
+        seen.add(m[2]);
+        const im = block.match(/<img[^>]+(?:data-original|data-src|src)=["']([^"']+)["']/is);
+        const tag = block.match(/<div class="vodlist_img">.*?<span[^>]*>(.*?)<\/span>/is);
+        out.push({
+            vod_id: m[2],
+            vod_name: stripText(m[3]),
+            vod_pic: im ? im[1].trim() : '',
+            vod_remarks: tag ? stripText(tag[1]) : '',
+        });
+    }
+    return out;
+}
 
 async function init(_inReq, _outResp) {
     return {};
@@ -32,245 +52,97 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: '/label/hot/by/time/',                        type_name: '最近更新'},
-        { type_id: '/label/hot/by/up_day/',                      type_name: '近期点赞'},
-        { type_id: '/label/hot/by/hits_week/',                   type_name: '热门视频'},
-        { type_id: '/show/1/',                                   type_name: '国产全部'},
-        { type_id: '/show/5/',                                   type_name: '国产自拍'},
-        { type_id: '/show/6/',                                   type_name: '主播大秀'},
-        { type_id: '/show/7/',                 type_name: '国产探花' },
-        { type_id: '/show/9/',                 type_name: '乱伦系列' },
-        { type_id: '/show/10/',                type_name: '网曝吃瓜' },
-        { type_id: '/show/8/',                 type_name: '偷拍偷窥' },
-        { type_id: '/show/12/',                type_name: '国产AV' },
-        { type_id: '/show/20/',                type_name: '福利姬' },
-        { type_id: '/show/11/',                type_name: '抖音风格' },
-        { type_id: '/show/36/',                type_name: '主播诱惑' },
-        { type_id: '/show/2/',                 type_name: '日韩全部' },
-        { type_id: '/show/13/',                type_name: '日韩自拍' },
-        { type_id: '/show/14/',                type_name: '日本无码' },
-        { type_id: '/show/15/',                type_name: '日本字幕' },
-        { type_id: '/show/17/',                type_name: 'AV解说' },
-        { type_id: '/show/3/',                 type_name: '欧美全部' },
-        { type_id: '/t/4/',                    type_name: '伦理' },
-        { type_id: '/show/16/',                type_name: '动漫' },
-        { type_id: '/show/39/',                type_name: '另类' },
-        { type_id: '/show/23/',                type_name: '另类重口' },
-        { type_id: '/show/18/',                type_name: '换脸明星' },
+        { type_name: '国产', type_id: '1' },
+        { type_name: '日韩', type_id: '2' },
+        { type_name: '欧美', type_id: '3' },
+        { type_name: '伦理', type_id: '4' },
+        { type_name: '成人AI', type_id: '41' },
+        { type_name: '动漫', type_id: '5' },
+        { type_name: '另类', type_id: '6' },
     ];
-    let filterObj = {
-         '/show/1/': [
-             {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/5/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/6/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/7/': [
-             {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/9/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-         '/show/2/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/3/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/16/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-         '/t/4/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-        '/show/39/': [
-            {
-                key: 'by',
-                name: '排序',
-                value: [
-                    { n: '最近更新',   v: '' },
-                    { n: '今日热播', v: 'by/hits_day/' },
-                    { n: '本周最热', v: 'by/hits_week/' },
-                    { n: '今日点赞', v: 'by/up_day/' },
-                    { n: '本周点赞', v: 'by/up_week/' },
-                    { n: '最高评分', v: 'by/up/' }
-                ]
-            }
-        ],
-    }
-    return { class: classes, filters: filterObj};
+    const vods = parseList(await fetchHtml('/'));
+    return { class: classes, list: vods };
 }
 
 async function category(inReq, _outResp) {
-    const tid  = inReq.body.id;
-    const page = parseInt(inReq.body.page) || 1;
-    const filters = inReq.body.filters;
-    let ext = {}
-    if (typeof filters === 'string') {
-        try {
-            ext = JSON.parse(filters)
-        } catch (e) {
-            ext = {}
-        }
-    } else {
-        ext = filters
-    }
-    ext = ext || {}
-    let by = ext?.by || ''
-    const url = by ? `${site}${tid}${by}/page/${page}/` : `${site}${tid}page/${page}/`
-    const html = await request(url);
-    const $    = load(html);
-    const list = parseCards($);
-
-    return { page, pagecount: page + 1, list };
+    const tid = inReq.body.id;
+    const pg = parseInt(inReq.body.page) || 1;
+    const path = pg === 1 ? `/t/${tid}/` : `/t/${tid}/page/${pg}/`;
+    const vods = parseList(await fetchHtml(path));
+    return {
+        page: pg,
+        pagecount: vods.length ? pg + 1 : pg,
+        limit: vods.length,
+        total: vods.length ? 999999 : 0,
+        list: vods,
+    };
 }
 
 async function detail(inReq, _outResp) {
-    const href = inReq.body.id;
-    const html = await request(site + href);
-    const $    = load(html);
+    const raw = inReq.body.id;
+    const vid = String(Array.isArray(raw) ? raw[0] : raw).trim();
+    const url = `${site}/v/${vid}/`;
+    const html = await fetchHtml(url);
 
-    const name = $('meta[property="og:title"]').attr('content') || '';
-    const pic  = $('meta[property="og:image"]').attr('content') || '';
-    const des  = $('meta[property="og:description"]').attr('content') || '';
+    const name =
+        html.match(/<h1[^>]*class=["'][^"']*play-title[^"']*["'][^>]*>(.*?)<\/h1>/is) ||
+        html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i);
+    const pic = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i);
+    const desc = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)/i);
+    const genre = html.match(/["']genre["']\s*:\s*["']([^"']+)/i);
+    const date = html.match(/["']uploadDate["']\s*:\s*["'](\d{4})/i);
 
-    const m = html.match(/source\s*=\s*['"](https?:\/\/[^'"]+\.m3u8)['"]/)
-    const playUrl = m ? m[1] : ''
     return {
         list: [{
-            vod_id:        href,
-            vod_name:      name,
-            vod_pic:       pic,
-            vod_play_from: '18jTv',
-            vod_play_url:  `播放$${playUrl}`,
-            vod_content: des
+            vod_id: vid,
+            vod_name: name ? stripText(name[1]) : vid,
+            vod_pic: pic ? pic[1] : '',
+            type_name: genre ? genre[1] : '',
+            vod_year: date ? date[1] : '',
+            vod_content: desc ? desc[1].trim() : '',
+            vod_play_from: '直连',
+            vod_play_url: `播放$${url}`,
         }],
     };
 }
 
 async function play(inReq, _outResp) {
-     return {
-        parse: 0,
-        url: inReq.body.id,
-        header: { 'User-Agent': UA },
+    let page = String(inReq.body.id || '').trim();
+    if (!page.startsWith('http')) {
+        const id = page.replace(/^\/+|\/+$/g, '').split('/').pop();
+        page = `${site}/v/${id}/`;
+    }
+    const html = await fetchHtml(page);
+    let m = html.match(/const\s+source\s*=\s*["']([^"']+)["']/i);
+    if (!m) m = html.match(/https?:\/\/[^"'\s<>]+\.m3u8(?:\?[^"'\s<>]*)?/i);
+    const url = m ? (m[1] ?? m[0]) : '';
+    return {
+        parse: url ? 0 : 1,
+        playUrl: '',
+        url: url || page,
+        header: HEADERS,
     };
 }
 
 async function search(inReq, _outResp) {
-    const text = encodeURIComponent(inReq.body.wd || '');
-    const page = parseInt(inReq.body.pg) || 1;
-    const html = await request(`${site}/search/${text}/${page}.html`);
-    const $    = load(html);
-    const list = parseCards($);
-    return { list };
+    const key = inReq.body.wd || '';
+    const pg = parseInt(inReq.body.pg || inReq.body.page) || 1;
+    const wd = encodeURIComponent(String(key));
+    const path = pg === 1 ? `/s/wd/${wd}/` : `/s/wd/${wd}/page/${pg}/`;
+    const vods = parseList(await fetchHtml(path));
+    return {
+        page: pg,
+        pagecount: vods.length ? pg + 1 : pg,
+        limit: vods.length,
+        total: vods.length ? 999999 : 0,
+        list: vods,
+    };
 }
 
 export default {
     meta: {
         key: '18jtv',
-        name: '🔥18JTv',
+        name: '🔥18J',
         type: 3,
     },
     api: async (fastify) => {
