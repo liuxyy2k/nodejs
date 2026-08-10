@@ -12,11 +12,8 @@ const UA =
 
 const SKIP_NAMES = new Set(['首页', '留言', '传送门', '更多']);
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 const http = axios.create({
     timeout: 12_000,
-    httpsAgent,
     validateStatus: () => true,
 });
 
@@ -206,7 +203,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'okcm',
-        name: 'OK传媒_修正终极版',
+        name: '🔥OK传媒',
         type: 3,
     },
     api: async (fastify) => {
