@@ -26,11 +26,8 @@ const CLASS_URL = [
     '37', '28', '30', '32', '43',
 ];
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 const http = axios.create({
     timeout: 10_000,
-    httpsAgent,
     validateStatus: () => true,
 });
 
