@@ -293,7 +293,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'xhs',
-        name: '小黄书',
+        name: '🔥小黄书',
         type: 3,
     },
     api: async (fastify) => {
