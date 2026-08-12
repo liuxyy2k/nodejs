@@ -11,25 +11,14 @@ const headers = {
     Referer:           'https://jable.tv/',
 };
 
-async function request(targetUrl) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url: targetUrl,
-            referer: site + '/',
-            key: 'mira123'
-        }, {
-            timeout: 60000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        return resp.data;
-    } catch (e) {
-        console.log('中转请求失败:', e.message);
-        throw e;
-    }
+async function request(reqUrl) {
+    const resp = await axios.get(reqUrl, {
+        headers: { 'User-Agent': UA },
+        // httpsAgent: agent
+    });
+    return resp.data;
 }
+
 function postList(html, pg) {
     const list   = [];
     if (!html) return { list, page: pg, pagecount: pg, limit: 24, total: 9999 };

@@ -10,24 +10,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/6
 const site = 'https://jable.tv';
 const SERVER_API = config.SERVER_API;
 
-async function request(targetUrl) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url: targetUrl,
-            referer: site + '/',
-            key: 'mira123'
-        }, {
-            timeout: 60000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        return resp.data;
-    } catch (e) {
-        console.log('中转请求失败:', e.message);
-        throw e;
-    }
+async function request(reqUrl) {
+    const resp = await axios.get(reqUrl, {
+        headers: { 'User-Agent': UA },
+        // httpsAgent: agent
+    });
+    return resp.data;
 }
 
 async function init(_inReq, _outResp) {
