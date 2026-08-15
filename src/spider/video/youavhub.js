@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { wrapper } from 'axios-cookiejar-support';
+import { CookieJar } from 'tough-cookie';
 import https from 'https';
 import { load } from 'cheerio';
 
@@ -26,10 +28,15 @@ const CLASS_URL = [
     '37', '28', '30', '32', '43',
 ];
 
-const http = axios.create({
-    timeout: 10_000,
-    validateStatus: () => true,
-});
+const jar = new CookieJar();
+
+const http = wrapper(
+    axios.create({
+        timeout: 10_000,
+        jar,
+        validateStatus: () => true,
+    }),
+);
 
 function getHeaders(referer) {
     return {
@@ -267,7 +274,7 @@ async function play(inReq, _outResp) {
 
         if (html) {
             const match = html.match(
-                /var\s+(?:player_aaaa|player_data|MacPlayer)\s*=\s*(\{[\s\S]*?\});/,
+                /var\s+(?:player_a+a|player_data|MacPlayer)\s*=\s*(\{[\s\S]*?\});/,
             );
             if (match) {
                 try {
