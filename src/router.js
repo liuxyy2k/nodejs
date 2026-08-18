@@ -5,6 +5,9 @@ import jianpian from "./spider/video/jianpian.js";
 import bdys from "./spider/video/bdys.js";
 import miss from "./spider/video/miss.js";
 import missav2 from "./spider/video/missav2.js";
+import missav02 from "./spider/video/missav02.js";
+import hubff from "./spider/video/hubff.js";
+import oneapi from "./spider/video/oneapi.js";
 import kanav from "./spider/video/kanav2.js";
 import jable from "./spider/video/jable.js";
 import jableNew from "./spider/video/jableNew.js";
@@ -66,6 +69,7 @@ import jptt from "./spider/video/jptt.js";
 import jrkl from "./spider/video/jrkl.js";
 import xjsp from "./spider/video/xjsp.js";
 import missavt from "./spider/video/missAvt.js";
+import msavx from "./spider/video/msavx.js";
 import cj from "./spider/video/cj.js";
 import a123tv from "./spider/video/a123tv.js";
 import tt from "./spider/video/tt.js";
@@ -76,6 +80,7 @@ import j18Tv from "./spider/video/18jTv.js";
 import twoJav from "./spider/video/twoJav.js";
 import popjav from "./spider/video/popjav.js";
 import chatur from "./spider/video/chatur.js";
+import myfreecams from "./spider/video/myfreecams.js";
 import theporn from "./spider/video/theporn.js";
 import xhams from "./spider/video/xhams.js";
 import avple from "./spider/video/avple.js";
@@ -229,11 +234,11 @@ const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, dy,  xmlive, pandaLive,
         ai, animei, hanime, hanime2, hdm18, yt, p74, redgif, stripol,  hanime1, masexTv, luoli, 
-        livescj, sbjh, chatur, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
+        livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luolidao, luanlunba,
         video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, gg51, hstream, lxtv5, tbr, wnacg, motv, march, pmvhaven, aqx, fulao2, n91, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, okcm, shunvh, xx01, xhs, suiruixhs, huoporn, javbunny, owoav, youavhub, bmm3, txcy, yese, avtop10, paradisehill, yemahl, miyun, x3av, dottaia, zsrenqi, wujiv4, hscka, hjsqn, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
-        av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jableNew, jablet3, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, av18, miss, missav2, missavt, av77, javxx, javrate, javday, javmenu, dogav,
+        av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jableNew, jablet3, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, av18, miss, missav2, missav02, missavt, msavx, hubff, oneapi, av77, javxx, javrate, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
     const t4Data = await getT4(server)
