@@ -360,7 +360,7 @@ async function proxyHandler(inReq, outResp) {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
-    meta: { key: 'mrdg', name: '🌈每日大乱斗', type: 3 },
+    meta: { key: 'mrdg', name: '🔥每日大乱斗', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);
