@@ -11,6 +11,17 @@ const PORT   = process.env.DEV_HTTP_PORT || 9988;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://carrier.nogfalo.cc';
 
+const DEFAULT_HEADERS = {
+    'User-Agent':
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+    Connection: 'keep-alive',
+    'Cache-Control': 'no-cache',
+};
+
+let headers = { ...DEFAULT_HEADERS, Origin: site, Referer: `${site}/` };
+
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
@@ -193,7 +204,7 @@ async function play(inReq, _outResp) {
     return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        header: headers,
     };
 }
 
