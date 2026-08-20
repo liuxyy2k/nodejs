@@ -259,19 +259,28 @@ async function init() {
 }
 
 async function home() {
-    await ensureHost();
-    try {
-        const html = await safeRequest(host);
-        if (!html) return { class: [], list: [] };
-        const $ = load(html);
-        return {
-            class: getCategories($),
-            list: getVideoList($, $('#index article a')),
-        };
-    } catch (e) {
-        log(`homeContent error: ${e.message}`);
-        return { class: [], list: [] };
-    }
+    const classes = [
+        { type_id: '',     type_name: '首页' },
+        { type_id: '/category/wpcz/', type_name: '今日吃瓜' },
+        { type_id: '/category/mrdg/', type_name: '吃瓜榜单' },
+        { type_id: '/category/rdsj/', type_name: '热门吃瓜' },
+        { type_id: '/category/bkdg/', type_name: '必看大瓜' },
+        { type_id: '/category/whhl/', type_name: '网红黑料' },
+        { type_id: '/category/xsxy/', type_name: '学生学校' },
+        { type_id: '/category/ysyl/', type_name: '看片娱乐' },
+        { type_id: '/category/whmx/', type_name: '明星黑料' },
+        { type_id: '/category/thjx/', type_name: '探花精选' },
+        { type_id: '/category/gcjq/', type_name: '国产剧情' },
+        { type_id: '/category/whhj/', type_name: '网黄合集' },
+        { type_id: '/category/lldd/', type_name: '伦理道德' },
+        { type_id: '/category/snsn/', type_name: '骚男骚女' },
+        { type_id: '/category/whmx/', type_name: '明星黑料' },
+        { type_id: '/category/51by/', type_name: '51品茶' },
+        { type_id: '/category/yczq/', type_name: '原创博主' },
+        { type_id: '/category/51djc/', type_name: '51剧场' },
+    ];
+
+    return { class: classes,  filters: {} };
 }
 
 async function category(inReq) {
