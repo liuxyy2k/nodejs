@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { load } from 'cheerio';
 
 const PORT = process.env.DEV_HTTP_PORT || 9988;
 const HOST = 'http://cl2.xbl2.pro';
@@ -211,17 +212,52 @@ async function detail(inReq) {
         });
     }
 
-    let sids = [...sources.keys()].sort((a, b) => a - b);
-    if (sids.length > 1 && !(await probeLine(sources.get(sids[0])[0].url))) {
-        sids = [...sids.slice(1), sids[0]];
+    let sids = [...sources.keys()];
+
+    // 固定线路顺序：国内线路 -> 海外线路
+    sids.sort((a, b) => {
+        const order = {
+            2: 0, // 国内
+            1: 1, // 海外
+        };
+
+        return (order[a] ?? 99) - (order[b] ?? 99);
+    });
+
+    // 如果第一条线路不可用，则调整线路顺序
+    if (sids.length > 1) {
+        const firstSource = sources.get(sids[0]);
+
+        if (
+            firstSource?.length &&
+            !(await probeLine(firstSource[0].url))
+        ) {
+            sids = [...sids.slice(1), sids[0]];
+        }
     }
-    const sourceNames = sids.map((sid) => `线路${sid}`);
-    const sourceUrls = sids.map((sid) =>
-        sources
-            .get(sid)
-            .map((episode) => `${episode.name.replace(/[#$]/g, ' ')}$${episode.url}`)
-            .join('#'),
-    );
+
+    // sid 2 = 国内线路
+    // sid 1 = 海外线路
+    const sourceNames = sids.map((sid) => {
+        if (sid === 2) return '国内线路';
+        if (sid === 1) return '海外线路';
+        return `线路${sid}`;
+    });
+
+    const sourceUrls = sids.map((sid) => {
+        const episodes = sources.get(sid) || [];
+
+        return episodes
+            .filter((episode) => episode?.url)
+            .map((episode) => {
+                const name = String(episode.name || '播放')
+                    .replace(/[#$]/g, ' ')
+                    .trim();
+
+                return `${name}$${episode.url}`;
+            })
+            .join('#');
+    });
 
     return {
         list: [
@@ -231,7 +267,13 @@ async function detail(inReq) {
                 vod_pic: picMatch ? proxyPic(picMatch[1], inReq) : '',
                 vod_remarks: '',
                 vod_content: title,
-                vod_play_from: sourceNames.length ? sourceNames.join('$$$') : '蜜桃源',
+
+                // 国内线路 $$$ 海外线路
+                vod_play_from: sourceNames.length
+                    ? sourceNames.join('$$$')
+                    : '国内线路',
+
+                // 国内播放地址 $$$ 海外播放地址
                 vod_play_url: sourceUrls.join('$$$'),
             },
         ],
@@ -251,21 +293,20 @@ async function search(inReq) {
 
 async function play(inReq) {
     let playUrl = fixUrl(inReq.body.id);
-    if (isDirectMedia(playUrl)) return { parse: 0, url: playUrl, header: HEADERS };
-
     const html = await fetchDecoded(playUrl);
-    if (!html) return { parse: 1, url: playUrl, header: HEADERS };
+    const $ = load(html);
+    const scriptText = $('script')
+        .filter((i, el) => $(el).text().includes('var player_aaaa='))
+        .first()
+        .text();
 
-    const realUrl = decodePlayerUrl(parsePlayerData(html));
-    if (realUrl && isDirectMedia(realUrl)) {
-        return { parse: 0, url: realUrl, header: HEADERS };
+    const match = scriptText.match(/var\s+player_aaaa\s*=\s*(\{[\s\S]*\});?/);
+    let m3u8 = '';
+    if (match) {
+        const playerData = JSON.parse(match[1]);
+        m3u8 = playerData.url;
     }
-    const media = html.match(/https?:\/\/[^\s"'\\;]+\.(?:m3u8|mp4|ts|flv)(?:\?[^\s"'\\;]*)?/i);
-    if (media) return { parse: 0, url: media[0], header: HEADERS };
-
-    const iframe = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-    if (iframe) playUrl = fixUrl(iframe[1]);
-    return { parse: 1, url: playUrl, header: HEADERS };
+    return { parse: 1, url: m3u8, header: HEADERS };
 }
 
 async function imgProxy(inReq, reply) {
