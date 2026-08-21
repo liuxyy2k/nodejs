@@ -169,8 +169,6 @@ import uumb from "./spider/video/uumb.js";
 import xads from "./spider/video/xingaidashi.js";
 import luoli from "./spider/video/luoliAV.js";
 import xmlive from "./spider/video/xmlive.js";
-import yt from "./spider/video/yt.js";
-import p74 from "./spider/video/74p.js";
 import ovo from "./spider/video/ovo.js";
 import dy from "./spider/video/dy.js";
 import jamtt from "./spider/video/jamtt.js";
@@ -241,7 +239,7 @@ import CMSFactory from "./spider/video/cms.js";
 const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, dy,  xmlive, pandaLive,
-        ai, animei, hanime, hanime2, hdm18, yt, p74, redgif, stripol,  hanime1, masexTv, luoli, 
+        ai, animei, hanime, hanime2, hdm18, redgif, stripol,  hanime1, masexTv, luoli, 
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, xigua51, baogua, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luolidao, luanlunba,
         video91, sp91, pron91, porn99, porna91, kb911, ss91, rb91, ds91, kdw91, pinse, j18Tv, haose, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, xads, ovo, mitaoshipin, gg51, hstream, lxtv5, tbr, wnacg, motv, march, pmvhaven, aqx, fulao2, n91, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, okcm, shunvh, xx01, xhs, suiruixhs, huoporn, javbunny, owoav, youavhub, bmm3, txcy, yese, avtop10, paradisehill, yemahl, miyun, x3av, dottaia, zsrenqi, wujiv4, hscka, hjsqn, 
