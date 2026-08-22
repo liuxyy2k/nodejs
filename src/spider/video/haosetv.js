@@ -44,8 +44,8 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    const typeIdList =   ['list', 'top7_list', 'top_list', '5min_list', 'long_list'];
-    const typeNameList = ['视频', '周榜', '月榜', '5分钟+', '10分钟+'];
+    const typeIdList =   ['', 'list', 'top7_list', 'top_list', '5min_list', 'long_list'];
+    const typeNameList = ['首页', '视频', '周榜', '月榜', '5分钟+', '10分钟+'];
 
     const classes = typeIdList.map((id, i) => ({
         type_id: id,
@@ -79,8 +79,12 @@ async function category(inReq, _outResp) {
     }
     ext = ext || {}
     let by = ext?.by || ''
-
     let url = `${cateUrl}${tid}-${pg}.htm`;
+
+    if(tid === '') {
+        url = `${siteUrl}`;
+    }
+
     if(by !== '') {
         url = url + '?sort=' + by
     }
