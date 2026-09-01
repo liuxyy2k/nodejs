@@ -1,291 +1,456 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import https from 'https';
+import zlib from 'zlib';
 
-const PORT = process.env.DEV_HTTP_PORT || 9988;
-const PREFIX = '/spider/huangdou/3';
-const DEFAULT_HOST = 'https://xqjzvcvt.top';
+const HMAC_KEY = '7961beb44246e3012ce228d6b5ced05a';
 const UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const NAME = '黄豆短剧';
-const KEY_PREFIX = 'xnaichanping';
-const ERROR_PLAY_URL =
-    'https://kjjsaas-sh.oss-cn-shanghai.aliyuncs.com/u/3401405881/20240818-936952-fc31b16575e80a7562cdb1f81a39c6b0.mp4';
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
 
-let host = DEFAULT_HOST;
-let api = `${DEFAULT_HOST}/api`;
-let displayName = NAME;
+const HOSTS = [
+    { code: 'china_1', base: 'https://lzlukvca.cc' },
+    { code: 'china_1', base: 'https://psfxhhox.top' },
+    { code: 'china_2', base: 'https://sxqirtho.top' },
+    { code: 'china_3', base: 'https://qicuknlj.top' },
+    { code: 'china_4', base: 'https://hddj05.com' },
+    { code: 'china_5', base: 'https://hddj06.com' },
+    { code: 'china_6', base: 'https://hddj07.com' },
+    { code: 'oversea_1', base: 'https://hvthtcpa.top' },
+];
 
-const headers = {
-    'User-Agent': UA,
-    Accept: 'application/json, text/plain, */*',
-    Referer: `${DEFAULT_HOST}/`,
-    Origin: DEFAULT_HOST,
-};
+const CATEGORIES = [
+    { id: 'yuandou', name: '黄豆原创' },
+    { id: 'aiman', name: 'AI漫剧' },
+    { id: 'erciyuan', name: '二次元' },
+    { id: 'caibian', name: '擦边' },
+    { id: 'zhenren', name: '真人' },
+    { id: 'zongyi', name: '综艺' },
+    { id: 'heiliao', name: '黑料' },
+    { id: 'guochuanmei', name: '国产传媒' },
+];
 
-function parseExtend(raw) {
-    if (!raw) return {};
-    if (typeof raw === 'object') return raw;
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return {};
-    }
+const CAT_NAMES = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.name]));
+
+
+const http = axios.create({
+    timeout: 20000,
+    validateStatus: () => true,
+});
+
+let currentHost = HOSTS[0].base;
+let session = null;
+let deviceId = null;
+let navCache = null;
+
+function deriveKey(requestId) {
+    return crypto
+        .createHmac('sha256', Buffer.from(HMAC_KEY, 'utf8'))
+        .update(Buffer.from(String(requestId).replace(/-/g, ''), 'hex'))
+        .digest();
 }
 
-function bindHeaders() {
-    headers.Referer = `${host}/`;
-    headers.Origin = host;
+function encryptPayload(data, requestId) {
+    const gzipped = zlib.gzipSync(Buffer.from(JSON.stringify(data), 'utf8'));
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', deriveKey(requestId), iv);
+    const encrypted = Buffer.concat([cipher.update(gzipped), cipher.final()]);
+    return Buffer.concat([iv, encrypted]);
 }
 
-function isEncryptedCover(url) {
-    return url && (url.includes('encryptimages') || url.includes('.bng'));
-}
-
-function proxyPic(url, inReq) {
-    if (!url) return '';
-    if (!isEncryptedCover(url)) return url;
-    const prefix = inReq?.server?.prefix || PREFIX;
-    return `http://127.0.0.1:${PORT}${prefix}/img?url=${encodeURIComponent(url)}`;
-}
-
-function deriveMediaKey(url) {
-    const m = String(url || '').match(/([0-9a-f]{64})/);
-    if (!m) return null;
-    const ver = String(url).match(/[?&]version=([^&#]+)/);
-    const version = ver ? decodeURIComponent(ver[1]) : 'v1';
-    return crypto.createHash('md5').update(KEY_PREFIX + m[1] + version).digest();
-}
-
-function aesBlock(mode, key, data) {
-    const iv = Buffer.alloc(16, 0);
-    const c =
-        mode === 'encrypt'
-            ? crypto.createCipheriv('aes-128-cbc', key, iv)
-            : crypto.createDecipheriv('aes-128-cbc', key, iv);
-    c.setAutoPadding(false);
-    return Buffer.concat([c.update(data), c.final()]);
-}
-
-function decryptImg(encrypted, url) {
-    const key = deriveMediaKey(url);
-    if (!key) return encrypted;
-    const t = Math.floor(encrypted.length / 16);
-    if (t < 1) return encrypted;
-    const last = encrypted.subarray((t - 1) * 16, t * 16);
-    const a = Buffer.alloc(16);
-    for (let i = 0; i < 16; i++) a[i] = last[i] ^ 16;
-    const o = aesBlock('encrypt', key, a).subarray(0, 16);
-    const c = aesBlock('decrypt', key, Buffer.concat([encrypted.subarray(0, t * 16), o]));
-    const u = Buffer.alloc(c.length);
-    c.copy(u, 0, 0, 16);
-    for (let f = 1; f < t; f++) {
-        for (let h = 0; h < 16; h++) {
-            u[f * 16 + h] = c[f * 16 + h] ^ encrypted[(f - 1) * 16 + h];
+function decryptPayload(buf, requestId) {
+    if (!buf || buf.length < 32) return null;
+    if (buf[0] === 0x7b || buf[0] === 0x5b) {
+        try {
+            return JSON.parse(buf.toString('utf8'));
+        } catch {
+            return null;
         }
     }
-    const d = u[u.length - 1];
-    return d >= 1 && d <= 16 ? u.subarray(0, u.length - d) : u;
-}
-
-function imageMime(buf) {
-    if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
-    if (buf.length >= 6 && buf.subarray(0, 3).toString() === 'GIF') return 'image/gif';
-    if (buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP') {
-        return 'image/webp';
+    if (buf.length % 16 !== 0) {
+        try {
+            return JSON.parse(buf.toString('utf8'));
+        } catch {
+            return null;
+        }
     }
-    return 'image/jpeg';
+    const iv = buf.subarray(0, 16);
+    const body = buf.subarray(16);
+    try {
+        const decipher = crypto.createDecipheriv('aes-256-cbc', deriveKey(requestId), iv);
+        let plain = Buffer.concat([decipher.update(body), decipher.final()]);
+        try {
+            plain = zlib.gunzipSync(plain);
+        } catch {
+            /* not gzipped */
+        }
+        return JSON.parse(plain.toString('utf8'));
+    } catch {
+        return null;
+    }
 }
 
-function parseVod(item, inReq) {
-    item = item || {};
+async function postEncrypted(url, body, headers, requestId) {
+    const resp = await http.post(url, body, {
+        headers,
+        responseType: 'arraybuffer',
+    });
+    const data = Buffer.from(resp.data || []);
+    if (!data.length) return null;
+    if (data[0] === 0x7b || data[0] === 0x5b) {
+        try {
+            return JSON.parse(data.toString('utf8'));
+        } catch {
+            return null;
+        }
+    }
+    return decryptPayload(data, requestId);
+}
+
+function getDeviceId() {
+    if (!deviceId) deviceId = crypto.randomUUID().toLowerCase();
+    return deviceId;
+}
+
+async function apiCall(path, data) {
+    const sessionId = crypto.randomUUID().replace(/-/g, '');
+    const payload = { token: '', deviceId: getDeviceId(), data };
+    if (session?.token) payload.token = `${session.token}_${session.userId}`;
+
+    const ordered = [...HOSTS];
+    ordered.sort((a, b) => (a.base === currentHost ? -1 : b.base === currentHost ? 1 : 0));
+    const maxTry = Math.min(3, ordered.length);
+    let idx = 0;
+
+    async function attempt() {
+        if (idx >= maxTry) throw new Error('所有线路均不可用');
+        const hostInfo = ordered[idx++];
+        const url = `${hostInfo.base}/api${path}`;
+        const requestId = crypto.randomUUID().toLowerCase();
+        const body = encryptPayload(payload, requestId);
+        const ts = Math.floor(Date.now() / 1000);
+        const signPath = url.replace(/^https?:\/\//, '');
+        const signRaw = `Dart|${sessionId}|${requestId}|${ts}|${signPath}`;
+        const sign = `${crypto.createHash('md5').update(signRaw, 'utf8').digest('hex')}-${ts}`;
+        const headers = {
+            version: '1.0.0',
+            deviceType: 'web',
+            time: String(ts),
+            sign,
+            requestId,
+            sessionId,
+            deviceBrand: '',
+            deviceModel: '',
+            systemName: '',
+            systemVersion: '',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': UA,
+        };
+
+        try {
+            const result = await postEncrypted(url, body, headers, requestId);
+            if (!result) {
+                if (idx < maxTry) return attempt();
+                return null;
+            }
+            currentHost = hostInfo.base;
+            if (result.status === 'n' && (result.errorCode === 2002 || result.error === '2002')) {
+                session = null;
+                await login();
+                return apiCall(path, data);
+            }
+            return result;
+        } catch (e) {
+            if (idx < maxTry) return attempt();
+            throw e;
+        }
+    }
+
+    return attempt();
+}
+
+async function login() {
+    if (session?.token) return session;
+    const result = await apiCall('/login/device', {
+        line_code: 'china_1',
+        channel_code: '',
+        share_code: '',
+        clipboard_text: '',
+        device_info: {
+            browserName: 'BrowserName.safari',
+            language: 'zh-CN',
+            userAgent: UA,
+            platform: 'iPhone',
+        },
+    });
+    if (result?.data) {
+        session = {
+            userId: String(result.data.user_id),
+            token: result.data.token,
+        };
+        return session;
+    }
+    throw new Error(`Login failed: ${JSON.stringify(result)}`);
+}
+
+async function getNavList() {
+    if (navCache) return navCache;
+    await login();
+    const result = await apiCall('/drama/navList', {});
+    if (result?.data?.list) navCache = result.data;
+    else if (result?.list) navCache = result;
+    return navCache;
+}
+
+async function resolveCategoryCode(code) {
+    const nav = await getNavList();
+    const list = nav?.list || nav?.data?.list;
+    if (!list) return code;
+    for (const item of list) {
+        if (String(item.code) === code) return code;
+    }
+    const name = CAT_NAMES[code] || '';
+    if (name) {
+        for (const item of list) {
+            const n = String(item.name || '');
+            if (n && (n.includes(name) || name.includes(n))) {
+                return String(item.code) || code;
+            }
+        }
+    }
+    return code;
+}
+
+function str(v, fallback = '') {
+    return v != null ? String(v) : fallback;
+}
+
+function num(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isNaN(n) ? fallback : n;
+}
+
+function fixUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('//')) return `https:${url}`;
+    return url;
+}
+
+function buildHlsUrl(dramaId, seq, base) {
+    return `${base || currentHost}/api/drama/hls/${dramaId}/${seq}/play.m3u8?line=free`;
+}
+
+function parseVod(item) {
+    if (!item) return null;
+    const id = str(item.id) || str(item.drama_id).replace(/^[^_]+_/, '');
+    if (!id) return null;
+    const pic = fixUrl(str(item.img_y || item.img || item.cover || item.img_x));
+    const remarks = [];
+    const epCount = parseInt(item.episode_count, 10) || 0;
+    if (epCount > 0) remarks.push(`${epCount}集`);
+    if (item.update_label) remarks.push(str(item.update_label));
+    if (item.corner) remarks.push(str(item.corner));
+    if (item.hot_rate) remarks.push(`热度${str(item.hot_rate)}`);
+    let vodId = `huangdou:${id}`;
+    if (epCount > 0) vodId += `~${epCount}`;
     return {
-        vod_id: String(item.id ?? ''),
-        vod_name: item.t || '',
-        vod_pic: proxyPic(item.cover || '', inReq),
-        vod_remarks: `${item.serial || ''}·${item.eps || 0}集`,
+        vod_id: vodId,
+        vod_name: str(item.name),
+        vod_pic: pic,
+        vod_remarks: remarks.join(' · '),
+        vod_content: str(item.category),
     };
 }
 
-async function apiGet(path) {
+function parseList(resp, nested) {
+    if (!resp?.data?.list) return [];
+    const out = [];
+    for (const row of resp.data.list) {
+        if (nested && row.items) {
+            for (const item of row.items) {
+                const vod = parseVod(item);
+                if (vod) out.push(vod);
+            }
+        } else {
+            const vod = parseVod(row);
+            if (vod) out.push(vod);
+        }
+    }
+    return out;
+}
+
+function parseVodId(raw) {
+    let t = String(raw || '').trim();
+    if (t.startsWith('huangdou:')) t = t.slice(9);
+    let epCount = 0;
+    const idx = t.indexOf('~');
+    if (idx >= 0) {
+        epCount = parseInt(t.slice(idx + 1), 10) || 0;
+        t = t.slice(0, idx);
+    }
+    return { dramaId: t, epCount };
+}
+
+async function init(_inReq, _outResp) {
     try {
-        const resp = await axios.get(`${api}${path}`, {
-            headers,
-            timeout: 15000,
-            validateStatus: () => true,
-        });
-        const body = resp.data;
-        if (body && typeof body === 'object' && body.code === 0 && body.data != null) return body.data;
-        return null;
+        await login();
     } catch {
-        return null;
-    }
-}
-
-function hlsKeyBytes(url) {
-    const m = String(url || '').match(/\/hls\/([0-9a-f]{64})\//);
-    if (!m) return null;
-    const ver = String(url).match(/[?&]version=([^&#]+)/);
-    const version = ver ? decodeURIComponent(ver[1]) : 'v1';
-    return crypto.createHash('md5').update(KEY_PREFIX + m[1] + version).digest();
-}
-
-async function buildM3u8(url) {
-    if (!url) return '';
-    const resp = await axios.get(url, {
-        headers,
-        timeout: 15000,
-        responseType: 'text',
-        validateStatus: () => true,
-    });
-    if (resp.status >= 400) return '';
-    let content = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
-    const keyBytes = hlsKeyBytes(url);
-    if (keyBytes) {
-        const keyUri = `data:text/plain;base64,${keyBytes.toString('base64')}`;
-        content = content.replace(/(#EXT-X-KEY:.*?URI=")[^"]*(")/, `$1${keyUri}$2`);
-    }
-    const base = url.slice(0, url.lastIndexOf('/') + 1);
-    return content
-        .split('\n')
-        .map((line) => {
-            const s = line.trim();
-            if (s && !s.startsWith('#') && !/^https?:\/\//i.test(s)) return base + s;
-            return s;
-        })
-        .join('\n');
-}
-
-async function init(inReq) {
-    const cfg = parseExtend(inReq?.body?.extend);
-    if (cfg.name) displayName = cfg.name;
-    if (cfg.base_url) {
-        host = String(cfg.base_url).replace(/\/$/, '');
-        api = `${host}/api`;
-        bindHeaders();
+        /* ignore */
     }
     return {};
 }
 
-async function home(inReq) {
-    const result = { class: [], filters: {}, list: [] };
-    const channel = await apiGet('/channel/home?platform=mobile&size=20');
-    const sections = Array.isArray(channel?.sections) ? channel.sections : [];
-    for (const sec of sections) {
-        if (sec?.l3Id && sec?.name) {
-            result.class.push({ type_id: `l3_${sec.l3Id}`, type_name: sec.name });
-        }
-        if (Array.isArray(sec?.dramas)) {
-            for (const item of sec.dramas) result.list.push(parseVod(item, inReq));
-        }
-    }
-    if (!result.list.length) {
-        const homeData = await apiGet('/home');
-        for (const key of ['guess', 'feature']) {
-            if (Array.isArray(homeData?.[key])) {
-                for (const item of homeData[key]) result.list.push(parseVod(item, inReq));
-            }
-        }
-    }
-    return result;
+async function home(_inReq, _outResp) {
+    return {
+        class: CATEGORIES.map((c) => ({ type_id: c.id, type_name: c.name })),
+    };
 }
 
-async function category(inReq) {
-    const tid = String(inReq.body.id || '').replace(/^l3_/, '');
-    const pg = parseInt(inReq.body.page, 10) || 1;
-    const data = await apiGet(`/dramas?platform=mobile&l3Id=${tid}&sort=${encodeURIComponent('最新')}&page=${pg}&size=20`);
-    const list = Array.isArray(data?.list) ? data.list.map((item) => parseVod(item, inReq)) : [];
-    const total = Number(data?.total) || 0;
+async function category(inReq, _outResp) {
+    const tid = str(inReq.body.id, 'yuandou');
+    let pg = num(inReq.body.page, 1);
+    if (pg < 1) pg = 1;
+    let list = [];
+    try {
+        const code = await resolveCategoryCode(tid);
+        const filterResp = await apiCall('/drama/navFilter', { code });
+        const tabs = filterResp?.data?.list || [];
+        if (tabs.length > 0 && tabs[0].tab) {
+            const blockResp = await apiCall('/drama/navBlock', {
+                code,
+                tab: tabs[0].tab,
+                page: String(pg),
+            });
+            list = parseList(blockResp, true);
+            if (!list.length && tid === 'yuandou' && pg === 1) {
+                const fallback = await apiCall('/drama/list', {
+                    page: '1',
+                    page_size: '30',
+                    keywords: '黄豆原创',
+                });
+                list = parseList(fallback, false);
+            }
+        } else if (tabs.length > 0 && tabs[0].filter?.cat_id) {
+            const listResp = await apiCall('/drama/list', {
+                page: String(pg),
+                page_size: '30',
+                cat_id: tabs[0].filter.cat_id,
+            });
+            list = parseList(listResp, false);
+        } else {
+            const kw = CAT_NAMES[tid] || tid;
+            const listResp = await apiCall('/drama/list', {
+                page: String(pg),
+                page_size: '30',
+                keywords: kw,
+            });
+            list = parseList(listResp, false);
+        }
+    } catch {
+        list = [];
+    }
     return {
         page: pg,
-        pagecount: total ? Math.ceil(total / 20) : 999,
-        limit: 20,
-        total: total || 99999,
+        pagecount: list.length < 30 ? pg : pg + 1,
         list,
     };
 }
 
-async function detail(inReq) {
+async function detail(inReq, _outResp) {
     let vid = inReq.body.id;
     if (Array.isArray(vid)) vid = vid[0];
-    vid = String(vid || '');
-    if (!vid) return { list: [] };
-    const data = await apiGet(`/dramas/${vid}`);
-    if (!data || typeof data !== 'object') return { list: [] };
-    const play = [];
-    for (const ep of Array.isArray(data.episodes) ? data.episodes : []) {
-        if (ep?.playUrl) play.push(`${ep.title || `第${ep.ep || 0}集`}$${ep.playUrl}`);
+    const { dramaId, epCount } = parseVodId(vid);
+    if (!dramaId) return { list: [] };
+
+    const lineCount = Math.min(4, HOSTS.length);
+    const buildEpUrl = (seq, name, base) => `${name}$${buildHlsUrl(dramaId, seq, base)}`;
+    const joinEps = (eps) => eps.join('#');
+
+    let title = '';
+    let desc = '';
+    let pic = '';
+    const episodes = [];
+
+    try {
+        const resp = await apiCall('/drama/detail', { id: dramaId });
+        if (resp?.data) {
+            const data = resp.data;
+            title = str(data.name);
+            desc = str(data.description);
+            pic = fixUrl(str(data.img_y || data.img || data.cover || data.img_x));
+            for (let i = 0; i < (data.episodes || []).length; i++) {
+                const ep = data.episodes[i];
+                const seq = num(ep.seq, i + 1);
+                let name = str(ep.name, `第${seq}集`);
+                if (str(ep.type, 'free') !== 'free') name += ' [VIP]';
+                episodes.push({ seq, name });
+            }
+        }
+    } catch {
+        /* ignore */
     }
+
+    if (!episodes.length) {
+        const total = epCount > 0 ? epCount : 30;
+        for (let i = 1; i <= total; i++) {
+            episodes.push({ seq: i, name: `第${i}集` });
+        }
+    }
+
+    const playFrom = [];
+    const playUrl = [];
+    for (let i = 0; i < lineCount; i++) {
+        playFrom.push(`线路${i + 1}`);
+        playUrl.push(joinEps(episodes.map((ep) => buildEpUrl(ep.seq, ep.name, HOSTS[i].base))));
+    }
+
     return {
         list: [
             {
-                vod_id: String(data.id ?? vid),
-                vod_name: data.t || '',
-                vod_pic: proxyPic(data.cover || '', inReq),
-                type_name: data.sub || '',
-                vod_year: '',
-                vod_area: '',
-                vod_remarks: `${data.serial || ''}·${data.plays || ''}播放`,
-                vod_actor: '',
-                vod_director: '未知',
-                vod_content: data.summary || data.t || '',
-                vod_play_from: displayName,
-                vod_play_url: play.join('#'),
+                vod_id: vid,
+                vod_name: title || `黄豆短剧 ${dramaId}`,
+                vod_pic: pic,
+                vod_content: desc || `黄豆短剧 ${dramaId}`,
+                vod_play_from: playFrom.join('$$$'),
+                vod_play_url: playUrl.join('$$$'),
             },
         ],
     };
 }
 
-async function search(inReq) {
-    const key = String(inReq.body.wd || '').trim();
-    const pg = parseInt(inReq.body.page, 10) || 1;
-    if (!key) return { list: [], page: pg, pagecount: 1, limit: 20, total: 0 };
-    const data = await apiGet(`/search?kw=${encodeURIComponent(key)}&page=${pg}&size=20`);
-    const list = Array.isArray(data?.list) ? data.list.map((item) => parseVod(item, inReq)) : [];
-    const total = Number(data?.total) || 0;
+async function play(inReq, _outResp) {
     return {
-        page: pg,
-        pagecount: total ? Math.ceil(total / 20) : 0,
-        limit: 20,
-        total: total || 99999,
-        list,
+        parse: 0,
+        url: str(inReq.body.id),
+        header: {
+            'User-Agent': UA,
+            Accept: '*/*',
+        },
     };
 }
 
-async function play(inReq) {
-    const id = String(inReq.body.id || '');
-    if (!id) return { parse: 0, playUrl: '', url: ERROR_PLAY_URL };
+async function search(inReq, _outResp) {
+    const kw = str(inReq.body.wd);
+    let pg = num(inReq.body.page, 1);
+    if (pg < 1) pg = 1;
+    if (!kw) return { page: pg, pagecount: 1, list: [] };
+    let list = [];
     try {
-        const m3u8 = await buildM3u8(id);
-        if (m3u8) {
-            const b64 = Buffer.from(m3u8, 'utf8').toString('base64');
-            return {
-                parse: 0,
-                playUrl: '',
-                url: `data:application/vnd.apple.mpegurl;base64,${b64}`,
-            };
-        }
-    } catch {
-        /* fallback */
-    }
-    return { parse: 0, playUrl: '', url: ERROR_PLAY_URL };
-}
-
-async function imgProxy(inReq, reply) {
-    try {
-        const u = decodeURIComponent(String(inReq.query.url || ''));
-        if (!/^https?:\/\//i.test(u)) return reply.code(400).send('');
-        const resp = await axios.get(u, {
-            headers,
-            timeout: 15000,
-            responseType: 'arraybuffer',
-            validateStatus: () => true,
+        await login();
+        const resp = await apiCall('/drama/list', {
+            page: String(pg),
+            page_size: '30',
+            keywords: kw,
         });
-        if (resp.status >= 400) return reply.code(resp.status).send('');
-        const img = decryptImg(Buffer.from(resp.data), u);
-        reply.header('Content-Type', imageMime(img)).send(img);
+        list = parseList(resp, false);
     } catch {
-        reply.code(500).send('');
+        list = [];
     }
+    return {
+        page: pg,
+        pagecount: list.length < 30 ? pg : pg + 1,
+        list,
+    };
 }
 
 export default {
@@ -301,6 +466,5 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
-        fastify.get('/img', imgProxy);
     },
 };
