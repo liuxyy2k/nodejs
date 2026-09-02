@@ -262,6 +262,17 @@ async function home(_inReq, _outResp) {
         { type_name: '每月最热', type_id: '/comic/index/video?category=month_hot' },
         { type_name: '本月讨论', type_id: '/comic/index/video?category=now_month_comment' },
         { type_name: '收藏最多', type_id: '/comic/index/video?category=max_collect' },
+        { type_name: '91探花', type_id: '/comic/index/search?keyword=探花' },
+        { type_name: '热门排行', type_id: '/comic/index/video?category=now_month_hot' },
+        { type_name: '吃瓜爆料', type_id: '/comic/index/search?keyword=吃瓜+黑料+爆料' },
+        { type_name: '换妻', type_id: '/comic/index/search?keyword=换妻' },
+        { type_name: '无码', type_id: '/comic/av/relvideo?model=12&type=theme&order=week' },
+        { type_name: '中文字幕', type_id: '/comic/av/relvideo?model=5&type=theme&order=week' },
+        { type_name: '制服诱惑', type_id: '/comic/av/relvideo?model=6&type=theme&order=week' },
+        { type_name: 'AI短剧', type_id: '/comic/index/search?keyword=ai短剧' },
+        { type_name: 'AI漫剧', type_id: '/comic/index/search?keyword=ai漫剧' },
+        { type_name: 'AI美女', type_id: '/comic/index/search?keyword=ai美女' },
+        { type_name: 'AI换脸', type_id: '/comic/index/search?keyword=+ai换脸' },
     ];
     try {
         const v = await category(
