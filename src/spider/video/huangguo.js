@@ -24,6 +24,7 @@ const TABS = [
     { type_name: 'AI换脸', type_id: 'ai-huanlian' },
     { type_name: 'AI魔改', type_id: 'ai-mogai' },
     { type_name: '排行榜', type_id: 'ranks/hot' },
+    { type_name: '黄果吃瓜', type_id: 'chigua' },
 ];
 
 function fix(u) {
@@ -243,17 +244,22 @@ async function category(inReq) {
     const page = Math.max(1, parseInt(inReq.body.page, 10) || 1);
     if (id === 'home') {
         const html = await fetchHtml(`${SITE}/`);
-        return { list: parseGridCards(html, true, inReq), page, pagecount: 1, limit: 24, total: 0 };
+        let list = parseGridCards(html, true, inReq);
+        return { list,
+            page: page,
+            pagecount: 99999,
+            limit: 24,
+            total: list.length };
     }
     const url = `${SITE}/${id}/${page > 1 ? `${page}/` : ''}`;
     const html = await fetchHtml(url);
     const list = id.includes('rank') ? parseRanks(html, inReq) : parseGridCards(html, false, inReq);
     return {
         list,
-        page,
-        pagecount: list.length ? page + 1 : page,
+        page: page,
+        pagecount: 99999,
         limit: 24,
-        total: 0,
+        total: list.length
     };
 }
 
