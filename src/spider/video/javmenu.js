@@ -246,7 +246,7 @@ async function detail(inReq, _outResp) {
                 vod_img: data.pic,
                 vod_content: data.desc,
                 vod_play_from: 'JAV目录',
-                vod_play_url: data.play_url || '',
+                vod_play_url: '正片$' + data.play_url,
             }],
         };
     } catch (e) {

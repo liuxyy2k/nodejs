@@ -126,7 +126,7 @@ async function detail(inReq, _outResp) {
             vod_name: name,
             vod_pic: pic,
             vod_year: year,
-            vod_play_from: 'Aw51',
+            vod_play_from: '51爆料',
             vod_play_url: playParts.join('#'),
         }],
     };
