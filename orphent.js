@@ -152,6 +152,7 @@ async function saveDiseaseInfoEntry(item) {
             'SELECT id FROM orphanet_disease_info WHERE orpha_id = ?',
             [item.orphaCode]
         );
+        if(!item.diseaseName) return;
         if (rows.length === 0) {
             //保存
             await conn.query(
@@ -238,10 +239,17 @@ async function getOrphentGene() {
     const [rows] = await db.query(
         `select DISTINCT symbol from orphanet_gene where symbol not in  (select gencc from orphanet_gene_info where gencc is not null) `
     );
-    //  const [rows] = await db.query(
-    //     `select DISTINCT symbol from orphanet_gene where symbol = 'MEIS2'`
-    // );
     return rows.map(r => r.symbol);
+}
+
+async function getOrphentId() {
+    const [rows] = await db.query(
+        `select REPLACE(orpha_id,'ORPHA:','') as orpha_id from orphanet_disease where orpha_id not in (select orpha_id from orphanet_disease_info where orpha_id is not null and orpha_id != '')`
+    );
+    // const [rows] = await db.query(
+    //     `select REPLACE(orpha_id,'ORPHA:','') as orpha_id from orphanet_disease_info where update_time is null`
+    // );
+    return rows.map(r => r.orpha_id);
 }
 
 function getText($, label) {
@@ -352,9 +360,50 @@ app.get('/orphanet/entry', async (req, res) => {
 });
 
 /**
+ * GET /orphanet/entry
+ * 获取 Orphanet 数据
+ * 返回解析后的结构化 Entry 数据
+ */
+app.get('/orphanet/disease', async (req, res) => {
+    let orphanetIdList;
+    try {
+        orphanetIdList = await getOrphentId();
+    } catch (err) {
+        return res.status(500).json({ error: '读取数据库失败: ' + err.message });
+    }
+
+    if (!orphanetIdList.length) {
+        return res.json({ message: '没有待处理的任务' });
+    }
+
+    console.log(`[批量爬取] 共 ${orphanetIdList.length} 条待处理`);
+    res.json({ message: `开始处理 ${orphanetIdList.length} 条`, orphanetIdList });
+    (async () => {
+        for (const orphaId of orphanetIdList) {
+            const url = `https://www.orpha.net/en/disease/detail/${orphaId}?search=&mode=name`;
+            console.log(`[爬取] ${url}`);
+            try {
+               //获取疾病详情
+               const disHtml = await request(url);
+            //    console.log(disHtml);
+               const diseaseInfo = parseDiseaseEntry(disHtml);
+               //保存疾病详情
+               await saveDiseaseInfoEntry(diseaseInfo)
+            } catch (err) {
+                console.error(`[失败] ${orphaId}:`, err.message);
+            }
+
+            // 每条间隔 5~8 秒
+            await new Promise(r => setTimeout(r, 5000 + Math.random() * 3000));
+        }
+        console.log('[批量爬取] 全部完成');
+    })();
+});
+
+/**
  * 名称翻译
  */
-app.get('/cnv/fanyi', async (req, res) => {
+app.get('/orphanet/fanyi', async (req, res) => {
      const [rows] = await db.query(
         `SELECT id,region_name FROM cnv_clingen`
     );
@@ -369,7 +418,8 @@ app.get('/cnv/fanyi', async (req, res) => {
 
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CNV 爬虫服务运行中: http://0.0.0.0:${PORT}`);
+    console.log(`Orphanet 爬虫服务运行中: http://0.0.0.0:${PORT}`);
     console.log('GET /orphanet/entry ');
-    console.log('GET /cnv/fanyi ');
+    console.log('GET /orphanet/disease ');
+    console.log('GET /orphanet/fanyi ');
 });
