@@ -1,0 +1,12 @@
+#!name = CAT-FK-CF Shadowrocket
+#!version = 1.0.2
+#!desc = CF Clearance（Safari过盾 → 同步Node → miss.js带Cookie+UA）
+#!argument = push=http://127.0.0.1:9988/website/cf/cookie
+#!arguments-desc = push=本机Node收cookie地址，端口以CatVod配置页为准
+
+[Script]
+cf_req = type=http-request,pattern=^https?://([^/]+\.)?(missav\.(ws|live|com|app)|jable\.tv|51cg1\.com|hanime1\.me|m\.pandalive\.co\.kr|zh\.spankbang\.com|noodlemagazine\.com|api\.pandalive\.co\.kr)(?![^?]*\.(ts|m3u8|mp4|webm|flv)(\?|/|$))(/|$),script-path=https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/cf-clearance-shadowrocket.js,argument=push=http://127.0.0.1:9988/website/cf/cookie,requires-body=false,timeout=10
+cf_resp = type=http-response,pattern=^https?://([^/]+\.)?(missav\.(ws|live|com|app)|jable\.tv|51cg1\.com|hanime1\.me|m\.pandalive\.co\.kr|zh\.spankbang\.com|noodlemagazine\.com|api\.pandalive\.co\.kr)(?![^?]*\.(ts|m3u8|mp4|webm|flv)(\?|/|$))(/|$),script-path=https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/cf-clearance-shadowrocket.js,argument=push=http://127.0.0.1:9988/website/cf/cookie,requires-body=false,timeout=10
+
+[MITM]
+hostname = %APPEND% missav.ws,missav.live,*.missav.ws,*.missav.live,missav.com,missav.app,jable.tv,51cg1.com,surrit.com,hanime1.me,*.pandalive.co.kr,zh.spankbang.com,noodlemagazine.com

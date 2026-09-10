@@ -18,6 +18,7 @@ import zhizhen from "./zhizhen.js";
 import danmu from "./danmu.js";
 import t4 from "./t4.js";
 import cms from "./cms.js";
+import cf from "./cf.js";
 
 export default async function website(fastify) {
   fastify.get('/', (req, res) => {
@@ -62,4 +63,5 @@ export default async function website(fastify) {
   fastify.register(danmu, {prefix: '/danmu'})
   fastify.register(t4, {prefix: '/t4'})
   fastify.register(cms, {prefix: '/cms'})
+  fastify.register(cf, {prefix: '/cf'})
 }
