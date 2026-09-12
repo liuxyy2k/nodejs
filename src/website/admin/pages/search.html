@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>演员搜索添加</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+            --border-color: #eee;
+            --success: #2ed573;
+            --danger: #ff4757;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #fcfcfc;
+            appearance: none;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .search-results {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .result-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px 16px;
+            min-height: 36px;
+            touch-action: manipulation;
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        .btn-missav {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-jable {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .no-results {
+            text-align: center;
+            color: var(--text-sub);
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--text-sub);
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+
+        .message.info {
+            background: rgba(102, 126, 234, 0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="message" id="toast"></div>
+
+    <div class="container">
+        <a href="/website/" class="back-link">← 返回配置管理</a>
+        <h1>🔍 演员搜索添加</h1>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="输入演员名称搜索..." autofocus>
+        </div>
+
+        <div class="search-results" id="searchResults">
+            <div class="no-results">请输入演员名称进行搜索</div>
+        </div>
+    </div>
+
+    <script>
+        let modelIndex = [];
+        let modelsList = [];
+        let searchTimeout = null;
+
+        // 构建正确的 API 路径
+        const API_BASE = location.pathname.replace(/\/search$, '');
+
+        // 加载数据
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch(API_BASE + '/search-data');
+                const data = await res.json();
+                if (data.code === 0) {
+                    modelIndex = data.data.modelIndex || [];
+                    modelsList = data.data.modelsList || [];
+                }
+            } catch (error) {
+                showToast('加载数据失败', 'error');
+            }
+        });
+
+        // 搜索输入监听
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+
+            // 防抖
+            if (searchTimeout) clearTimeout(searchTimeout);
+
+            if (!query) {
+                document.getElementById('searchResults').innerHTML = '<div class="no-results">请输入演员名称进行搜索</div>';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+        });
+
+        // 执行搜索
+        function performSearch(query) {
+            const results = document.getElementById('searchResults');
+
+            if (!modelIndex.length) {
+                results.innerHTML = '<div class="loading">数据加载中...</div>';
+                return;
+            }
+
+            // 模糊搜索
+            const matches = modelIndex.filter(name =>
+                name.toLowerCase().includes(query.toLowerCase())
+            ).slice(0, 20); // 限制显示前 20 个结果
+
+            if (matches.length === 0) {
+                results.innerHTML = '<div class="no-results">未找到匹配的演员</div>';
+                return;
+            }
+
+            results.innerHTML = matches.map(name => {
+                const index = modelIndex.indexOf(name);
+                const modelData = modelsList[index];
+
+                return `
+                    <div class="result-item">
+                        <span class="result-name">${name}</span>
+                        <div class="result-actions">
+                            <button class="btn-missav" onclick="addToMissav('${index}')">添加到 MissAV</button>
+                            <button class="btn-jable" onclick="addToJable('${index}', '${name.replace(/'/g, "\\\\'")}')">添加到 Jable</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 添加到 MissAV
+        window.addToMissav = async (index) => {
+            const modelData = modelsList[index];
+            if (!modelData) return;
+
+            showToast('正在添加到 MissAV...', 'info');
+
+            try {
+                const res = await fetch(API_BASE + '/add-actor/missav', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: modelData.missav })
+                });
+
+                const data = await res.json();
+                if (data.code === 0) {
+                    showToast('已添加到 MissAV', 'success');
+                } else {
+                    showToast(data.message || '添加失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            }
+        };
+
+        // 添加到 Jable
+        window.addToJable = async (index, displayName) => {
+            const modelData = modelsList[index];
+            if (!modelData) return;
+
+            showToast('正在添加到 Jable...', 'info');
+
+            try {
+                const res = await fetch(API_BASE + '/add-actor/jable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: displayName || modelData.jable,
+                        link: modelData.jable
+                    })
+                });
+
+                const data = await res.json();
+                if (data.code === 0) {
+                    showToast('已添加到 Jable', 'success');
+                } else {
+                    showToast(data.message || '添加失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            }
+        };
+
+        // 提示框
+        function showToast(text, type) {
+            const el = document.getElementById('toast');
+            el.textContent = text;
+            el.className = `message show ${type}`;
+            el.style.display = 'block';
+
+            if (window.toastTimer) clearTimeout(window.toastTimer);
+            if (window.toastHideTimer) clearTimeout(window.toastHideTimer);
+
+            window.toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+                window.toastHideTimer = setTimeout(() => {
+                    el.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

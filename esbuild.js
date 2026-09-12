@@ -1,5 +1,6 @@
 import * as esbuild from 'esbuild';
 import fs from 'fs';
+import path from 'path';
 import { createHash } from 'crypto';
 import {getWebsiteBundle, getDanmuBundle} from "./esbuild-website.js";
 import JavaScriptObfuscator from 'javascript-obfuscator';
@@ -17,13 +18,44 @@ let result = await esbuild.build({
     platform: 'node',
     target: 'node18',
     sourcemap: isDev ? 'inline' : false,
-    plugins: isDev ? [genMd5()] : [obfuscator(), addWebsite(), genMd5()],
+    plugins: isDev
+        ? [embedAdminPages(), genMd5()]
+        : [embedAdminPages(), obfuscator(), addWebsite(), genMd5()],
     define: {
         DB_NAME: JSON.stringify(process.env.DB || 'default'),
     },
 });
 
 fs.writeFileSync('meta.server.json', JSON.stringify(result.metafile))
+
+/** 生产部署为单文件 index.js，admin HTML 必须内嵌，不能运行时读盘 */
+function embedAdminPages() {
+    return {
+        name: 'embed-admin-pages',
+        setup(build) {
+            build.onLoad({ filter: /[/\\]admin[/\\]pages\.js$/ }, (args) => {
+                const pagesDir = path.join(path.dirname(args.path), 'pages');
+                const pages = {};
+                for (const name of fs.readdirSync(pagesDir)) {
+                    if (!name.endsWith('.html')) continue;
+                    pages[name.slice(0, -5)] = fs.readFileSync(path.join(pagesDir, name), 'utf8');
+                }
+                const contents = `export function loadPage(name) {
+  const PAGES = ${JSON.stringify(pages)};
+  const html = PAGES[name];
+  if (html === undefined) throw new Error('Page not found: ' + name);
+  return html;
+}
+
+export function wantsHtml(req) {
+  return (req.headers.accept || '').includes('text/html');
+}
+`;
+                return { contents, loader: 'js' };
+            });
+        },
+    };
+}
 
 function addWebsite() {
     return {

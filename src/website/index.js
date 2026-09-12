@@ -13,21 +13,23 @@ import baidu from "./baidu.js";
 import tgchannel from "./tgchannel.js";
 import sites from "./sites.js";
 import pans from "./pans.js";
-import backup from "./backup.js";
 import zhizhen from "./zhizhen.js";
 import danmu from "./danmu.js";
 import t4 from "./t4.js";
 import cms from "./cms.js";
 import cf from "./cf.js";
+import admin from "./admin/index.js";
 
 export default async function website(fastify) {
-  fastify.get('/', (req, res) => {
+  await fastify.register(admin);
+
+  fastify.get('/app', (req, res) => {
     res.type('text/html').send(`
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
-        <title>首页</title>
+        <title>CatVod 站源配置</title>
       </head>
       <body>
         <div id="app"></div>
@@ -59,7 +61,7 @@ export default async function website(fastify) {
   fastify.register(tgchannel, {prefix: '/tgchannel'})
   fastify.register(sites, {prefix: '/sites'})
   fastify.register(pans, {prefix: '/pans'})
-  fastify.register(backup, {prefix: '/backup'})
+  // backup 路由已由 admin 模块提供（/website/backup）
   fastify.register(danmu, {prefix: '/danmu'})
   fastify.register(t4, {prefix: '/t4'})
   fastify.register(cms, {prefix: '/cms'})

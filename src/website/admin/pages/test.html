@@ -1,0 +1,2987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CatPawOpen API 测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #6c5ce7;
+            min-height: 100vh;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 可拖动分隔条 - 纵向 */
+        .resizer {
+            width: 6px;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            cursor: col-resize;
+            position: relative;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .resizer:hover,
+        .resizer.resizing {
+            background: #4a7bff;
+        }
+
+        .resizer::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 3px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+        }
+
+        .resizer:hover::after,
+        .resizer.resizing::after {
+            background: white;
+        }
+
+        /* 可拖动分隔条 - 横向 */
+        .resizer-horizontal {
+            height: 6px;
+            background: #e0e0e0;
+            flex-shrink: 0;
+            cursor: row-resize;
+            position: relative;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .resizer-horizontal:hover,
+        .resizer-horizontal.resizing {
+            background: #4a7bff;
+        }
+
+        .resizer-horizontal::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 3px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+        }
+
+        .resizer-horizontal:hover::after,
+        .resizer-horizontal.resizing::after {
+            background: white;
+        }
+
+        /* 左侧栏 */
+        .sidebar {
+            width: 240px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            min-width: 180px;
+            max-width: 500px;
+        }
+
+        .sidebar-header {
+            padding: 14px;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        .sidebar-top {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 180px;
+        }
+
+        .spider-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            min-height: 0;
+        }
+
+        .sidebar-middle {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .refresh-btn {
+            width: 100%;
+            padding: 8px 10px;
+            background: #4a7bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 36px;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #3a6bdf;
+        }
+
+        .spider-item {
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 3px;
+            transition: all 0.2s;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .spider-item:hover {
+            background: #f5f5f5;
+        }
+
+        .spider-item.active {
+            background: #4a7bff;
+            color: white;
+        }
+
+        .test-flow {
+            padding: 14px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        .test-flow-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .flow-step-number {
+            width: 16px;
+            height: 16px;
+            background: #4a7bff;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* 快捷操作区 */
+        .quick-actions {
+            padding: 10px 14px;
+            border-top: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .quick-action-btn {
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 36px;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn.search {
+            background: #10b981;
+            color: white;
+        }
+
+        .quick-action-btn.search:hover {
+            background: #059669;
+        }
+
+        .quick-action-btn.test-all {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .quick-action-btn.test-all:hover {
+            background: #d97706;
+        }
+
+        .quick-action-btn.debug {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .quick-action-btn.debug:hover {
+            background: #6d28d9;
+        }
+
+        .quick-action-btn.monitor {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .quick-action-btn.monitor:hover {
+            background: #0891b2;
+        }
+
+        .quick-action-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* 中间内容区 */
+        .main-content {
+            flex: 1;
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 面包屑 */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .breadcrumb-item {
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb-item:hover {
+            color: white;
+        }
+
+        .breadcrumb-separator {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .breadcrumb-current {
+            color: white;
+            font-weight: 500;
+        }
+
+        /* 通用卡片 */
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 步骤提示卡片 */
+        .step-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: none;
+        }
+
+        .step-card .card-title {
+            color: #1976d2;
+        }
+
+        .step-description {
+            font-size: 12px;
+            color: #555;
+        }
+
+        /* 响应数据卡片 */
+        .response-card {
+            flex: 1;
+            min-height: 200px;
+        }
+
+        .response-area {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 14px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .selected-spider-info {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .action-button {
+            padding: 10px 18px;
+            background: #4a7bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 38px;
+            transition: all 0.2s;
+        }
+
+        .action-button:hover {
+            background: #3a6bdf;
+            transform: translateY(-1px);
+        }
+
+        .action-button:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 搜索输入区域 */
+        .search-input-area {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .search-input-area input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            background: white;
+        }
+
+        .search-input-area input:focus {
+            outline: none;
+            border-color: #4a7bff;
+            box-shadow: 0 0 0 3px rgba(74, 123, 255, 0.1);
+        }
+
+        /* 右侧面板 */
+        .right-panel {
+            width: 320px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            min-width: 250px;
+            max-width: 600px;
+        }
+
+        /* 日志卡片 */
+        .log-card {
+            height: 50%;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid #eee;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-status {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 9px;
+        }
+
+        .log-status.success {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .log-status.error {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .log-status.pending {
+            background: #f39c12;
+            color: white;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 10px;
+            min-width: 60px;
+        }
+
+        .log-message {
+            flex: 1;
+            font-size: 11px;
+            color: #333;
+            word-break: break-word;
+        }
+
+        /* 原始返回值卡片 */
+        .raw-card {
+            height: 50%;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .raw-content {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .raw-content pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #d4d4d4;
+        }
+
+        .raw-empty {
+            color: #666;
+            font-size: 11px;
+            text-align: center;
+            padding: 16px;
+        }
+
+        /* 内容展示区域 */
+        .content-display {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 12px;
+            overflow: auto;
+            max-height: calc(100vh - 200px);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .content-display pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #d4d4d4;
+        }
+
+        /* 交互式列表 */
+        .interactive-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .list-item {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 6px;
+            border: 2px solid #444;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .list-item:hover {
+            background: #3d3d3d;
+            border-color: #4a7bff;
+        }
+
+        .list-item.selected {
+            background: #1e3a2f;
+            border-color: #10b981;
+        }
+
+        .list-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .list-item-title {
+            font-weight: bold;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .list-item-id {
+            background: #4a7bff;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .list-item-info {
+            color: #888;
+            font-size: 11px;
+        }
+
+        /* 播放链接样式 */
+        .play-links {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .play-from {
+            background: #1a1a2e;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .play-from-title {
+            color: #4a7bff;
+            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .play-link-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            margin-bottom: 3px;
+        }
+
+        .play-link-name {
+            color: #fff;
+            font-size: 11px;
+            flex: 1;
+        }
+
+        .play-link-btn {
+            padding: 3px 6px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 9px;
+            min-height: 24px;
+            min-width: 24px;
+        }
+
+        .play-link-btn:hover {
+            background: #059669;
+        }
+
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #2d2d2d;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .pagination input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #444;
+            background: #1e1e1e;
+            color: #fff;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .pagination-info {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .pagination-btn {
+            padding: 5px 10px;
+            background: #4a7bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .pagination-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        /* 详情面板 */
+        .detail-panel {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 5px 0;
+            border-bottom: 1px solid #444;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 500;
+            color: #888;
+            width: 70px;
+            flex-shrink: 0;
+            font-size: 11px;
+        }
+
+        .detail-value {
+            color: #d4d4d4;
+            flex: 1;
+            word-break: break-word;
+            font-size: 11px;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-success {
+            background: #10b981;
+        }
+
+        .toast-error {
+            background: #ef4444;
+        }
+
+        .toast-info {
+            background: #06b6d4;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a7bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #888;
+            padding: 24px 14px;
+            font-size: 12px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .layout {
+                flex-wrap: wrap;
+                overflow-y: auto;
+            }
+
+            .sidebar {
+                width: 100% !important;
+                max-height: 200px;
+            }
+
+            .spider-list {
+                max-height: none;
+                height: auto;
+            }
+
+            .sidebar-top,
+            .sidebar-middle {
+                height: auto !important;
+                min-height: auto !important;
+            }
+
+            .right-panel {
+                width: 100% !important;
+                max-height: 300px;
+            }
+
+            .resizer,
+            .resizer-horizontal {
+                display: none;
+            }
+
+            .log-card,
+            .raw-card {
+                height: auto !important;
+                min-height: auto !important;
+            }
+
+            body {
+                overflow: auto;
+            }
+        }
+
+        /* === 调试面板样式 === */
+        .debug-panel {
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .debug-panel-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #e0e0e0;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .debug-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .debug-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            color: white;
+            min-height: 36px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .debug-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .debug-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            filter: none;
+        }
+
+        .debug-btn.home { background: #7c3aed; }
+        .debug-btn.category { background: #0891b2; }
+        .debug-btn.detail { background: #d97706; }
+
+        .debug-loading {
+            text-align: center;
+            padding: 24px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        /* 录制结果卡片 */
+        .recording-card {
+            background: #2d2d44;
+            border: 1px solid #444;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .recording-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #3d3d55;
+            font-size: 11px;
+            color: #e0e0e0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .recording-card-header:hover {
+            background: #4a4a66;
+        }
+
+        .recording-card-body {
+            padding: 10px 12px;
+            font-size: 11px;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+
+        .recording-card-body.collapsed {
+            display: none;
+        }
+
+        .recording-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0;
+        }
+
+        .recording-table th,
+        .recording-table td {
+            padding: 4px 8px;
+            border: 1px solid #444;
+            text-align: left;
+            font-size: 10px;
+        }
+
+        .recording-table th {
+            background: #444;
+            color: #aaa;
+            font-weight: 600;
+        }
+
+        .recording-table .status-ok { color: #10b981; font-weight: bold; }
+        .recording-table .status-err { color: #ef4444; font-weight: bold; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .status-badge.success { background: #10b98120; color: #10b981; border: 1px solid #10b98140; }
+        .status-badge.error { background: #ef444420; color: #ef4444; border: 1px solid #ef444440; }
+        .status-badge.info { background: #3b82f620; color: #3b82f6; border: 1px solid #3b82f640; }
+
+        .debug-raw-json {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #d4d4d4;
+            margin-top: 6px;
+        }
+
+        .debug-summary {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            flex-wrap: wrap;
+        }
+
+        .debug-summary-item {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .debug-summary-item strong {
+            color: #e0e0e0;
+        }
+
+        .debug-hint {
+            color: #888;
+            font-size: 11px;
+            font-style: italic;
+            padding: 8px 0;
+        }
+
+        .debug-response-box {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+
+        .debug-response-box pre {
+            margin: 0;
+            font-size: 10px;
+            line-height: 1.5;
+            color: #d4d4d4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .debug-response-box pre.collapsed {
+            display: none;
+        }
+        .debug-response-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 0;
+        }
+        .debug-response-header:hover {
+            opacity: 0.8;
+        }
+
+        /* 录制区域折叠 */
+        .rec-section { margin-top: 4px; }
+        .rec-section-title {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #aaa;
+            padding: 2px 0;
+        }
+        .rec-section-title:hover { color: #e0e0e0; }
+        .rec-section-body { overflow: hidden; }
+        .rec-section-body.collapsed { display: none; }
+
+        /* 耗时颜色 */
+        .rec-duration {
+            font-size: 10px;
+            font-weight: bold;
+            font-family: 'Consolas', 'Monaco', monospace;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* key-value 样式 (用于录制详情) */
+        .debug-key-value {
+            display: flex;
+            gap: 8px;
+            padding: 2px 0;
+            font-size: 10px;
+            line-height: 1.6;
+        }
+        .debug-key-value .key {
+            color: #888;
+            min-width: 70px;
+            flex-shrink: 0;
+        }
+        .debug-key-value .value {
+            color: #d4d4d4;
+            word-break: break-all;
+        }
+        .status-ok { color: #10b981; font-weight: bold; }
+        .status-err { color: #ef4444; font-weight: bold; }
+
+        /* 保存按钮 */
+        .save-btn {
+            padding: 4px 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            color: #ccc;
+            background: transparent;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            min-height: 24px;
+        }
+        .save-btn:hover {
+            background: #4a7bff;
+            color: white;
+            border-color: #4a7bff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <!-- 左侧栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                    </svg>
+                    爬虫列表
+                </div>
+                <button class="refresh-btn" onclick="loadSpiders()" id="refreshBtn">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                    刷新列表
+                </button>
+            </div>
+            <div class="sidebar-top">
+                <div class="spider-list" id="spiderList">
+                    <div style="text-align: center; color: #888; padding: 14px; font-size: 11px;">
+                        点击"刷新列表"加载爬虫
+                    </div>
+                </div>
+            </div>
+            <!-- 左侧横向分隔条 -->
+            <div class="resizer-horizontal" id="sidebarResizer"></div>
+            <div class="sidebar-middle">
+                <div class="test-flow">
+                    <div class="test-flow-title">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                        测试流程
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">1</div>
+                        <div>选择一个爬虫</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">2</div>
+                        <div>点击 [Home] 获取分类</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">3</div>
+                        <div>点击分类查看视频列表</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">4</div>
+                        <div>点击视频查看详情</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-step-number">5</div>
+                        <div>点击播放获取地址</div>
+                    </div>
+                </div>
+                <div class="quick-actions">
+                    <button class="quick-action-btn search" id="searchBtn" onclick="showSearchPanel()" disabled>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        搜索测试
+                    </button>
+                    <button class="quick-action-btn test-all" id="testAllBtn" onclick="runAllTests()" disabled>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        一键测试
+                    </button>
+                    <button class="quick-action-btn debug" id="debugBtn" onclick="showDebugPanel()" disabled>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a10 10 0 1 0 10 10h-2.5a7.5 7.5 0 1 1-7.5-7.5V2z"/>
+                            <path d="M12 2v8h8a8 8 0 0 0-8-8z" fill="currentColor"/>
+                        </svg>
+                        调试
+                    </button>
+                    <button class="quick-action-btn monitor" id="monitorBtn" onclick="showMonitorPanel()" disabled>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                        接口监听
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 左侧分隔条 -->
+        <div class="resizer" id="leftResizer"></div>
+
+        <!-- 中间内容区 -->
+        <div class="main-content">
+            <!-- 面包屑导航 -->
+            <div class="breadcrumb" id="breadcrumb">
+                <span class="breadcrumb-current">首页</span>
+            </div>
+
+            <!-- 步骤提示卡片 -->
+            <div class="card step-card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                    <span id="stepTitle">步骤 1: 选择爬虫</span>
+                </div>
+                <div class="step-description" id="stepDescription">
+                    从左侧列表选择一个爬虫开始测试
+                </div>
+            </div>
+
+            <!-- 响应数据卡片 -->
+            <div class="card response-card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    响应数据
+                </div>
+
+                <!-- 搜索输入区域 -->
+                <div class="search-input-area" id="searchInputArea" style="display: none;">
+                    <input type="text" id="searchInput" placeholder="输入搜索关键词..."
+                        onkeypress="handleSearchKeypress(event)">
+                    <button class="action-button" onclick="doSearch()">搜索</button>
+                </div>
+
+                <div class="response-area" id="responseArea">
+                    <div class="selected-spider-info" id="selectedSpiderInfo">
+                        请从左侧列表选择一个爬虫
+                    </div>
+                    <button class="action-button" id="mainActionButton" onclick="handleMainAction()" disabled>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                        <span id="mainActionText">获取首页 (Home)</span>
+                    </button>
+                </div>
+
+                <!-- 内容展示区域（初始隐藏） -->
+                <div class="content-display" id="contentDisplay" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 右侧分隔条 -->
+        <div class="resizer" id="rightResizer"></div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <!-- 操作日志卡片 -->
+            <div class="card log-card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5" />
+                        <line x1="12" y1="19" x2="20" y2="19" />
+                    </svg>
+                    操作日志
+                </div>
+                <div class="log-content" id="logContent">
+                    <div class="log-item">
+                        <div class="log-status pending">⏳</div>
+                        <span class="log-time">--:--:--</span>
+                        <span class="log-message">等待操作...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 横向分隔条 -->
+            <div class="resizer-horizontal" id="horizontalResizer"></div>
+
+            <!-- 原始返回值卡片 -->
+            <div class="card raw-card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    原始返回值
+                    <button class="save-btn" onclick="saveRawData()" style="margin-left:auto;" title="保存原始返回值到本地">💾 保存</button>
+                </div>
+                <div class="raw-content" id="rawContent">
+                    <div class="raw-empty">暂无数据</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 状态管理
+        let spiders = [];
+        let currentSpider = null;
+        let navHistory = [];
+        let currentState = {
+            categoryId: null,
+            categoryName: null,
+            videoId: null,
+            videoName: null,
+            playFrom: null,
+            playId: null,
+            page: 1
+        };
+        let lastRawData = null;
+        let lastDebugData = null;
+        let lastRenderFunction = null;
+        let isSearchMode = false;
+
+        // 拖动调整大小
+        let isResizing = false;
+        let currentResizer = null;
+        let startX = 0;
+        let startY = 0;
+        let startLeftWidth = 0;
+        let startRightWidth = 0;
+        let startLogHeight = 0;
+        let startRawHeight = 0;
+
+        // 宽度配置
+        const MIN_SIDEBAR_WIDTH = 180;
+        const MAX_SIDEBAR_WIDTH = 500;
+        const MIN_RIGHT_PANEL_WIDTH = 250;
+        const MAX_RIGHT_PANEL_WIDTH = 600;
+
+        // 高度配置
+        const MIN_LOG_HEIGHT = 150;
+        const MIN_RAW_HEIGHT = 150;
+
+        // 从 localStorage 加载宽度
+        function loadWidths() {
+            const sidebarWidth = localStorage.getItem('test_sidebar_width');
+            const rightPanelWidth = localStorage.getItem('test_right_panel_width');
+            const logHeight = localStorage.getItem('test_log_height');
+            const spiderListHeight = localStorage.getItem('test_spider_list_height');
+
+            if (sidebarWidth) {
+                document.querySelector('.sidebar').style.width = sidebarWidth + 'px';
+            }
+            if (rightPanelWidth) {
+                document.querySelector('.right-panel').style.width = rightPanelWidth + 'px';
+            }
+            if (logHeight) {
+                const logCard = document.querySelector('.log-card');
+                const rawCard = document.querySelector('.raw-card');
+                logCard.style.height = logHeight + 'px';
+                rawCard.style.height = `calc(100% - ${logHeight}px - 6px)`;
+            }
+            if (spiderListHeight) {
+                const sidebarTop = document.querySelector('.sidebar-top');
+                sidebarTop.style.height = spiderListHeight + 'px';
+            }
+        }
+
+        // 保存宽度到 localStorage
+        function saveWidths() {
+            const sidebar = document.querySelector('.sidebar');
+            const rightPanel = document.querySelector('.right-panel');
+            const logCard = document.querySelector('.log-card');
+            const sidebarTop = document.querySelector('.sidebar-top');
+            localStorage.setItem('test_sidebar_width', parseInt(sidebar.style.width));
+            localStorage.setItem('test_right_panel_width', parseInt(rightPanel.style.width));
+            localStorage.setItem('test_log_height', parseInt(logCard.style.height));
+            localStorage.setItem('test_spider_list_height', parseInt(sidebarTop.style.height));
+        }
+
+        // 初始化拖动
+        function initResizers() {
+            const leftResizer = document.getElementById('leftResizer');
+            const rightResizer = document.getElementById('rightResizer');
+            const horizontalResizer = document.getElementById('horizontalResizer');
+            const sidebarResizer = document.getElementById('sidebarResizer');
+            const sidebar = document.querySelector('.sidebar');
+            const rightPanel = document.querySelector('.right-panel');
+            const logCard = document.querySelector('.log-card');
+            const rawCard = document.querySelector('.raw-card');
+            const sidebarTop = document.querySelector('.sidebar-top');
+            const sidebarMiddle = document.querySelector('.sidebar-middle');
+
+            // 左侧分隔条拖动
+            leftResizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentResizer = 'left';
+                startX = e.clientX;
+                startLeftWidth = sidebar.offsetWidth;
+                leftResizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            // 右侧分隔条拖动
+            rightResizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentResizer = 'right';
+                startX = e.clientX;
+                startRightWidth = rightPanel.offsetWidth;
+                rightResizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            // 鼠标移动
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                if (currentResizer === 'horizontal') {
+                    const dy = e.clientY - startY;
+                    const rightPanelRect = rightPanel.getBoundingClientRect();
+                    const relativeY = e.clientY - rightPanelRect.top;
+                    const newLogHeight = Math.max(MIN_LOG_HEIGHT, Math.min(rightPanelRect.height - MIN_RAW_HEIGHT - 6, relativeY));
+                    logCard.style.height = newLogHeight + 'px';
+                    rawCard.style.height = `calc(100% - ${newLogHeight}px - 6px)`;
+                } else if (currentResizer === 'sidebar-horizontal') {
+                    const dy = e.clientY - startY;
+                    const sidebarRect = sidebar.getBoundingClientRect();
+                    const headerHeight = 48;
+                    const separatorHeight = 6;
+                    const availableHeight = sidebarRect.height - headerHeight - separatorHeight;
+                    const relativeY = e.clientY - sidebarRect.top - headerHeight;
+                    const newTopHeight = Math.max(100, Math.min(availableHeight - 200, relativeY));
+                    sidebarTop.style.height = newTopHeight + 'px';
+                } else {
+                    const dx = e.clientX - startX;
+
+                    if (currentResizer === 'left') {
+                        const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, startLeftWidth + dx));
+                        sidebar.style.width = newWidth + 'px';
+                    } else if (currentResizer === 'right') {
+                        const newWidth = Math.max(MIN_RIGHT_PANEL_WIDTH, Math.min(MAX_RIGHT_PANEL_WIDTH, startRightWidth - dx));
+                        rightPanel.style.width = newWidth + 'px';
+                    }
+                }
+            });
+
+            // 鼠标释放
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    currentResizer = null;
+                    leftResizer.classList.remove('resizing');
+                    rightResizer.classList.remove('resizing');
+                    horizontalResizer.classList.remove('resizing');
+                    sidebarResizer.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    saveWidths();
+                }
+            });
+
+            // 触摸支持
+            leftResizer.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                isResizing = true;
+                currentResizer = 'left';
+                startX = touch.clientX;
+                startLeftWidth = sidebar.offsetWidth;
+                leftResizer.classList.add('resizing');
+                e.preventDefault();
+            });
+
+            rightResizer.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                isResizing = true;
+                currentResizer = 'right';
+                startX = touch.clientX;
+                startRightWidth = rightPanel.offsetWidth;
+                rightResizer.classList.add('resizing');
+                e.preventDefault();
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isResizing) return;
+                const touch = e.touches[0];
+
+                if (currentResizer === 'horizontal') {
+                    const dy = touch.clientY - startY;
+                    const rightPanelRect = rightPanel.getBoundingClientRect();
+                    const relativeY = touch.clientY - rightPanelRect.top;
+                    const newLogHeight = Math.max(MIN_LOG_HEIGHT, Math.min(rightPanelRect.height - MIN_RAW_HEIGHT - 6, relativeY));
+                    logCard.style.height = newLogHeight + 'px';
+                    rawCard.style.height = `calc(100% - ${newLogHeight}px - 6px)`;
+                } else if (currentResizer === 'sidebar-horizontal') {
+                    const dy = touch.clientY - startY;
+                    const sidebarRect = sidebar.getBoundingClientRect();
+                    const headerHeight = 48;
+                    const separatorHeight = 6;
+                    const availableHeight = sidebarRect.height - headerHeight - separatorHeight;
+                    const relativeY = touch.clientY - sidebarRect.top - headerHeight;
+                    const newTopHeight = Math.max(100, Math.min(availableHeight - 200, relativeY));
+                    sidebarTop.style.height = newTopHeight + 'px';
+                } else {
+                    const dx = touch.clientX - startX;
+
+                    if (currentResizer === 'left') {
+                        const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, startLeftWidth + dx));
+                        sidebar.style.width = newWidth + 'px';
+                    } else if (currentResizer === 'right') {
+                        const newWidth = Math.max(MIN_RIGHT_PANEL_WIDTH, Math.min(MAX_RIGHT_PANEL_WIDTH, startRightWidth - dx));
+                        rightPanel.style.width = newWidth + 'px';
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    currentResizer = null;
+                    leftResizer.classList.remove('resizing');
+                    rightResizer.classList.remove('resizing');
+                    horizontalResizer.classList.remove('resizing');
+                    sidebarResizer.classList.remove('resizing');
+                    saveWidths();
+                }
+            });
+
+            // 横向分隔条拖动
+            horizontalResizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentResizer = 'horizontal';
+                startY = e.clientY;
+                startLogHeight = logCard.offsetHeight;
+                horizontalResizer.classList.add('resizing');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            horizontalResizer.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                isResizing = true;
+                currentResizer = 'horizontal';
+                startY = touch.clientY;
+                startLogHeight = logCard.offsetHeight;
+                horizontalResizer.classList.add('resizing');
+                e.preventDefault();
+            });
+
+            // 左侧栏横向分隔条拖动
+            sidebarResizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                currentResizer = 'sidebar-horizontal';
+                startY = e.clientY;
+                startLogHeight = sidebarTop.offsetHeight;
+                sidebarResizer.classList.add('resizing');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            sidebarResizer.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                isResizing = true;
+                currentResizer = 'sidebar-horizontal';
+                startY = touch.clientY;
+                startLogHeight = sidebarTop.offsetHeight;
+                sidebarResizer.classList.add('resizing');
+                e.preventDefault();
+            });
+        }
+
+        const API_BASE = window.location.origin;
+
+        // 工具函数
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function formatTime() {
+            const now = new Date();
+            return now.toLocaleTimeString('zh-CN', { hour12: false });
+        }
+
+        function addLog(message, status = 'success', rawData = null) {
+            const logContent = document.getElementById('logContent');
+            const statusIcon = status === 'success' ? '✓' : status === 'error' ? '✗' : '⏳';
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.innerHTML = `
+                <div class="log-status ${status}">${statusIcon}</div>
+                <span class="log-time">${formatTime()}</span>
+                <span class="log-message">${message}</span>
+            `;
+            logContent.insertBefore(logItem, logContent.firstChild);
+
+            // 更新原始返回值
+            if (rawData) {
+                updateRawContent(rawData);
+            }
+
+            // 限制日志数量
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.lastChild);
+            }
+        }
+
+        function updateRawContent(data) {
+            const rawContent = document.getElementById('rawContent');
+            rawContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        function updateStep(title, description) {
+            document.getElementById('stepTitle').textContent = title;
+            document.getElementById('stepDescription').textContent = description;
+        }
+
+        function updateBreadcrumb(items) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            breadcrumb.innerHTML = items.map((item, index) => {
+                if (index === items.length - 1) {
+                    return `<span class="breadcrumb-current">${item}</span>`;
+                }
+                return `<span class="breadcrumb-item" onclick="navigateTo(${index})">${item}</span><span class="breadcrumb-separator">></span>`;
+            }).join('');
+        }
+
+        // 加载 Spider 列表
+        async function loadSpiders() {
+            try {
+                addLog('正在加载爬虫列表...', 'pending');
+                const response = await fetch(`${API_BASE}/config`);
+                if (!response.ok) throw new Error('加载配置失败');
+                const data = await response.json();
+
+                spiders = [];
+                const types = ['video', 'read', 'comic', 'music', 'pan'];
+                for (const type of types) {
+                    if (data[type]?.sites) {
+                        data[type].sites.forEach(site => {
+                            let key = site.key || '';
+                            if (key.startsWith('nodejs_')) key = key.substring(7);
+                            spiders.push({ ...site, key });
+                        });
+                    }
+                }
+
+                const spiderList = document.getElementById('spiderList');
+                if (spiders.length === 0) {
+                    spiderList.innerHTML = '<div style="text-align: center; color: #888; padding: 14px; font-size: 11px;">暂无爬虫</div>';
+                } else {
+                    spiderList.innerHTML = spiders.map(spider => `
+                        <div class="spider-item" data-key="${spider.key}" onclick="selectSpider('${spider.key}')">
+                            ${spider.name || spider.key} <small style="color: #888;">(${spider.type})</small>
+                        </div>
+                    `).join('');
+                }
+
+                addLog(`成功加载 ${spiders.length} 个爬虫`, 'success');
+                showToast(`成功加载 ${spiders.length} 个爬虫`, 'success');
+            } catch (error) {
+                addLog(`加载失败: ${error.message}`, 'error');
+                showToast(`加载失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 选择 Spider
+        function selectSpider(key) {
+            const spider = spiders.find(s => s.key === key);
+            if (!spider) return;
+
+            currentSpider = spider;
+
+            // 更新选中状态
+            document.querySelectorAll('.spider-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.key === key);
+            });
+
+            // 重置状态
+            resetTestState();
+
+            // 更新界面
+            document.getElementById('selectedSpiderInfo').textContent = `已选择爬虫：${spider.name || spider.key}`;
+            document.getElementById('mainActionButton').disabled = false;
+            document.getElementById('searchBtn').disabled = false;
+            document.getElementById('testAllBtn').disabled = false;
+            document.getElementById('debugBtn').disabled = false;
+            document.getElementById('monitorBtn').disabled = false;
+            updateBreadcrumb(['首页', spider.name || spider.key]);
+            updateStep('步骤 1: 获取首页', '点击下方按钮获取该爬虫的首页分类数据');
+
+            addLog(`选择爬虫: ${spider.name || spider.key}`, 'success');
+        }
+
+        // 重置测试状态
+        function resetTestState() {
+            navHistory = [];
+            currentState = {
+                categoryId: null,
+                categoryName: null,
+                videoId: null,
+                videoName: null,
+                playFrom: null,
+                playId: null,
+                page: 1
+            };
+            lastRawData = null;
+            lastRenderFunction = null;
+            isSearchMode = false;
+            document.getElementById('contentDisplay').style.display = 'none';
+            document.getElementById('responseArea').style.display = 'flex';
+            document.getElementById('searchInputArea').style.display = 'none';
+        }
+
+        // 显示搜索面板
+        function showSearchPanel() {
+            if (!currentSpider) return;
+            resetTestState();
+            isSearchMode = true;
+            document.getElementById('searchInputArea').style.display = 'flex';
+            document.getElementById('searchInput').focus();
+            document.getElementById('selectedSpiderInfo').textContent = `搜索爬虫：${currentSpider.name || currentSpider.key}`;
+            document.getElementById('mainActionText').textContent = '执行搜索';
+            updateStep('搜索测试', '输入关键词搜索视频');
+            addLog('进入搜索模式', 'pending');
+        }
+
+        // 处理搜索回车
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                doSearch();
+            }
+        }
+
+        // 执行搜索
+        async function doSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            if (!keyword) {
+                showToast('请输入搜索关键词', 'error');
+                return;
+            }
+            if (!currentSpider) return;
+
+            try {
+                addLog(`搜索: ${keyword}`, 'pending');
+                const result = await apiCall(`/spider/${currentSpider.key}/3/search`, {
+                    wd: keyword,
+                    page: 1
+                });
+                renderSearchResults(result, keyword);
+                addLog('搜索成功', 'success', result);
+                updateBreadcrumb(['首页', currentSpider.name || currentSpider.key, `搜索: ${keyword}`]);
+            } catch (error) {
+                addLog(`搜索失败: ${error.message}`, 'error');
+                showToast(`搜索失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染搜索结果
+        function renderSearchResults(data, keyword) {
+            lastRawData = data;
+            lastRenderFunction = (d) => renderSearchResults(d, keyword);
+
+            const videos = data.list || [];
+
+            if (videos.length === 0) {
+                showContent('<div class="empty-state"><p>未找到相关结果</p></div>');
+                return;
+            }
+
+            let html = `
+                <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
+                    搜索"${keyword}" - 共 ${videos.length} 个结果
+                </div>
+                <div class="interactive-list">
+            `;
+
+            videos.forEach(video => {
+                const id = video.vod_id || video.vodId || video.id || '';
+                const name = video.vod_name || video.vodName || video.name || '未命名';
+                const remarks = video.vod_remarks || video.vodRemarks || video.remarks || '';
+
+                html += `
+                    <div class="list-item" onclick="selectVideo('${id}', '${name.replace(/'/g, "\\\\'")}')">
+                        <div class="list-item-header">
+                            <span class="list-item-title">${name}</span>
+                        </div>
+                        <div class="list-item-info">${remarks || '无备注'}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            showContent(html);
+            updateStep('步骤: 选择视频', '点击视频查看详情');
+        }
+
+        // 主操作按钮处理
+        async function handleMainAction() {
+            if (!currentSpider) return;
+
+            if (isSearchMode) {
+                doSearch();
+                return;
+            }
+
+            if (currentState.playId) {
+                document.getElementById('contentDisplay').style.display = 'block';
+                document.getElementById('responseArea').style.display = 'none';
+            } else if (currentState.videoId) {
+                await loadDetail();
+            } else if (currentState.categoryId) {
+                await loadCategory();
+            } else {
+                await startHome();
+            }
+        }
+
+        // API 调用
+        async function apiCall(endpoint, body = null) {
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(30000)
+            };
+            options.body = JSON.stringify(body || {});
+
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        }
+
+        // Home 接口
+        async function startHome() {
+            if (!currentSpider) return;
+            try {
+                addLog('HOME 请求发送...', 'pending');
+                const result = await apiCall(`/spider/${currentSpider.key}/3/home`);
+                renderHome(result);
+                saveState('home', result, 'Home');
+                addLog('HOME 请求成功', 'success', result);
+            } catch (error) {
+                addLog(`HOME 请求失败: ${error.message}`, 'error');
+                showToast(`请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染 Home 结果
+        function renderHome(data) {
+            lastRawData = data;
+            lastRenderFunction = renderHome;
+
+            const categories = data.class || [];
+
+            if (categories.length === 0) {
+                showContent('<div class="empty-state"><p>暂无分类数据</p></div>');
+                return;
+            }
+
+            let html = `
+                <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
+                    共 ${categories.length} 个分类 - 点击分类查看视频列表
+                </div>
+                <div class="interactive-list">
+            `;
+
+            categories.forEach(cat => {
+                const id = cat.type_id || cat.typeId || cat.id || '';
+                const name = cat.type_name || cat.typeName || cat.name || '未命名';
+                html += `
+                    <div class="list-item" onclick="selectCategory('${id}', '${name.replace(/'/g, "\\\\'")}')">
+                        <div class="list-item-header">
+                            <span class="list-item-title">${name}</span>
+                        </div>
+                        <div class="list-item-info">点击查看此分类的视频</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            showContent(html);
+
+            updateStep('步骤 2: 选择分类', '点击上方分类查看视频列表');
+            updateBreadcrumb(['首页', currentSpider.name || currentSpider.key, 'Home']);
+        }
+
+        // 显示内容
+        function showContent(html) {
+            const contentDisplay = document.getElementById('contentDisplay');
+            const responseArea = document.getElementById('responseArea');
+            contentDisplay.innerHTML = html;
+            contentDisplay.style.display = 'block';
+            responseArea.style.display = 'none';
+        }
+
+        // 选择分类
+        async function selectCategory(id, name) {
+            currentState.categoryId = id;
+            currentState.categoryName = name;
+            currentState.page = 1;
+            await loadCategory();
+        }
+
+        // 加载分类视频
+        async function loadCategory() {
+            if (!currentSpider || !currentState.categoryId) return;
+            try {
+                addLog(`CATEGORY 请求: ${currentState.categoryName}`, 'pending');
+                const result = await apiCall(`/spider/${currentSpider.key}/3/category`, {
+                    id: currentState.categoryId,
+                    page: currentState.page
+                });
+                renderCategory(result);
+                saveState('category', result, currentState.categoryName || 'Category');
+                addLog('CATEGORY 请求成功', 'success', result);
+            } catch (error) {
+                addLog(`CATEGORY 请求失败: ${error.message}`, 'error');
+                showToast(`请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染 Category 结果
+        function renderCategory(data) {
+            lastRawData = data;
+            lastRenderFunction = renderCategory;
+
+            const videos = data.list || [];
+            const page = data.page || 1;
+            const pagecount = data.pagecount || 1;
+
+            if (videos.length === 0) {
+                showContent('<div class="empty-state"><p>暂无视频数据</p></div>');
+                return;
+            }
+
+            let html = `
+                <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
+                    共 ${videos.length} 个视频 (第 ${page}/${pagecount} 页)
+                </div>
+                <div class="interactive-list">
+            `;
+
+            videos.forEach(video => {
+                const id = video.vod_id || video.vodId || video.id || '';
+                const name = video.vod_name || video.vodName || video.name || '未命名';
+                const remarks = video.vod_remarks || video.vodRemarks || video.remarks || '';
+
+                html += `
+                    <div class="list-item" onclick="selectVideo('${id}', '${name.replace(/'/g, "\\\\'")}')">
+                        <div class="list-item-header">
+                            <span class="list-item-title">${name}</span>
+                        </div>
+                        <div class="list-item-info">${remarks || '无备注'}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            // 分页
+            html += `
+                <div class="pagination">
+                    <button class="pagination-btn" ${page <= 1 ? 'disabled' : ''} onclick="changePage(${page - 1})">上一页</button>
+                    <span class="pagination-info">第 ${page}/${pagecount} 页</span>
+                    <input type="number" id="pageInput" value="${page}" min="1" max="${pagecount}">
+                    <button class="pagination-btn" onclick="jumpToPage(${pagecount})">跳转</button>
+                    <button class="pagination-btn" ${page >= pagecount ? 'disabled' : ''} onclick="changePage(${page + 1})">下一页</button>
+                </div>
+            `;
+
+            showContent(html);
+            updateStep('步骤 3: 选择视频', '点击上方视频查看详情');
+            updateBreadcrumb(['首页', currentSpider.name || currentSpider.key, currentState.categoryName || 'Category']);
+        }
+
+        // 翻页
+        function changePage(newPage) {
+            currentState.page = newPage;
+            loadCategory();
+        }
+
+        function jumpToPage(maxPage) {
+            const input = document.getElementById('pageInput');
+            const newPage = Math.max(1, Math.min(parseInt(input.value) || 1, maxPage));
+            currentState.page = newPage;
+            loadCategory();
+        }
+
+        // 选择视频
+        async function selectVideo(id, name) {
+            currentState.videoId = id;
+            currentState.videoName = name;
+            await loadDetail();
+        }
+
+        // 加载视频详情
+        async function loadDetail() {
+            if (!currentSpider || !currentState.videoId) return;
+            try {
+                addLog(`DETAIL 请求: ${currentState.videoName}`, 'pending');
+                const result = await apiCall(`/spider/${currentSpider.key}/3/detail`, {
+                    id: currentState.videoId
+                });
+                renderDetail(result);
+                saveState('detail', result, currentState.videoName || 'Detail');
+                addLog('DETAIL 请求成功', 'success', result);
+            } catch (error) {
+                addLog(`DETAIL 请求失败: ${error.message}`, 'error');
+                showToast(`请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染 Detail 结果
+        function renderDetail(data) {
+            lastRawData = data;
+            lastRenderFunction = renderDetail;
+
+            const playList = data.list || [];
+
+            if (playList.length === 0) {
+                showContent('<div class="empty-state"><p>暂无播放数据</p></div>');
+                return;
+            }
+
+            let html = '<div class="play-links">';
+
+            playList.forEach((play, index) => {
+                const from = play.vod_play_from || play.vodPlayFrom || `播放源${index + 1}`;
+                const url = play.vod_play_url || play.vodPlayUrl || '';
+                const links = parsePlayUrl(url);
+
+                html += `
+                    <div class="play-from">
+                        <div class="play-from-title">播放源: ${from} (共 ${links.length} 集)</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                `;
+
+                links.forEach((link, i) => {
+                    html += `
+                        <div class="play-link-item">
+                            <span class="play-link-name">${link.name}</span>
+                            <button class="play-link-btn" onclick="playVideo('${from.replace(/'/g, "\\\\'")}', '${link.id}')">播放</button>
+                        </div>
+                    `;
+                });
+
+                html += '</div></div>';
+            });
+
+            html += '</div>';
+            showContent(html);
+            updateStep('步骤 4: 播放视频', '点击集数获取播放地址');
+            updateBreadcrumb(['首页', currentSpider.name || currentSpider.key, currentState.videoName || 'Detail']);
+        }
+
+        // 解析播放链接
+        function parsePlayUrl(url) {
+            if (!url) return [];
+            const parts = url.split('#');
+            const links = [];
+            parts.forEach((part, index) => {
+                const [name, playUrl] = part.split('$');
+                links.push({
+                    name: name || `第${index + 1}集`,
+                    id: playUrl || '',
+                    url: playUrl || ''
+                });
+            });
+            return links;
+        }
+
+        // 播放视频
+        async function playVideo(from, id) {
+            if (!currentSpider) return;
+            currentState.playFrom = from;
+            currentState.playId = id;
+            try {
+                addLog('PLAY 请求发送...', 'pending');
+                const result = await apiCall(`/spider/${currentSpider.key}/3/play`, {
+                    flag: from,
+                    id: id
+                });
+                renderPlayResult(result);
+                addLog('PLAY 请求成功', 'success', result);
+            } catch (error) {
+                addLog(`PLAY 请求失败: ${error.message}`, 'error');
+                showToast(`请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染播放结果
+        function renderPlayResult(data) {
+            lastRawData = data;
+            lastRenderFunction = renderPlayResult;
+
+            const url = data.url || data.parse || '';
+            const headers = data.header || data.headers || {};
+
+            let html = `
+                <div class="detail-panel">
+                    <div class="detail-row">
+                        <span class="detail-label">播放源:</span>
+                        <span class="detail-value">${currentState.playFrom || '未知'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">播放URL:</span>
+                        <span class="detail-value" style="word-break: break-all;">${url || '无'}</span>
+                    </div>
+                </div>
+            `;
+
+            // 显示返回的 headers
+            if (Object.keys(headers).length > 0) {
+                html += `
+                    <div class="detail-panel" style="margin-top: 10px;">
+                        <div class="detail-row">
+                            <span class="detail-label">请求头:</span>
+                            <span class="detail-value">已配置 ${Object.keys(headers).length} 个头</span>
+                        </div>
+                `;
+                for (const [key, value] of Object.entries(headers)) {
+                    html += `
+                        <div class="detail-row">
+                            <span class="detail-label">${key}:</span>
+                            <span class="detail-value" style="word-break: break-all;">${value}</span>
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            }
+
+            if (url) {
+                html += `
+                    <div style="text-align: center; padding: 14px;">
+                        <button class="action-button" onclick="openWithHeaders('${url}')" style="background: #10b981;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                            在新窗口播放
+                        </button>
+                    </div>
+                `;
+            }
+
+            showContent(html);
+            updateStep('步骤 5: 播放完成', '播放地址已获取');
+            updateBreadcrumb(['首页', currentSpider.name || currentSpider.key, 'Play']);
+        }
+
+        // 在新窗口播放
+        function openWithHeaders(url) {
+            const newWindow = window.open(url, '_blank');
+
+            if (!newWindow) {
+                showToast('请允许弹出窗口', 'error');
+            } else {
+                showToast('已在新窗口打开', 'success');
+            }
+        }
+
+        // 保存状态
+        function saveState(level, data, breadcrumbName) {
+            const items = navHistory.map(s => s.breadcrumbName);
+            items.push(breadcrumbName);
+            updateBreadcrumb(items);
+            navHistory.push({
+                ...currentState,
+                level,
+                data,
+                breadcrumbName
+            });
+        }
+
+        // 导航到历史记录
+        function navigateTo(index) {
+            if (index < 0 || index >= navHistory.length) return;
+            const state = navHistory[index];
+            navHistory = navHistory.slice(0, index);
+            restoreState(state);
+        }
+
+        // 恢复状态
+        function restoreState(state) {
+            currentState = { ...state };
+            switch (state.level) {
+                case 'home':
+                    renderHome(state.data, true);
+                    break;
+                case 'category':
+                    renderCategory(state.data, true);
+                    break;
+                case 'detail':
+                    renderDetail(state.data, true);
+                    break;
+            }
+        }
+
+        // 一键测试
+        async function runAllTests() {
+            if (!currentSpider) {
+                showToast('请先选择爬虫', 'error');
+                return;
+            }
+
+            resetTestState();
+            const results = [];
+            let hasError = false;
+
+            // 测试 Home
+            try {
+                addLog('一键测试: 测试 Home 接口...', 'pending');
+                const homeResult = await apiCall(`/spider/${currentSpider.key}/3/home`);
+                results.push({ name: 'Home', status: 'success', data: homeResult });
+                addLog('Home 接口测试通过', 'success', homeResult);
+                showToast('Home 接口测试通过', 'success');
+            } catch (error) {
+                results.push({ name: 'Home', status: 'error', message: error.message });
+                hasError = true;
+                addLog(`Home 接口测试失败: ${error.message}`, 'error');
+                showToast(`Home 接口测试失败: ${error.message}`, 'error');
+            }
+
+            // 测试 Category
+            if (!hasError && results[0]?.data?.class?.[0]) {
+                const firstCategory = results[0].data.class[0];
+                const categoryId = firstCategory.type_id || firstCategory.typeId || firstCategory.id;
+                try {
+                    addLog('一键测试: 测试 Category 接口...', 'pending');
+                    const categoryResult = await apiCall(`/spider/${currentSpider.key}/3/category`, { id: categoryId, page: 1 });
+                    results.push({ name: 'Category', status: 'success', data: categoryResult });
+                    addLog('Category 接口测试通过', 'success', categoryResult);
+                    showToast('Category 接口测试通过', 'success');
+                } catch (error) {
+                    results.push({ name: 'Category', status: 'error', message: error.message });
+                    hasError = true;
+                    addLog(`Category 接口测试失败: ${error.message}`, 'error');
+                    showToast(`Category 接口测试失败: ${error.message}`, 'error');
+                }
+            }
+
+            // 测试 Detail
+            if (!hasError && results[1]?.data?.list?.[0]) {
+                const firstVideo = results[1].data.list[0];
+                const videoId = firstVideo.vod_id || firstVideo.vodId || firstVideo.id;
+                try {
+                    addLog('一键测试: 测试 Detail 接口...', 'pending');
+                    const detailResult = await apiCall(`/spider/${currentSpider.key}/3/detail`, { id: videoId });
+                    results.push({ name: 'Detail', status: 'success', data: detailResult });
+                    addLog('Detail 接口测试通过', 'success', detailResult);
+                    showToast('Detail 接口测试通过', 'success');
+
+                    // 测试 Play
+                    if (detailResult.list?.[0]?.vod_play_url || detailResult.list?.[0]?.vodPlayUrl) {
+                        const playFrom = detailResult.list[0].vod_play_from || detailResult.list[0].vodPlayFrom || 'default';
+                        const playUrl = detailResult.list[0].vod_play_url || detailResult.list[0].vodPlayUrl;
+                        const firstPlay = playUrl.split('#')[0];
+                        const playId = firstPlay.split('$')[1] || firstPlay;
+
+                        try {
+                            addLog('一键测试: 测试 Play 接口...', 'pending');
+                            const playResult = await apiCall(`/spider/${currentSpider.key}/3/play`, { flag: playFrom, id: playId });
+                            results.push({ name: 'Play', status: 'success', data: playResult });
+                            addLog('Play 接口测试通过', 'success', playResult);
+                            showToast('Play 接口测试通过', 'success');
+                        } catch (error) {
+                            results.push({ name: 'Play', status: 'error', message: error.message });
+                            addLog(`Play 接口测试失败: ${error.message}`, 'error');
+                            showToast(`Play 接口测试失败: ${error.message}`, 'error');
+                        }
+                    }
+                } catch (error) {
+                    results.push({ name: 'Detail', status: 'error', message: error.message });
+                    hasError = true;
+                    addLog(`Detail 接口测试失败: ${error.message}`, 'error');
+                    showToast(`Detail 接口测试失败: ${error.message}`, 'error');
+                }
+            }
+
+            // 渲染测试结果
+            renderTestResults(results);
+        }
+
+        // 渲染测试结果
+        function renderTestResults(results) {
+            let html = `
+                <div style="color: #fff; font-size: 12px; margin-bottom: 12px;">
+                    一键测试完成 - 共测试 ${results.length} 个接口
+                </div>
+                <div class="interactive-list">
+            `;
+
+            results.forEach((result, index) => {
+                const isSuccess = result.status === 'success';
+                const icon = isSuccess ? '✅' : '❌';
+
+                html += `
+                    <div class="list-item ${isSuccess ? '' : 'selected'}" style="cursor: default;">
+                        <div class="list-item-header">
+                            <span class="list-item-title">${icon} ${result.name}</span>
+                            <span class="list-item-id" style="background: ${isSuccess ? '#10b981' : '#ef4444'};">
+                                ${isSuccess ? '成功' : '失败'}
+                            </span>
+                        </div>
+                        <div class="list-item-info">
+                            ${isSuccess ? '数据正常返回，已显示在日志和原始返回值中' : `错误: ${result.message}`}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            showContent(html);
+            updateStep('测试完成', '查看右侧日志和原始返回值了解详情');
+        }
+
+        // ==================== 通用调试功能 ====================
+
+        /** 显示调试面板 */
+        function showDebugPanel() {
+            if (!currentSpider) {
+                showToast('请先选择爬虫', 'error');
+                return;
+            }
+            resetTestState();
+
+            const key = currentSpider.key;
+            const html = `
+                <div class="debug-panel">
+                    <div class="debug-panel-title">
+                        🐛 调试 — ${escapeHtml(currentSpider.name || key)}
+                        <span style="color:#888;font-weight:normal;font-size:11px;margin-left:6px;">
+                            自动录制内部 HTTP 请求
+                        </span>
+                    </div>
+                    <div class="debug-actions">
+                        <button class="debug-btn home" onclick="doDebug('home')">🏠 调试 Home</button>
+                        <button class="debug-btn category" onclick="doDebugCategoryInput()">📋 调试 Category</button>
+                        <button class="debug-btn detail" onclick="doDebugDetailInput()">📄 调试 Detail</button>
+                    </div>
+                    <div class="debug-hint">
+                        💡 点击按钮会调用爬虫的真实接口并录制内部 HTTP 请求，
+                        可在下方看到爬虫请求了哪些 URL、状态码、返回数据量
+                    </div>
+                    <div id="debugResult"></div>
+                </div>
+            `;
+            showContent(html);
+            updateStep('🐛 调试模式', '选择要调试的接口，查看爬虫内部的 HTTP 请求过程');
+            updateBreadcrumb(['首页', currentSpider.name || key, '调试']);
+        }
+
+        /** 执行调试请求 */
+        async function doDebug(endpoint, body = {}) {
+            if (!currentSpider) return;
+            const key = currentSpider.key;
+            const type = currentSpider.type || 3;
+            const resultDiv = document.getElementById('debugResult');
+            if (!resultDiv) return;
+
+            resultDiv.innerHTML = '<div class="debug-loading"><span class="loading"></span> 正在调用 ' + endpoint + ' 接口...</div>';
+
+            const labels = { home: 'Home', category: 'Category', detail: 'Detail' };
+            try {
+                addLog(`调试: 调用 ${labels[endpoint] || endpoint}...`, 'pending');
+                const result = await apiCall(`/spider/${key}/${type}/debug/${endpoint}`, body);
+
+                if (result.error) {
+                    resultDiv.innerHTML = `<div style="color:#ef4444;padding:12px;font-size:12px;">❌ ${escapeHtml(result.error)}</div>`;
+                    addLog(`调试失败: ${result.error}`, 'error');
+                    return;
+                }
+
+                addLog(`调试: ${labels[endpoint] || endpoint} 完成`, 'success', result);
+                renderDebugResult(result, labels[endpoint] || endpoint);
+            } catch (error) {
+                const msg = `调试请求失败: ${error.message}`;
+                addLog(msg, 'error');
+                resultDiv.innerHTML = `<div style="color:#ef4444;padding:12px;font-size:12px;">❌ ${msg}</div>`;
+                showToast(msg, 'error');
+            }
+        }
+
+        /** 显示 Category 调试输入 */
+        function doDebugCategoryInput() {
+            const cats = lastRawData?.class || [];
+            let catOptions = '';
+            if (cats.length > 0) {
+                catOptions = cats.map(c => {
+                    const id = c.type_id || c.typeId || c.id || '';
+                    const name = c.type_name || c.typeName || c.name || '未命名';
+                    return `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`;
+                }).join('');
+            }
+
+            const html = `
+                <div style="padding:12px 0;">
+                    <div style="color:#ccc;font-size:11px;margin-bottom:8px;">
+                        选择分类 ID 和页码进行调试
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <select id="debugCatSelect" style="flex:1;min-width:150px;padding:7px 8px;background:#2d2d2d;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;">
+                            ${catOptions || '<option value="">-- 无缓存分类，请先获取 Home --</option>'}
+                        </select>
+                        <input type="number" id="debugCatPage" value="1" min="1"
+                            style="width:60px;padding:7px 8px;background:#2d2d2d;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;text-align:center;"
+                            placeholder="页码">
+                        <button class="debug-btn category" onclick="doDebugCategory()">开始调试</button>
+                    </div>
+                    <div id="debugCatResult" style="margin-top:10px;"></div>
+                </div>
+            `;
+            const resultDiv = document.getElementById('debugResult');
+            if (resultDiv) resultDiv.innerHTML = html;
+        }
+
+        /** 执行 Category 调试 */
+        async function doDebugCategory() {
+            const select = document.getElementById('debugCatSelect');
+            const pageInput = document.getElementById('debugCatPage');
+            const id = select?.value || '/';
+            const page = parseInt(pageInput?.value) || 1;
+            await doDebug('category', { id, page });
+        }
+
+        /** 显示 Detail 调试输入 */
+        function doDebugDetailInput() {
+            const html = `
+                <div style="padding:12px 0;">
+                    <div style="color:#ccc;font-size:11px;margin-bottom:8px;">
+                        输入视频 ID 进行调试（通常从 Category 返回的 vod_id）
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <input type="text" id="debugDetailId" placeholder="输入视频 ID..."
+                            style="flex:1;min-width:200px;padding:7px 8px;background:#2d2d2d;color:#fff;border:1px solid #444;border-radius:4px;font-size:11px;">
+                        <button class="debug-btn detail" onclick="doDebugDetail()">开始调试</button>
+                    </div>
+                    <div id="debugDetailResult" style="margin-top:10px;"></div>
+                </div>
+            `;
+            const resultDiv = document.getElementById('debugResult');
+            if (resultDiv) resultDiv.innerHTML = html;
+        }
+
+        /** 执行 Detail 调试 */
+        async function doDebugDetail() {
+            const input = document.getElementById('debugDetailId');
+            const id = input?.value?.trim();
+            if (!id) {
+                showToast('请输入视频 ID', 'error');
+                return;
+            }
+            await doDebug('detail', { id });
+        }
+
+        /** 渲染调试结果 */
+        function renderDebugResult(data, label) {
+            const resultDiv = document.getElementById('debugResult');
+            if (!resultDiv) return;
+
+            const recordings = data.recordings || [];
+            const response = data.response || {};
+            const status = data.responseStatus || 200;
+
+            // 保存到 lastRawData，供 category/detail 调试读取缓存
+            lastRawData = data.response || data;
+            lastDebugData = data;
+
+            // 统计信息
+            const totalDuration = recordings.reduce((sum, r) => sum + (r.duration || 0), 0);
+            const successCount = recordings.filter(r => r.status >= 200 && r.status < 400).length;
+            const failCount = recordings.filter(r => !(r.status >= 200 && r.status < 400)).length;
+            const hasData = response.list !== undefined || response.class !== undefined;
+
+            let html = `
+                <div class="debug-summary">
+                    <span class="debug-summary-item"><strong>接口:</strong> ${label}</span>
+                    <span class="debug-summary-item"><strong>HTTP 状态:</strong>
+                        <span class="${status === 200 ? 'status-badge success' : 'status-badge error'}">${status}</span>
+                    </span>
+                    <span class="debug-summary-item"><strong>内部请求:</strong> ${recordings.length} 次</span>
+                    <span class="debug-summary-item"><strong>成功/失败:</strong>
+                        <span class="status-badge success">${successCount} 成功</span>
+                        ${failCount > 0 ? `<span class="status-badge error">${failCount} 失败</span>` : ''}
+                    </span>
+                    <span class="debug-summary-item"><strong>总耗时:</strong>
+                        <span style="color:#e0e0e0;">${totalDuration > 0 ? formatDuration(totalDuration) : '—'}</span>
+                    </span>
+                    <span class="debug-summary-item"><strong>数据:</strong>
+                        ${hasData
+                            ? '<span class="status-badge success">有数据</span>'
+                            : '<span class="status-badge error">无数据/异常</span>'
+                        }
+                    </span>
+                    <button class="save-btn" onclick="saveDebugResponse('${label}')" style="margin-left:auto;" title="保存此次返回数据到本地">💾 保存</button>
+                </div>
+            `;
+
+            // 录制信息
+            if (recordings.length > 0) {
+                html += '<div style="margin-top:8px;"><div style="color:#e0e0e0;font-size:12px;font-weight:bold;margin-bottom:6px;">📡 内部 HTTP 请求记录</div>';
+                recordings.forEach((rec, i) => {
+                    const isOk = rec.status >= 200 && rec.status < 400;
+                    const statusClass = isOk ? 'status-ok' : 'status-err';
+                    const durationColor = !rec.duration ? '' : rec.duration < 1000 ? '#22c55e' : rec.duration < 3000 ? '#eab308' : '#ef4444';
+                    const durationStr = rec.duration != null ? formatDuration(rec.duration) : '';
+                    html += `
+                        <div class="recording-card">
+                            <div class="recording-card-header" onclick="toggleRecording(this)">
+                                <span>#${i + 1}</span>
+                                <span class="status-badge ${isOk ? 'success' : 'error'}">${rec.method || 'GET'}</span>
+                                <span class="${statusClass}">${rec.status || '—'}</span>
+                                <span class="rec-duration" style="color:${durationColor};">${durationStr}</span>
+                                <span style="flex:1;color:#888;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(rec.url)}</span>
+                                <span style="color:#888;font-size:10px;">${rec.dataLength != null ? formatSize(rec.dataLength) : ''}</span>
+                                <span class="rec-toggle" style="color:#666;font-size:10px;">▼</span>
+                            </div>
+                            <div class="recording-card-body collapsed">
+                                <div class="debug-key-value"><span class="key">URL:</span><span class="value" style="word-break:break-all;">${escapeHtml(rec.url)}</span></div>
+                                <div class="debug-key-value"><span class="key">方法:</span><span class="value">${rec.method || 'GET'}</span></div>
+                                <div class="debug-key-value"><span class="key">状态码:</span><span class="value ${statusClass}">${rec.status || '—'}</span></div>
+                                <div class="debug-key-value"><span class="key">返回大小:</span><span class="value">${rec.dataLength != null ? formatSize(rec.dataLength) + ' (' + rec.dataLength + ' 字节)' : '未知'}</span></div>
+                                <div class="debug-key-value"><span class="key">内容类型:</span><span class="value">${rec.contentType || '未知'}</span></div>
+                                ${rec.duration != null ? `<div class="debug-key-value"><span class="key">耗时:</span><span class="value" style="color:${durationColor};font-weight:bold;">${formatDuration(rec.duration)}</span></div>` : ''}
+                                ${rec.error ? `<div class="debug-key-value"><span class="key" style="color:#ef4444;">错误:</span><span class="value" style="color:#ef4444;">${escapeHtml(rec.error)}</span></div>` : ''}
+                                ${renderRecordingDetails(rec)}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += `
+                    <div class="recording-card">
+                        <div class="recording-card-header" style="cursor:default;">
+                            <span style="color:#888;">📡 无内部 HTTP 请求记录</span>
+                        </div>
+                        <div class="recording-card-body">
+                            <div style="color:#888;font-size:11px;">
+                                爬虫没有发起任何 HTTP 请求，可能是直接返回了缓存数据或静态结果。
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 返回数据
+            html += `
+                <div class="debug-response-box">
+                    <div class="debug-response-header" onclick="toggleResponseData(this)">
+                        <span style="color:#e0e0e0;font-size:12px;font-weight:bold;">📦 爬虫返回数据</span>
+                        <span class="rec-toggle" style="color:#666;font-size:10px;">▼</span>
+                    </div>
+                    <pre class="response-data">${escapeHtml(JSON.stringify(response, null, 2))}</pre>
+                </div>
+            `;
+
+            resultDiv.innerHTML = html;
+
+            // 更新状态
+            const itemCount = response.list?.length || response.class?.length || 0;
+            const countInfo = itemCount > 0 ? ` (返回 ${itemCount} 项)` : '';
+            const timeInfo = totalDuration > 0 ? `，总耗时 ${formatDuration(totalDuration)}` : '';
+            updateStep(`🐛 ${label} 调试完成${countInfo}${timeInfo}`,
+                recordings.length > 0
+                    ? `内部发起 ${recordings.length} 次 HTTP 请求${timeInfo}，详见下方`
+                    : '爬虫未发起 HTTP 请求');
+        }
+
+        /** 渲染录制的附加详情（请求头 + 响应预览） */
+        function renderRecordingDetails(rec) {
+            let html = '';
+            // 请求头
+            if (rec.requestHeaders && Object.keys(rec.requestHeaders).length > 0) {
+                html += '<div class="rec-section" style="margin-top:6px;">';
+                html += '<div class="rec-section-title" onclick="this.nextElementSibling.classList.toggle(\\'collapsed\\')" style="cursor:pointer;user-select:none;">';
+                html += '  📋 请求头 <span style="color:#666;font-size:9px;">▼</span>';
+                html += '</div>';
+                html += '<div class="rec-section-body collapsed" style="background:#1e1e1e;border-radius:4px;padding:6px;margin-top:4px;font-size:10px;font-family:monospace;color:#888;max-height:300px;overflow-y:auto;">';
+                for (const [k, v] of Object.entries(rec.requestHeaders)) {
+                    html += `<span style="color:#7c3aed;">${escapeHtml(k)}</span>: <span style="color:#ccc;">${escapeHtml(String(v))}</span>\
+`;
+                }
+                html += '</div></div>';
+            }
+            // 响应体预览
+            if (rec.responsePreview) {
+                const isLong = rec.responsePreview.length > 500;
+                html += '<div class="rec-section" style="margin-top:4px;">';
+                html += `<div class="rec-section-title" onclick="toggleSection(this)" style="cursor:pointer;user-select:none;">`;
+                html += '  📄 响应预览 ' + (rec.dataLength != null ? `(${formatSize(rec.dataLength)})` : '') + ' <span style="color:#666;font-size:9px;">▼</span>';
+                html += '</div>';
+                html += `<div class="rec-section-body ${isLong ? 'collapsed' : ''}" style="background:#1e1e1e;border-radius:4px;padding:6px;margin-top:4px;font-size:10px;font-family:monospace;color:#ccc;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">`;
+                html += escapeHtml(rec.responsePreview);
+                html += '</div></div>';
+            }
+            return html;
+        }
+
+        /** 切换录制卡片的折叠状态 */
+        function toggleRecording(el) {
+            const body = el.nextElementSibling;
+            if (body) {
+                body.classList.toggle('collapsed');
+                const toggle = el.querySelector('.rec-toggle');
+                if (toggle) toggle.textContent = body.classList.contains('collapsed') ? '▼' : '▲';
+            }
+        }
+
+        /** 切换区域折叠 */
+        function toggleSection(el) {
+            const body = el.nextElementSibling;
+            if (body) {
+                body.classList.toggle('collapsed');
+                const toggle = el.querySelector('.rec-toggle') || el.querySelector('span:last-child');
+                if (toggle) toggle.textContent = body.classList.contains('collapsed') ? '▼' : '▲';
+            }
+        }
+
+        /** 切换返回数据折叠 */
+        function toggleResponseData(el) {
+            const pre = el.nextElementSibling;
+            if (pre) {
+                pre.classList.toggle('collapsed');
+                const toggle = el.querySelector('.rec-toggle');
+                if (toggle) toggle.textContent = pre.classList.contains('collapsed') ? '▼' : '▲';
+            }
+        }
+
+        /** 格式化耗时 */
+        function formatDuration(ms) {
+            if (ms == null) return '';
+            if (ms < 1000) return ms + 'ms';
+            if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+            return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+        }
+
+        /** 格式化字节大小 */
+        function formatSize(bytes) {
+            if (bytes == null) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        /** HTML 转义 */
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        /** 保存调试返回数据到本地文件 */
+        function saveDebugResponse(label) {
+            if (!lastDebugData) {
+                showToast('没有可保存的数据', 'error');
+                return;
+            }
+            const response = lastDebugData.response || {};
+            const recordings = lastDebugData.recordings || [];
+            const spiderName = currentSpider ? currentSpider.name || currentSpider.key : 'unknown';
+            const timestamp = formatTimestamp();
+
+            // 构建保存内容：包含爬虫返回数据 + 录制详情
+            const saveContent = {
+                spider: spiderName,
+                endpoint: label,
+                timestamp: new Date().toISOString(),
+                response: response,
+                recordings: recordings.map(r => ({
+                    url: r.url,
+                    method: r.method,
+                    status: r.status,
+                    dataLength: r.dataLength,
+                    contentType: r.contentType,
+                    duration: r.duration,
+                    error: r.error,
+                    requestHeaders: r.requestHeaders,
+                    responsePreview: r.responsePreview,
+                })),
+            };
+
+            downloadAsJson(saveContent, `${spiderName}_${label}_${timestamp}.json`);
+            showToast(`已保存 ${spiderName}_${label}_${timestamp}.json`, 'success');
+        }
+
+        /** 通用保存 raw 数据到本地（给原始返回值区域的保存按钮用） */
+        function saveRawData() {
+            const rawContent = document.getElementById('rawContent');
+            const pre = rawContent?.querySelector('pre');
+            if (!pre || !pre.textContent || pre.textContent === '暂无数据') {
+                showToast('没有可保存的数据', 'error');
+                return;
+            }
+            try {
+                // 尝试解析为 JSON 再保存（格式化的）
+                const parsed = JSON.parse(pre.textContent);
+                const spiderName = currentSpider ? currentSpider.name || currentSpider.key : 'unknown';
+                const timestamp = formatTimestamp();
+                downloadAsJson(parsed, `${spiderName}_raw_${timestamp}.json`);
+                showToast('已保存原始数据', 'success');
+            } catch {
+                // 非 JSON 内容，保存为纯文本
+                const spiderName = currentSpider ? currentSpider.name || currentSpider.key : 'unknown';
+                const timestamp = formatTimestamp();
+                const blob = new Blob([pre.textContent], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${spiderName}_raw_${timestamp}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('已保存原始数据', 'success');
+            }
+        }
+
+        /** 下载 JSON 文件 */
+        function downloadAsJson(obj, filename) {
+            const json = JSON.stringify(obj, null, 2);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        /** 格式化时间戳用于文件名 */
+        function formatTimestamp() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const M = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            return `${y}${M}${d}_${h}${m}${s}`;
+        }
+
+        // ==================== 接口监听 ====================
+
+        let monitorEvents = [];
+        let monitorSource = null;
+        let monitorFilter = 'all'; // 'all' | 'spider'
+        const MAX_MONITOR_EVENTS = 50;
+
+        /** 打开监听面板 */
+        function showMonitorPanel() {
+            if (!currentSpider) {
+                showToast('请先选择爬虫', 'error');
+                return;
+            }
+            resetTestState();
+
+            const key = currentSpider.key;
+            const html = `
+                <div class="debug-panel">
+                    <div class="debug-panel-title">
+                        🎧 接口监听
+                        <span class="status-badge info" id="monitorStatus">连接中...</span>
+                        <span style="color:#888;font-weight:normal;font-size:11px;margin-left:6px;">
+                            实时显示服务器收到的 /spider API 请求与返回
+                        </span>
+                    </div>
+                    <div class="debug-actions">
+                        <button class="debug-btn home" id="monFilterAll" onclick="setMonitorFilter('all')">全部请求</button>
+                        <button class="debug-btn category" id="monFilterSpider" onclick="setMonitorFilter('spider')">仅 ${escapeHtml(currentSpider.name || key)}</button>
+                        <button class="debug-btn detail" onclick="clearMonitorEvents()">清空</button>
+                        <button class="save-btn" onclick="saveMonitorLog()" style="margin-left:auto;">💾 导出</button>
+                    </div>
+                    <div class="debug-hint">
+                        💡 监听服务器接收到的所有爬虫接口请求（包括其他设备/客户端的调用），
+                        点击条目可展开查看请求体和返回数据
+                    </div>
+                    <div id="monitorList"></div>
+                </div>
+            `;
+            showContent(html);
+            updateStep('🎧 接口监听', '实时显示服务器接收的 API 请求与返回数据');
+            updateBreadcrumb(['首页', currentSpider.name || key, '监听']);
+
+            connectMonitor();
+        }
+
+        /** 建立 SSE 连接（EventSource 断线自动重连） */
+        function connectMonitor() {
+            if (monitorSource) return;
+            const source = new EventSource(`${API_BASE}/website/monitor/stream`);
+            monitorSource = source;
+
+            // 连接建立（含重连成功）时拉取历史记录并合并（按 id 去重）
+            source.onopen = async () => {
+                updateMonitorStatus('在线');
+                try {
+                    const resp = await fetch(`${API_BASE}/website/monitor/history?limit=${MAX_MONITOR_EVENTS}`);
+                    const list = await resp.json();
+                    const ids = new Set(monitorEvents.map(e => e.id));
+                    monitorEvents = [...list.filter(e => !ids.has(e.id)), ...monitorEvents];
+                    monitorEvents = monitorEvents.slice(-MAX_MONITOR_EVENTS);
+                    renderMonitorEvents();
+                } catch { /* 忽略 */ }
+            };
+
+            source.onmessage = (e) => {
+                try {
+                    const event = JSON.parse(e.data);
+                    monitorEvents.push(event);
+                    monitorEvents = monitorEvents.slice(-MAX_MONITOR_EVENTS);
+                    renderMonitorEvents();
+                } catch { /* 忽略 */ }
+            };
+
+            source.onerror = () => {
+                updateMonitorStatus('已断开，重连中...');
+            };
+        }
+
+        /** 更新连接状态显示 */
+        function updateMonitorStatus(text) {
+            const el = document.getElementById('monitorStatus');
+            if (el) el.textContent = text;
+        }
+
+        /** 设置过滤器 */
+        function setMonitorFilter(filter) {
+            monitorFilter = filter;
+            renderMonitorEvents();
+        }
+
+        /** 清空监听记录（本地 + 服务端缓冲） */
+        async function clearMonitorEvents() {
+            monitorEvents = [];
+            renderMonitorEvents();
+            try { await fetch(`${API_BASE}/website/monitor/clear`); } catch { /* 忽略 */ }
+            showToast('已清空监听记录', 'success');
+        }
+
+        /** 获取爬虫显示名 */
+        function getSpiderName(key) {
+            const spider = spiders.find(s => s.key === key);
+            return spider ? (spider.name || key) : (key || '未知');
+        }
+
+        /** 渲染监听列表（最新的在前） */
+        function renderMonitorEvents() {
+            const listEl = document.getElementById('monitorList');
+            if (!listEl) return;
+
+            const filtered = monitorFilter === 'spider'
+                ? monitorEvents.filter(e => e.spider === currentSpider.key)
+                : monitorEvents;
+            const shown = filtered.slice().reverse();
+
+            // 更新过滤按钮高亮
+            const btnAll = document.getElementById('monFilterAll');
+            const btnSpider = document.getElementById('monFilterSpider');
+            if (btnAll) btnAll.style.filter = monitorFilter === 'all' ? 'brightness(1.5)' : '';
+            if (btnSpider) btnSpider.style.filter = monitorFilter === 'spider' ? 'brightness(1.5)' : '';
+
+            if (shown.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">暂无监听记录，等待 API 请求...</div>';
+                return;
+            }
+
+            let html = `<div style="color:#888;font-size:11px;margin-bottom:8px;">共 ${shown.length} 条记录（缓冲上限 ${MAX_MONITOR_EVENTS} 条）</div>`;
+            shown.forEach(ev => {
+                const isOk = ev.status >= 200 && ev.status < 400;
+                const statusClass = isOk ? 'status-ok' : 'status-err';
+                const durationColor = ev.duration == null ? '' : ev.duration < 1000 ? '#22c55e' : ev.duration < 3000 ? '#eab308' : '#ef4444';
+                const durationStr = ev.duration != null ? formatDuration(ev.duration) : '';
+                html += `
+                    <div class="recording-card">
+                        <div class="recording-card-header" onclick="toggleRecording(this)">
+                            <span>#${ev.id}</span>
+                            <span class="status-badge ${isOk ? 'success' : 'error'}">${escapeHtml(ev.method || 'POST')}</span>
+                            <span class="${statusClass}">${ev.status || '—'}</span>
+                            <span class="rec-duration" style="color:${durationColor};">${durationStr}</span>
+                            <span style="flex:1;color:#888;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(ev.path)}</span>
+                            <span style="color:#888;font-size:10px;">${escapeHtml(formatMonitorTime(ev.time))}</span>
+                            <span class="rec-toggle" style="color:#666;font-size:10px;">▼</span>
+                        </div>
+                        <div class="recording-card-body collapsed">
+                            <div class="debug-key-value"><span class="key">爬虫:</span><span class="value">${escapeHtml(getSpiderName(ev.spider))} (key: ${escapeHtml(ev.spider || '-')}, type: ${escapeHtml(ev.type || '-')})</span></div>
+                            <div class="debug-key-value"><span class="key">接口:</span><span class="value">${escapeHtml(ev.endpoint || '-')}</span></div>
+                            <div class="debug-key-value"><span class="key">时间:</span><span class="value">${escapeHtml(new Date(ev.time).toLocaleString('zh-CN', { hour12: false }))}（耗时 ${escapeHtml(durationStr || '-')}）</span></div>
+                            <div class="debug-key-value"><span class="key">来源 IP:</span><span class="value">${escapeHtml(ev.ip || '-')}</span></div>
+                            <div class="debug-key-value"><span class="key">状态码:</span><span class="value ${statusClass}">${ev.status || '—'}</span></div>
+                            ${renderMonitorPayload('📤 请求体', ev.body, true)}
+                            ${renderMonitorPayload('📥 返回数据', ev.response, false)}
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        /** 渲染请求体/返回数据区块 */
+        function renderMonitorPayload(title, text, isBody) {
+            if (text == null || text === '') {
+                return `
+                    <div class="rec-section" style="margin-top:4px;">
+                        <div class="rec-section-title" style="cursor:default;">${title} <span style="color:#555;">(无)</span></div>
+                    </div>`;
+            }
+            const pretty = prettyJson(text);
+            const isLong = pretty.length > 1000;
+            return `
+                <div class="rec-section" style="margin-top:4px;">
+                    <div class="rec-section-title" onclick="toggleSection(this)" style="cursor:pointer;user-select:none;">
+                        ${title} <span style="color:#666;font-size:9px;">▼</span>
+                    </div>
+                    <div class="rec-section-body ${isLong ? 'collapsed' : ''}" style="background:#1e1e1e;border-radius:4px;padding:6px;margin-top:4px;font-size:10px;font-family:monospace;color:${isBody ? '#7dd3fc' : '#86efac'};max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">
+                        ${escapeHtml(pretty)}
+                    </div>
+                </div>`;
+        }
+
+        /** JSON 美化，解析失败则原样返回 */
+        function prettyJson(str) {
+            if (str == null) return '';
+            try {
+                return JSON.stringify(JSON.parse(str), null, 2);
+            } catch {
+                return String(str);
+            }
+        }
+
+        /** 格式化事件时间 HH:MM:SS.mmm */
+        function formatMonitorTime(iso) {
+            const d = new Date(iso);
+            const h = String(d.getHours()).padStart(2, '0');
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const s = String(d.getSeconds()).padStart(2, '0');
+            const ms = String(d.getMilliseconds()).padStart(3, '0');
+            return `${h}:${m}:${s}.${ms}`;
+        }
+
+        /** 导出监听记录 */
+        function saveMonitorLog() {
+            if (monitorEvents.length === 0) {
+                showToast('没有可导出的记录', 'error');
+                return;
+            }
+            downloadAsJson({ exportedAt: new Date().toISOString(), events: monitorEvents }, `monitor_log_${formatTimestamp()}.json`);
+            showToast('已导出监听记录', 'success');
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWidths();
+            initResizers();
+            loadSpiders();
+        });
+    </script>
+</body>
+
+</html>

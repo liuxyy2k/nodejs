@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MissAV 配置管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+            --border-color: #eee;
+            --danger: #ff4757;
+            --success: #2ed573;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            padding-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .info {
+            background: #f0f2f5;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.5;
+        }
+
+        .section-title {
+            font-size: 17px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        /* === 输入框 === */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #fcfcfc;
+            appearance: none;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        /* === 按钮 === */
+        button {
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            touch-action: manipulation;
+            transition: opacity 0.2s;
+            /* iOS 点击修复 */
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-clear {
+            background: #f1f3f5;
+            color: var(--text-sub);
+        }
+
+        .btn-add {
+            width: 100%;
+            background: #e8f5e9;
+            color: #2e7d32;
+            margin-bottom: 15px;
+            border: 1px dashed #2e7d32;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: var(--danger);
+            width: 100%;
+            font-size: 14px;
+            height: 40px;
+            min-height: 40px;
+            /* iOS 点击修复 */
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* === 列表项卡片 === */
+        .actor-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .actor-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        /* 卡片顶部行：开关 + 排序按钮 */
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 排序按钮组 */
+        .sort-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-move {
+            width: 40px;
+            height: 36px;
+            min-height: 36px;
+            background: #f0f2f5;
+            color: #555;
+            border-radius: 8px;
+            font-size: 18px;
+            padding: 0;
+        }
+
+        .btn-move:disabled {
+            opacity: 0.3;
+            color: #ccc;
+        }
+
+        /* iOS 风格开关 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e4e4e4;
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background-color: var(--success);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* 输入框区域 */
+        .actor-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 桌面端适配 */
+        @media (min-width: 600px) {
+            .container {
+                padding: 30px;
+            }
+
+            .btn-group {
+                width: 300px;
+                margin: 20px auto 0;
+            }
+
+            .actor-item {
+                display: grid;
+                grid-template-columns: 60px 1fr auto auto;
+                align-items: center;
+                gap: 15px;
+            }
+
+            .actor-item>.switch {
+                grid-column: 1;
+            }
+
+            .actor-item>.input-name {
+                grid-column: 2;
+            }
+
+            .actor-item>.sort-controls {
+                grid-column: 3;
+            }
+
+            .actor-item>.btn-delete {
+                grid-column: 4;
+                width: auto;
+                padding: 0 15px;
+            }
+        }
+
+        /* 移动端适配：确保垂直布局 */
+        @media (max-width: 599px) {
+            .actor-item {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .actor-item>.switch {
+                align-self: flex-start;
+            }
+
+            .actor-item>input {
+                width: 100%;
+            }
+
+            .actor-item>.sort-controls {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+            }
+
+            .actor-item>.btn-delete {
+                width: 100%;
+            }
+        }
+
+        /* 提示框 */
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="message" id="toast"></div>
+
+    <div class="container">
+        <a href="/website/" class="back-link">← 返回配置管理</a>
+        <h1>⚙️ MissAV 配置</h1>
+
+        <div class="form-group">
+            <div class="section-title">🌐 域名配置</div>
+            <div class="info">自定义域名，留空则使用默认。</div>
+            <input type="text" id="missavSite" placeholder="例如: missav.live">
+            <div class="btn-group">
+                <button type="button" class="btn-save" onclick="saveSiteConfig()">保存域名</button>
+                <button type="button" class="btn-clear" onclick="clearSiteForm()">清空</button>
+            </div>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #eee; margin: 25px 0;">
+
+        <div class="form-group">
+            <div class="section-title">🍪 Cookie 配置</div>
+            <div class="info">设置访问 MissAV 时使用的 Cookie（用于绕过访问限制）。</div>
+            <textarea id="missavCookie" placeholder="例如: key1=value1; key2=value2"
+                style="width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; background: #fcfcfc; min-height: 80px; resize: vertical; font-family: monospace;"></textarea>
+            <div class="btn-group">
+                <button type="button" class="btn-save" onclick="saveCookieConfig()">保存 Cookie</button>
+                <button type="button" class="btn-clear" onclick="clearCookieForm()">清空</button>
+            </div>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #eee; margin: 25px 0;">
+
+        <div class="form-group">
+            <div class="section-title">🎬 演员列表</div>
+            <button class="btn-add" onclick="addActor()">+ 添加新演员</button>
+            <div class="actor-list" id="actorList"></div>
+            <div class="btn-group">
+                <button type="button" class="btn-save" onclick="saveActors()">保存列表</button>
+                <button type="button" class="btn-clear" onclick="resetActors()">重置</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let actors = [];
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch(location.pathname, { method: 'GET' });
+                const data = await res.json();
+                if (data.code === 0) {
+                    if (data.data.sites && data.data.sites.missav) {
+                        document.getElementById('missavSite').value = data.data.sites.missav;
+                    }
+                    if (data.data.cookie) {
+                        document.getElementById('missavCookie').value = data.data.cookie;
+                    }
+                    if (data.data.actors) actors = data.data.actors;
+                    renderActorList();
+                }
+            } catch (error) {
+                showToast('加载配置失败', 'error');
+            }
+        });
+
+        // === 渲染列表 ===
+        function renderActorList() {
+            const container = document.getElementById('actorList');
+            container.innerHTML = '';
+            actors.forEach((actor, index) => {
+                const item = document.createElement('div');
+                item.className = 'actor-item';
+
+                const isFirst = index === 0;
+                const isLast = index === actors.length - 1;
+
+                // 开关
+                const switchLabel = document.createElement('label');
+                switchLabel.className = 'switch';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = actor.enabled;
+                checkbox.addEventListener('change', () => toggleActor(index));
+                const slider = document.createElement('span');
+                slider.className = 'slider';
+                switchLabel.appendChild(checkbox);
+                switchLabel.appendChild(slider);
+                item.appendChild(switchLabel);
+
+                // 输入框
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'input-name';
+                nameInput.placeholder = '演员名称';
+                nameInput.value = actor.name;
+                nameInput.addEventListener('change', (e) => updateActor(index, 'name', e.target.value));
+                item.appendChild(nameInput);
+
+                // 排序按钮
+                const sortControls = document.createElement('div');
+                sortControls.className = 'sort-controls';
+
+                const upBtn = document.createElement('button');
+                upBtn.className = 'btn-move';
+                upBtn.textContent = '↑';
+                upBtn.disabled = isFirst;
+                upBtn.addEventListener('click', () => moveActor(index, -1));
+
+                const downBtn = document.createElement('button');
+                downBtn.className = 'btn-move';
+                downBtn.textContent = '↓';
+                downBtn.disabled = isLast;
+                downBtn.addEventListener('click', () => moveActor(index, 1));
+
+                sortControls.appendChild(upBtn);
+                sortControls.appendChild(downBtn);
+                item.appendChild(sortControls);
+
+                // 删除按钮 - 防误触版本
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn-delete';
+                deleteBtn.textContent = '删除';
+
+                // 防误触：记录触摸起始位置
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let hasMoved = false;
+
+                deleteBtn.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    hasMoved = false;
+                }, { passive: true });
+
+                deleteBtn.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    const deltaX = Math.abs(touch.clientX - touchStartX);
+                    const deltaY = Math.abs(touch.clientY - touchStartY);
+                    // 移动超过 10px 视为滑动而非点击
+                    if (deltaX > 10 || deltaY > 10) {
+                        hasMoved = true;
+                    }
+                }, { passive: true });
+
+                deleteBtn.addEventListener('touchend', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // 只有未发生滑动时才触发删除
+                    if (!hasMoved) {
+                        setTimeout(() => {
+                            deleteActor(index);
+                        }, 10);
+                    }
+                });
+
+                // PC 端点击
+                deleteBtn.addEventListener('click', function (e) {
+                    deleteActor(index);
+                });
+
+                item.appendChild(deleteBtn);
+                container.appendChild(item);
+            });
+        }
+
+        // === 数据操作函数 ===
+
+        // 1. 移动 (排序)
+        window.moveActor = function (index, direction) {
+            const targetIndex = index + direction;
+
+            if (targetIndex >= 0 && targetIndex < actors.length) {
+                const temp = actors[index];
+                actors[index] = actors[targetIndex];
+                actors[targetIndex] = temp;
+                renderActorList();
+            }
+        };
+
+        // 2. 删除
+        window.deleteActor = function (index) {
+            // 强制收起键盘
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+
+            // 直接删除，不使用 confirm（iOS WebView 不支持）
+            actors.splice(index, 1);
+            renderActorList();
+            showToast('已删除，请点击"保存列表"保存更改', 'success');
+        };
+
+        // 3. 更新字段
+        window.updateActor = function (index, field, value) {
+            actors[index][field] = value;
+        };
+
+        // 4. 切换开关
+        window.toggleActor = function (index) {
+            actors[index].enabled = !actors[index].enabled;
+        };
+
+        // 5. 添加新项
+        window.addActor = function () {
+            actors.unshift({ name: '', enabled: true });
+            renderActorList();
+        };
+
+        // === API 交互 ===
+        const basePath = location.pathname.replace(/\/+$/, '');
+
+        async function postData(endpoint, body, successMsg) {
+            try {
+                const res = await fetch(basePath + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.code === 0) {
+                    if (successMsg) showToast(successMsg, 'success');
+                    return data;
+                } else {
+                    showToast(data.message || '操作失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+            }
+            return null;
+        }
+
+        window.saveSiteConfig = async () => {
+            const val = document.getElementById('missavSite').value.trim();
+            await postData('/site', { missav: val || null }, '域名配置已保存');
+        };
+
+        window.clearSiteForm = () => {
+            document.getElementById('missavSite').value = '';
+        };
+
+        window.saveCookieConfig = async () => {
+            const val = document.getElementById('missavCookie').value.trim();
+            await postData('/cookie', { cookie: val || null }, 'Cookie 配置已保存');
+        };
+
+        window.clearCookieForm = () => {
+            document.getElementById('missavCookie').value = '';
+        };
+
+        window.saveActors = async () => {
+            await postData('/actors', { actors }, '演员列表已保存');
+        };
+
+        window.resetActors = async () => {
+            if (confirm('确认重置列表为默认值？')) {
+                const res = await postData('/actors/reset', {});
+                if (res) { actors = res.data; renderActorList(); }
+            }
+        };
+
+        // 提示框逻辑
+        function showToast(text, type) {
+            const el = document.getElementById('toast');
+            el.textContent = text;
+            el.className = `message show ${type}`;
+            el.style.display = 'block';
+
+            if (window.toastTimer) clearTimeout(window.toastTimer);
+            if (window.toastHideTimer) clearTimeout(window.toastHideTimer);
+
+            window.toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+                window.toastHideTimer = setTimeout(() => {
+                    el.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

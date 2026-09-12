@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>M3U8 预取加速配置</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+            --border-color: #eee;
+            --danger: #ff4757;
+            --success: #2ed573;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            padding-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .info {
+            background: #f0f2f5;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.6;
+        }
+
+        .info b {
+            color: var(--text-main);
+        }
+
+        .section-title {
+            font-size: 17px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        /* === 总开关行 === */
+        .master-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9ff;
+            border: 1px solid #e4e7fb;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+        }
+
+        .master-text .t {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .master-text .d {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 3px;
+        }
+
+        /* === 字段行 === */
+        .field {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+
+        .field-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .field-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .field-desc {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .input-group input[type="number"] {
+            width: 110px;
+            height: 44px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 0 10px;
+            font-size: 15px;
+            text-align: right;
+            outline: none;
+            background: #fff;
+        }
+
+        .input-group input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        .input-group .unit {
+            font-size: 13px;
+            color: var(--text-sub);
+            min-width: 26px;
+        }
+
+        /* iOS 风格开关 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e4e4e4;
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked+.slider {
+            background-color: var(--success);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(22px);
+        }
+
+        /* === 按钮 === */
+        button {
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            touch-action: manipulation;
+            transition: opacity 0.2s;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-reset {
+            background: #f1f3f5;
+            color: var(--text-sub);
+        }
+
+        /* === 运行状态 === */
+        .stats {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            background: #f0fdf4;
+            border: 1px solid #d9f2e0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #2e7d32;
+            flex-wrap: wrap;
+        }
+
+        .stats span {
+            white-space: nowrap;
+        }
+
+        /* === 提示 toast === */
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            background: rgba(51, 51, 51, 0.92);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 9999;
+            opacity: 0;
+            transition: all .3s;
+            pointer-events: none;
+            max-width: 80vw;
+            text-align: center;
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+
+        /* === 确认弹窗 (iOS WebView 兼容) === */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px 20px 16px;
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            font-size: 17px;
+            margin-bottom: 10px;
+        }
+
+        .modal-content p {
+            font-size: 14px;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 18px;
+            word-break: break-all;
+        }
+
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            min-height: 44px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .modal-cancel {
+            background: #f1f3f5;
+            color: var(--text-sub);
+        }
+
+        .modal-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        @media (max-width: 599px) {
+            .field-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .input-group input[type="number"] {
+                width: 100%;
+                flex: 1;
+                text-align: left;
+            }
+        }
+
+        @media (min-width: 600px) {
+            .container {
+                padding: 30px;
+            }
+
+            .btn-group {
+                max-width: 360px;
+                margin: 20px auto 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 M3U8 预取加速</h1>
+
+        <div class="info">
+            作用于经 m3u8 统一网关分发的 <b>type=3 播放</b>（CMS 采集源、missav 等）。
+            开启后：播放器请求 TS 时命中本地缓存，并按滑动窗口在后台预取后续切片，减少起播卡顿；
+            代价是占用内存与回源带宽（详见各参数说明）。
+            <b>关闭后</b>：TS 改走网关直通（服务端代拉、不缓存不预取），播放不中断。
+            保存约 2 秒内生效；已建立的预取会话最长存活至「会话超时」。
+        </div>
+
+        <!-- 总开关 -->
+        <div class="master-row">
+            <div class="master-text">
+                <div class="t">启用预取加速</div>
+                <div class="d">关闭时 TS 走网关直通，不占内存</div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="enabled">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="section-title">预取参数</div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">预取窗口 W</span>
+                <div class="input-group">
+                    <input type="number" id="window" min="1" max="64" step="1" inputmode="numeric">
+                    <span class="unit">个</span>
+                </div>
+            </div>
+            <div class="field-desc">播到 cur 时后台补拉 cur+1 ~ cur+W。按单个切片时长 2~10 秒计，8 ≈ 提前 16~80 秒。越大越流畅但浪费更多带宽。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">分片阈值</span>
+                <div class="input-group">
+                    <input type="number" id="rangeThreshold" min="32" max="16384" step="16" inputmode="numeric">
+                    <span class="unit">KB</span>
+                </div>
+            </div>
+            <div class="field-desc">单个 TS 超过该大小才切成多片并发拉取（实测切片多在 200~500KB，默认 300KB 只对一半切片分片；源站单连接不慢可调高减少多余请求）。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">并发分片数</span>
+                <div class="input-group">
+                    <input type="number" id="rangeParts" min="1" max="8" step="1" inputmode="numeric">
+                    <span class="unit">片</span>
+                </div>
+            </div>
+            <div class="field-desc">大 TS 切成几片同时拉取。2 片足够；切片普遍大于 1~2MB 且单连接被限速时可调 3~4。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">会话 TS 缓存上限</span>
+                <div class="input-group">
+                    <input type="number" id="maxTsCache" min="2" max="200" step="1" inputmode="numeric">
+                    <span class="unit">个</span>
+                </div>
+            </div>
+            <div class="field-desc">每个播放会话最多缓存的 TS 个数，防止频繁拖进度条时内存膨胀。稳态只需窗口内的 10 个左右。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">播放会话上限</span>
+                <div class="input-group">
+                    <input type="number" id="maxSessions" min="1" max="500" step="1" inputmode="numeric">
+                    <span class="unit">个</span>
+                </div>
+            </div>
+            <div class="field-desc">同时保留的最大播放会话数，决定总内存天花板（每个会话约 3~5MB，50 会话 ≈ 150~250MB）。按预期同时观看人数调整。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">会话超时</span>
+                <div class="input-group">
+                    <input type="number" id="sessionTtl" min="1" max="120" step="1" inputmode="numeric">
+                    <span class="unit">分钟</span>
+                </div>
+            </div>
+            <div class="field-desc">会话无任何请求多久后回收。播放器关页后死会话最长占这么多时间的内存，观看中断频繁可调小。</div>
+        </div>
+
+        <div class="field">
+            <div class="field-row">
+                <span class="field-name">单会话在途预取</span>
+                <div class="input-group">
+                    <input type="number" id="maxInflight" min="1" max="16" step="1" inputmode="numeric">
+                    <span class="unit">个</span>
+                </div>
+            </div>
+            <div class="field-desc">每个会话同时进行的后台预取请求数，限制对源站的瞬时请求量。源站 429/403 抖动多可调 2，高延迟链路可调 4~5。</div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" class="btn-save" id="saveBtn">💾 保存配置</button>
+            <button type="button" class="btn-reset" id="resetBtn">↩️ 恢复默认</button>
+        </div>
+
+        <div class="stats" id="stats">运行状态读取中…</div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content">
+            <h3 id="modal-title">确认</h3>
+            <p id="modal-message"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-cancel" id="modal-cancel">取消</button>
+                <button type="button" class="modal-btn modal-confirm" id="modal-confirm">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="message" id="toast"></div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+
+        // DB 以字节/毫秒存储，页面以 KB/分钟编辑；sessionTtl <-> sessionTtlMs
+        const toDisplay = (s) => ({
+            window: s.window,
+            rangeThreshold: Math.round(s.rangeThreshold / 1024),
+            rangeParts: s.rangeParts,
+            maxTsCache: s.maxTsCache,
+            maxSessions: s.maxSessions,
+            sessionTtl: Math.round(s.sessionTtlMs / 60000),
+            maxInflight: s.maxInflightPerSession,
+        });
+        const toPayload = (d) => ({
+            enabled: $('enabled').checked,
+            window: intVal(d.window),
+            rangeThreshold: intVal(d.rangeThreshold) * 1024,
+            rangeParts: intVal(d.rangeParts),
+            maxTsCache: intVal(d.maxTsCache),
+            maxSessions: intVal(d.maxSessions),
+            sessionTtlMs: intVal(d.sessionTtl) * 60000,
+            maxInflightPerSession: intVal(d.maxInflight),
+        });
+
+        function intVal(v) {
+            const n = parseInt(v, 10);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function fillForm(settings) {
+            const d = toDisplay(settings);
+            for (const key of Object.keys(d)) {
+                const el = $(key);
+                if (el) el.value = d[key];
+            }
+            $('enabled').checked = !!settings.enabled;
+        }
+
+        function renderStats(stats) {
+            const el = $('stats');
+            if (!stats) {
+                el.textContent = '运行状态不可用';
+                return;
+            }
+            el.innerHTML = '';
+            const items = [
+                ['会话数', stats.sessions],
+                ['已缓存 TS', stats.bufferedTs],
+                ['在途请求', stats.inflight],
+                ['缓存命中(累计)', stats.hits],
+                ['缓存未命中(累计)', stats.misses],
+                ['拉取失败(累计)', stats.fetchErrors],
+            ];
+            for (const [k, v] of items) {
+                const span = document.createElement('span');
+                span.textContent = `${k}: ${v ?? 0}`;
+                el.appendChild(span);
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(text, type = 'info') {
+            const toast = $('toast');
+            toast.textContent = text;
+            toast.className = 'message show ' + type;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 自定义确认对话框 (iOS WebView 兼容，禁止 alert/confirm)
+        function confirmModal(message, title = '确认') {
+            return new Promise((resolve) => {
+                const modal = $('confirm-modal');
+                $('modal-title').textContent = title;
+                $('modal-message').textContent = message;
+                const close = () => modal.classList.remove('active');
+                const onConfirm = () => { close(); resolve(true); };
+                const onCancel = () => { close(); resolve(false); };
+                const confirmBtn = $('modal-confirm');
+                const cancelBtn = $('modal-cancel');
+                const newConfirm = confirmBtn.cloneNode(true);
+                const newCancel = cancelBtn.cloneNode(true);
+                confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
+                cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+                newConfirm.addEventListener('click', onConfirm);
+                newCancel.addEventListener('click', onCancel);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) onCancel();
+                }, { once: true });
+                modal.classList.add('active');
+            });
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('/website/m3u8', { headers: { 'Accept': 'application/json' } });
+                const json = await res.json();
+                if (json.code !== 0) throw new Error(json.message || '读取失败');
+                fillForm(json.data.settings);
+                renderStats(json.data.stats);
+            } catch (error) {
+                renderStats(null);
+                showToast('读取配置失败: ' + error.message, 'error');
+            }
+        }
+
+        async function saveSettings() {
+            const payload = toPayload();
+            // 客户端粗校验（服务端会归一化兜底）
+            if (payload.window < 1 || payload.rangeThreshold < 32 * 1024 || payload.sessionTtlMs < 60000) {
+                showToast('参数超出范围，请检查输入', 'error');
+                return;
+            }
+            $('saveBtn').disabled = true;
+            try {
+                const res = await fetch('/website/m3u8/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const json = await res.json();
+                if (json.code !== 0) throw new Error(json.message || '保存失败');
+                fillForm(json.data.settings);
+                showToast(json.message || '保存成功', 'success');
+                loadData(); // 刷新运行状态
+            } catch (error) {
+                showToast('保存失败: ' + error.message, 'error');
+            } finally {
+                $('saveBtn').disabled = false;
+            }
+        }
+
+        async function resetSettings() {
+            if (!await confirmModal('确定恢复所有参数为默认值吗？', '恢复默认')) return;
+            try {
+                const res = await fetch('/website/m3u8/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const json = await res.json();
+                if (json.code !== 0) throw new Error(json.message || '重置失败');
+                fillForm(json.data.settings);
+                showToast(json.message || '已恢复默认', 'success');
+                loadData();
+            } catch (error) {
+                showToast('重置失败: ' + error.message, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            $('saveBtn').addEventListener('click', saveSettings);
+            $('resetBtn').addEventListener('click', resetSettings);
+            loadData();
+        });
+    </script>
+</body>
+
+</html>

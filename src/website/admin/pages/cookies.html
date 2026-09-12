@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cookie 管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+            --border-color: #eee;
+            --danger: #ff4757;
+            --danger-dark: #e0394a;
+            --success: #2ed573;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            padding-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .info {
+            background: #f0f2f5;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.6;
+        }
+
+        .info.warn {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            color: #8a6d3b;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .summary {
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+
+        .summary strong {
+            color: var(--text-main);
+        }
+
+        .btn-group-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 16px;
+            touch-action: manipulation;
+            transition: opacity 0.2s, background 0.2s;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        .btn-refresh {
+            background: #f0f2f5;
+            color: var(--text-main);
+        }
+
+        .btn-refresh:active {
+            background: #e2e5ea;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-danger:active {
+            background: var(--danger-dark);
+        }
+
+        .btn-danger.armed {
+            background: var(--danger-dark);
+            box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.2);
+        }
+
+        .btn-sm {
+            min-height: 36px;
+            padding: 0 12px;
+            font-size: 13px;
+            border-radius: 8px;
+        }
+
+        .domain-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .domain-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .domain-name {
+            font-size: 16px;
+            font-weight: 700;
+            word-break: break-all;
+        }
+
+        .domain-count {
+            font-size: 12px;
+            color: var(--text-sub);
+            background: #f0f2f5;
+            padding: 4px 10px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .cookie-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            background: #f7f8fa;
+            border-radius: 8px;
+            padding: 7px 10px;
+            margin-top: 8px;
+            font-size: 12px;
+            font-family: Menlo, Consolas, monospace;
+        }
+
+        .cookie-kv {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #555;
+        }
+
+        .cookie-kv .cookie-key {
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .cookie-meta {
+            color: var(--text-sub);
+            white-space: nowrap;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .cookie-meta .expired {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--text-sub);
+            padding: 50px 0;
+            font-size: 15px;
+        }
+
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            max-width: 85vw;
+            text-align: center;
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="message" id="toast"></div>
+
+    <div class="container">
+        <a href="/website/" class="back-link">← 返回配置管理</a>
+        <h1>🍪 Cookie 管理</h1>
+
+        <div class="info">
+            这里管理的是爬虫运行时自动收集的站点 Cookie（请求响应中的 Set-Cookie 会自动保存到
+            cookie.json）。站点反爬失效时，清理过期 Cookie 后重新请求即可，无需重启服务器。<br>
+            <b>注意</b>：单个域名"清除"只清理运行 Cookie；<b>"清空全部"会同时删除数据库中保存的
+            站点 Cookie 配置</b>（如 MissAV Cookie 配置），清理后需重新在站点页面配置。
+        </div>
+
+        <div class="info warn" id="dbNotice" style="display:none"></div>
+
+        <div class="toolbar">
+            <div class="summary">
+                共 <strong id="domainCount">0</strong> 个域名，<strong id="cookieCount">0</strong> 条 Cookie
+            </div>
+            <div class="btn-group-right">
+                <button type="button" class="btn-refresh" onclick="loadData()">🔄 刷新</button>
+                <button type="button" class="btn-danger" id="clearAllBtn" onclick="clearAll()">🗑 清空全部</button>
+            </div>
+        </div>
+
+        <div id="list"></div>
+    </div>
+
+    <script>
+        let cookieTotal = 0;
+        const basePath = location.pathname.replace(/\/+$/, '');
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+        });
+
+        // 防误触：第一次点击进入"待确认"状态，3 秒内再次点击才执行
+        function confirmTap(btn, armedText, onConfirm) {
+            if (btn.dataset.armed !== '1') {
+                btn.dataset.armed = '1';
+                btn.dataset.original = btn.textContent;
+                btn.textContent = armedText;
+                btn.classList.add('armed');
+                clearTimeout(btn._t);
+                btn._t = setTimeout(() => disarm(btn), 3000);
+                return;
+            }
+            clearTimeout(btn._t);
+            disarm(btn);
+            onConfirm();
+        }
+
+        function disarm(btn) {
+            btn.dataset.armed = '0';
+            btn.classList.remove('armed');
+            if (btn.dataset.original) {
+                btn.textContent = btn.dataset.original;
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatTime(expires) {
+            if (!expires) return '<span>会话</span>';
+            const date = new Date(expires * 1000);
+            const pad = (n) => String(n).padStart(2, '0');
+            if (Number.isNaN(date.getTime())) return '<span>会话</span>';
+            if (date.getTime() < Date.now()) return '<span class="expired">已过期</span>';
+            return '<span>' +
+                date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+                ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + '</span>';
+        }
+
+        function render(data) {
+            const domains = data.domains || [];
+            document.getElementById('domainCount').textContent = domains.length;
+            document.getElementById('cookieCount').textContent = data.total || 0;
+            document.getElementById('clearAllBtn').style.display = domains.length ? '' : 'none';
+
+            // 数据库中保存的站点 Cookie 配置提示
+            const dbPaths = data.dbCookies || [];
+            const dbNotice = document.getElementById('dbNotice');
+            if (dbPaths.length > 0) {
+                dbNotice.style.display = '';
+                dbNotice.innerHTML = '⚠️ 数据库中保存了 ' + dbPaths.length + ' 处站点 Cookie 配置：' +
+                    dbPaths.map(escapeHtml).join('、') + '。点击"清空全部"会一并删除。';
+            } else {
+                dbNotice.style.display = 'none';
+            }
+
+            const container = document.getElementById('list');
+            container.innerHTML = '';
+
+            if (domains.length === 0) {
+                container.innerHTML = '<div class="empty">🍪 暂无 Cookie 数据<br><span style="font-size:13px">爬虫请求站点后会自动出现</span></div>';
+                return;
+            }
+
+            domains.forEach((domain) => {
+                const card = document.createElement('div');
+                card.className = 'domain-card';
+
+                const head = document.createElement('div');
+                head.className = 'domain-head';
+
+                const name = document.createElement('div');
+                name.className = 'domain-name';
+                name.textContent = domain.domain;
+
+                const right = document.createElement('div');
+                right.style.cssText = 'display:flex;align-items:center;gap:10px;';
+
+                const count = document.createElement('span');
+                count.className = 'domain-count';
+                count.textContent = domain.count + ' 条';
+
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'btn-danger btn-sm';
+                clearBtn.textContent = '清除';
+                clearBtn.addEventListener('click', () => {
+                    confirmTap(clearBtn, '确认清除?', async () => {
+                        const res = await postData('/clear', { domain: domain.domain });
+                        if (res) {
+                            showToast(res.message || '已清除', 'success');
+                            loadData();
+                        }
+                    });
+                });
+
+                right.appendChild(count);
+                right.appendChild(clearBtn);
+                head.appendChild(name);
+                head.appendChild(right);
+                card.appendChild(head);
+
+                domain.cookies.forEach((c) => {
+                    const item = document.createElement('div');
+                    item.className = 'cookie-item';
+
+                    const kv = document.createElement('div');
+                    kv.className = 'cookie-kv';
+                    kv.title = c.key + ' = ' + c.value + '  (path: ' + c.path + ')';
+
+                    const keySpan = document.createElement('span');
+                    keySpan.className = 'cookie-key';
+                    keySpan.textContent = c.key;
+                    kv.appendChild(keySpan);
+                    kv.appendChild(document.createTextNode(' = ' + c.value));
+
+                    const meta = document.createElement('div');
+                    meta.className = 'cookie-meta';
+                    meta.innerHTML = formatTime(c.expires);
+
+                    item.appendChild(kv);
+                    item.appendChild(meta);
+                    card.appendChild(item);
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        async function postData(endpoint, body) {
+            try {
+                const res = await fetch(basePath + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.code === 0) {
+                    return data;
+                } else {
+                    showToast(data.message || '操作失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+            }
+            return null;
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('/website/cookies/data');
+                const data = await res.json();
+                if (data.code === 0) {
+                    render(data.data);
+                } else {
+                    showToast(data.message || '加载失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+            }
+        }
+
+        window.clearAll = function () {
+            const btn = document.getElementById('clearAllBtn');
+            confirmTap(btn, '再次点击确认清空', async () => {
+                const res = await postData('/clear-all', {});
+                if (res) {
+                    showToast(res.message || '已清空', 'success');
+                    loadData();
+                }
+            });
+        };
+
+        // 提示框逻辑
+        function showToast(text, type) {
+            const el = document.getElementById('toast');
+            el.textContent = text;
+            el.className = 'message show ' + (type || '');
+            el.style.display = 'block';
+
+            if (window.toastTimer) clearTimeout(window.toastTimer);
+            if (window.toastHideTimer) clearTimeout(window.toastHideTimer);
+
+            window.toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+                window.toastHideTimer = setTimeout(() => {
+                    el.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

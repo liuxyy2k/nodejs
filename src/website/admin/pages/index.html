@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>爬虫配置管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a6fd6;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-main);
+            margin-bottom: 30px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .menu-item {
+            display: block;
+            padding: 20px;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .menu-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .menu-item:active {
+            transform: translateY(0);
+        }
+
+        .menu-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .menu-title {
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-desc {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-top: 8px;
+            font-weight: 400;
+        }
+
+        /* === 全局清除按钮 === */
+        .danger-zone {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+
+        .btn-clear-all {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: var(--danger, #ff4757);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            transition: opacity 0.2s, background 0.2s;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .btn-clear-all:active {
+            opacity: 0.7;
+        }
+
+        .btn-clear-all.armed {
+            background: #c0392b;
+            box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.25);
+        }
+
+        .danger-desc {
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            max-width: 85vw;
+            text-align: center;
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>⚙️ 爬虫配置管理</h1>
+
+        <div class="menu">
+            <a href="/website/missav" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🎬</span>
+                    <span>MissAV 配置</span>
+                </div>
+                <div class="menu-desc">管理域名和演员列表</div>
+            </a>
+
+            <a href="/website/jable" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🎭</span>
+                    <span>Jable 配置</span>
+                </div>
+                <div class="menu-desc">管理演员列表和链接</div>
+            </a>
+
+            <a href="/website/javrate" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🔥</span>
+                    <span>Javrate 配置</span>
+                </div>
+                <div class="menu-desc">配置 CF Cookie 绕过访问限制</div>
+            </a>
+
+            <a href="/website/cookies" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🍪</span>
+                    <span>Cookie 管理</span>
+                </div>
+                <div class="menu-desc">查看和清理爬虫自动收集的站点 Cookie</div>
+            </a>
+
+            <a href="/website/live" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">📺</span>
+                    <span>直播源配置</span>
+                </div>
+                <div class="menu-desc">管理动态直播源</div>
+            </a>
+
+            <a href="/website/search" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🔍</span>
+                    <span>演员搜索</span>
+                </div>
+                <div class="menu-desc">搜索并添加演员到列表</div>
+            </a>
+
+            <a href="/website/cms" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🌐</span>
+                    <span>CMS 采集源配置</span>
+                </div>
+                <div class="menu-desc">管理自定义 CMS 采集源</div>
+            </a>
+
+            <a href="/website/m3u8" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">🚀</span>
+                    <span>M3U8 预取加速</span>
+                </div>
+                <div class="menu-desc">配置 TS 预取窗口与分片参数</div>
+            </a>
+
+            <a href="/website/database" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">💾</span>
+                    <span>数据库管理</span>
+                </div>
+                <div class="menu-desc">查看和删除数据库文件</div>
+            </a>
+
+            <a href="/website/app" class="menu-item">
+                <div class="menu-title">
+                    <span class="menu-icon">📦</span>
+                    <span>CatVod 站源配置</span>
+                </div>
+                <div class="menu-desc">网盘、登录、T4/CMS 等 React 配置页</div>
+            </a>
+
+            <div class="danger-zone">
+                <button type="button" class="btn-clear-all" id="clearCookiesBtn" onclick="onClearAllCookies()">🗑 清除全部 Cookie</button>
+                <div class="danger-desc">一键清除爬虫运行时收集的站点 Cookie，并删除数据库中保存的站点 Cookie 配置（如 MissAV Cookie 配置）。站点反爬失效时用于快速重置。</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="message" id="toast"></div>
+
+    <script>
+        // 防误触：第一次点击进入"待确认"，3 秒内再次点击才执行
+        let clearArmed = false;
+        let clearTimer = null;
+
+        async function onClearAllCookies() {
+            const btn = document.getElementById('clearCookiesBtn');
+
+            if (!clearArmed) {
+                clearArmed = true;
+                btn.classList.add('armed');
+                btn.textContent = '⚠️ 再次点击确认清除';
+                clearTimer = setTimeout(() => {
+                    clearArmed = false;
+                    btn.classList.remove('armed');
+                    btn.textContent = '🗑 清除全部 Cookie';
+                }, 3000);
+                return;
+            }
+
+            clearArmed = false;
+            clearTimeout(clearTimer);
+            btn.classList.remove('armed');
+
+            const basePath = location.pathname.replace(/\/+$/, '') || '';
+            try {
+                const res = await fetch(basePath + '/cookies/clear-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                const data = await res.json();
+                btn.textContent = '🗑 清除全部 Cookie';
+                if (data.code === 0) {
+                    showToast(data.message || '已清空全部 Cookie', 'success');
+                } else {
+                    showToast(data.message || '清除失败', 'error');
+                }
+            } catch (e) {
+                btn.textContent = '🗑 清除全部 Cookie';
+                showToast('网络错误: ' + e.message, 'error');
+            }
+        }
+
+        // 提示框逻辑
+        function showToast(text, type) {
+            const el = document.getElementById('toast');
+            el.textContent = text;
+            el.className = 'message show ' + (type || '');
+            el.style.display = 'block';
+
+            if (window.toastTimer) clearTimeout(window.toastTimer);
+            if (window.toastHideTimer) clearTimeout(window.toastHideTimer);
+
+            window.toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+                window.toastHideTimer = setTimeout(() => {
+                    el.style.display = 'none';
+                }, 300);
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

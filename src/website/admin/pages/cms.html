@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS 采集源配置</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            padding-top: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .back-link {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: #f8f9fa;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            /* iOS WebView 兼容性修复 */
+            -webkit-flex-wrap: wrap;
+        }
+
+        /* iOS WebView 兼容: 不支持 gap 时使用 margin */
+        .actions .btn {
+            margin: 2px;
+            flex-shrink: 1;
+            min-width: 50px;
+        }
+
+        /* Safari/iOS 特定修复 */
+        @supports not (gap: 5px) {
+            .actions {
+                display: -webkit-box;
+                display: -ms-flexbox;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .alert {
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* iOS WebView 兼容性修复 */
+        @supports (-webkit-touch-callout: none) {
+
+            /* iOS Safari 特定样式 */
+            .btn {
+                -webkit-appearance: none;
+                appearance: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
+
+            .btn:active {
+                opacity: 0.7;
+                transform: scale(0.98);
+            }
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            table {
+                font-size: 12px;
+            }
+
+            th,
+            td {
+                padding: 8px 4px;
+            }
+
+            .btn-small {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .actions .btn {
+                width: 100%;
+                margin: 2px 0;
+            }
+
+            /* 返回链接移动端适配 */
+            .back-link {
+                position: static;
+                transform: none;
+                margin-bottom: 10px;
+                align-self: flex-start;
+            }
+
+            .header {
+                padding: 20px 15px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .header p {
+                font-size: 12px;
+            }
+        }
+
+        /* 确保按钮可见 */
+        .btn {
+            position: relative;
+            z-index: 1;
+            display: inline-block;
+            text-align: center;
+        }
+
+        /* 自定义确认对话框样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 320px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1a202c;
+        }
+
+        .modal-message {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #4a5568;
+            margin-bottom: 20px;
+            white-space: pre-line;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            min-height: 36px;
+        }
+
+        .modal-button-cancel {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .modal-button-cancel:active {
+            background: #cbd5e0;
+        }
+
+        .modal-button-confirm {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-button-confirm:active {
+            background: #5a67d8;
+        }
+
+        /* 防止表格内容溢出 */
+        td,
+        th {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            -webkit-hyphens: auto;
+            -ms-hyphens: auto;
+            hyphens: auto;
+        }
+
+        code {
+            word-break: break-all;
+            display: inline-block;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/website/" class="back-link">← 返回首页</a>
+            <h1>🌐 CMS 采集源配置</h1>
+            <p>配置和管理 CMS 采集源,每个源将作为独立的 Spider 注册</p>
+        </div>
+
+        <div class="content">
+            <div id="alert" style="display: none;"></div>
+
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="showAddModal()">➕ 添加 CMS 源</button>
+                <button class="btn btn-secondary" onclick="loadSources()">🔄 刷新列表</button>
+            </div>
+
+            <div class="alert alert-info" style="margin-bottom: 20px;">
+                <strong>提示:</strong> 添加或修改 CMS 源后,需要重启服务器才能生效
+            </div>
+
+            <table id="cmsTable">
+                <thead>
+                    <tr>
+                        <th width="5%">状态</th>
+                        <th width="18%">名称</th>
+                        <th width="12%">Key</th>
+                        <th width="25%">API 地址</th>
+                        <th width="10%">分组</th>
+                        <th width="30%">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="cmsList">
+                    <!-- 动态生成 -->
+                </tbody>
+            </table>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3>暂无 CMS 源</h3>
+                <p>点击上方"添加 CMS 源"按钮开始配置</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑弹窗 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">添加 CMS 源</h2>
+            </div>
+            <form id="cmsForm">
+                <input type="hidden" id="cmsId">
+
+                <div class="form-group">
+                    <label for="cmsKey">Key (唯一标识) *</label>
+                    <input type="text" id="cmsKey" required pattern="[a-zA-Z0-9_]+" placeholder="如: mycms">
+                    <small>只能包含字母、数字和下划线,用于生成路由前缀</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmsName">名称 *</label>
+                    <input type="text" id="cmsName" required placeholder="如: 我的资源站">
+                    <small>显示名称</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmsApi">API 地址 *</label>
+                    <input type="url" id="cmsApi" required placeholder="如: https://example.com/api.php">
+                    <small>MacCMS 标准 API 地址</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmsApiKey">API Key (可选)</label>
+                    <input type="text" id="cmsApiKey" placeholder="如: 123456">
+                    <small>如果 CMS 需要 API key</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmsGroup">分组 (可选)</label>
+                    <input type="text" id="cmsGroup" placeholder="如: 电影">
+                </div>
+
+                <div class="form-group">
+                    <label for="cmsExt">扩展参数 (可选, JSON)</label>
+                    <textarea id="cmsExt" placeholder='{"key": "value"}'></textarea>
+                    <small>JSON 格式的扩展参数</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="cmsEnabled" checked>
+                        启用此 CMS 源
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 自定义确认对话框 -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-box">
+            <div class="modal-title" id="modal-title">确认</div>
+            <div class="modal-message" id="modal-message"></div>
+            <div class="modal-buttons">
+                <button class="modal-button modal-button-cancel" id="modal-cancel">取消</button>
+                <button class="modal-button modal-button-confirm" id="modal-confirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSources = [];
+        let editingId = null;
+        let tableClickListener = null; // 用于存储事件监听器引用
+
+        // 初始化表格事件监听器（只添加一次，避免重复）
+        function initTableListener() {
+            const tbody = document.getElementById('cmsList');
+
+            // 移除旧的监听器（如果存在）
+            if (tableClickListener) {
+                tbody.removeEventListener('click', tableClickListener);
+            }
+
+            // 创建新的监听器
+            tableClickListener = function (e) {
+                // iOS WebView 兼容：使用 closest() 查找按钮元素
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                // 阻止事件冒泡和默认行为
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (target.classList.contains('btn-edit')) {
+                    const sourceData = JSON.parse(decodeURIComponent(target.dataset.source));
+                    editSource(sourceData);
+                } else if (target.classList.contains('btn-delete')) {
+                    deleteSource(parseInt(target.dataset.id));
+                }
+            };
+
+            tbody.addEventListener('click', tableClickListener);
+        }
+
+        // 加载 CMS 源列表
+        async function loadSources() {
+            try {
+                const res = await fetch('/website/cms');
+                const json = await res.json();
+                currentSources = json.data.sources || [];
+                renderTable();
+            } catch (error) {
+                showAlert('加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('cmsList');
+            const emptyState = document.getElementById('emptyState');
+            const table = document.getElementById('cmsTable');
+
+            if (currentSources.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                table.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            table.style.display = 'table';
+
+            tbody.innerHTML = currentSources.map(source => {
+                // 将 source 数据存储为 data 属性,避免 iOS WebView 中内联 JSON 的问题
+                const sourceData = encodeURIComponent(JSON.stringify(source));
+                return `
+                <tr data-source-id="${source.id}">
+                    <td>
+                        <span class="status-badge ${source.enabled ? 'status-enabled' : 'status-disabled'}">
+                            ${source.enabled ? '已启用' : '已禁用'}
+                        </span>
+                    </td>
+                    <td><strong>${escapeHtml(source.name)}</strong></td>
+                    <td><code>${escapeHtml(source.key)}</code></td>
+                    <td><code style="word-break: break-all;">${escapeHtml(source.api)}</code></td>
+                    <td>${escapeHtml(source.group || '-')}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-secondary btn-small btn-edit" data-source="${sourceData}">编辑</button>
+                            <button class="btn btn-danger btn-small btn-delete" data-id="${source.id}">删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+
+            // 初始化/更新表格事件监听器
+            initTableListener();
+        }
+
+        // 显示添加弹窗
+        function showAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '添加 CMS 源';
+            document.getElementById('cmsForm').reset();
+            document.getElementById('cmsEnabled').checked = true;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // 编辑源
+        function editSource(source) {
+            editingId = source.id;
+            document.getElementById('modalTitle').textContent = '编辑 CMS 源';
+            document.getElementById('cmsId').value = source.id;
+            document.getElementById('cmsKey').value = source.key;
+            document.getElementById('cmsName').value = source.name;
+            document.getElementById('cmsApi').value = source.api;
+            document.getElementById('cmsApiKey').value = source.apiKey || '';
+            document.getElementById('cmsGroup').value = source.group || '';
+            document.getElementById('cmsExt').value = source.ext || '';
+            document.getElementById('cmsEnabled').checked = source.enabled !== false;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // 隐藏弹窗
+        function hideModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        // 保存源
+        document.getElementById('cmsForm').onsubmit = async (e) => {
+            e.preventDefault();
+
+            const source = {
+                key: document.getElementById('cmsKey').value.trim(),
+                name: document.getElementById('cmsName').value.trim(),
+                api: document.getElementById('cmsApi').value.trim(),
+                apiKey: document.getElementById('cmsApiKey').value.trim(),
+                group: document.getElementById('cmsGroup').value.trim(),
+                ext: document.getElementById('cmsExt').value.trim(),
+                enabled: document.getElementById('cmsEnabled').checked
+            };
+
+            try {
+                if (editingId) {
+                    // 更新
+                    source.id = editingId;
+                    const res = await fetch('/website/cms/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(source)
+                    });
+                    const json = await res.json();
+                    if (json.code === 0) {
+                        showAlert('更新成功,请重启服务器以生效', 'success');
+                        hideModal();
+                        loadSources();
+                    } else {
+                        showAlert(json.message, 'error');
+                    }
+                } else {
+                    // 添加
+                    const res = await fetch('/website/cms/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(source)
+                    });
+                    const json = await res.json();
+                    if (json.code === 0) {
+                        showAlert('添加成功,请重启服务器以生效', 'success');
+                        hideModal();
+                        loadSources();
+                    } else {
+                        showAlert(json.message, 'error');
+                    }
+                }
+            } catch (error) {
+                showAlert('操作失败: ' + error.message, 'error');
+            }
+        };
+
+        // 删除源
+        async function deleteSource(id) {
+            if (!await confirmModal('确定要删除这个 CMS 源吗？删除后需要重启服务器。')) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/website/cms/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const json = await res.json();
+                if (json.code === 0) {
+                    showAlert('删除成功,请重启服务器以生效', 'success');
+                    loadSources();
+                } else {
+                    showAlert(json.message, 'error');
+                }
+            } catch (error) {
+                showAlert('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        // 显示提示
+        function showAlert(message, type = 'info') {
+            const alert = document.getElementById('alert');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 自定义确认对话框 (iOS WebView 兼容)
+        function confirmModal(message, title = '确认') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const titleEl = document.getElementById('modal-title');
+                const messageEl = document.getElementById('modal-message');
+                const confirmBtn = document.getElementById('modal-confirm');
+                const cancelBtn = document.getElementById('modal-cancel');
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+
+                const close = () => {
+                    modal.classList.remove('active');
+                };
+
+                const handleConfirm = () => {
+                    close();
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    close();
+                    resolve(false);
+                };
+
+                // 移除旧的事件监听器
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                const newCancelBtn = cancelBtn.cloneNode(true);
+                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+                // 添加新的事件监听器
+                newConfirmBtn.addEventListener('click', handleConfirm);
+                newCancelBtn.addEventListener('click', handleCancel);
+
+                // 点击遮罩层关闭
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        handleCancel();
+                    }
+                }, { once: true });
+
+                modal.classList.add('active');
+            });
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function () {
+            // 预先初始化表格事件监听器
+            initTableListener();
+            // 加载数据
+            loadSources();
+        });
+    </script>
+</body>
+
+</html>

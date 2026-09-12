@@ -1,6 +1,14 @@
 import CryptoJS from 'crypto-js';
 import qr from 'qrcode';
 
+/** admin/pages/index.html 对应路由 /website/ */
+const ADMIN_INDEX = '/website/';
+const CLICK_CONFIG_PIC = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQ1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjQ1MCIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==';
+
+function adminIndexUrl(server) {
+  return `${server.address().url}${ADMIN_INDEX}`;
+}
+
 function base64Decode(text) {
   return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text));
 }
@@ -15,7 +23,7 @@ async function init(inReq, outResp) {
 
 
 async function home(e, t) {
-  const url = `${e.server.address().url}/website`
+  const url = adminIndexUrl(e.server);
   return {
     class: [
       {
@@ -40,12 +48,12 @@ async function category(e, t) {
       {
         vod_id: String(Math.random()),
         vod_name: "扫码配置",
-        vod_pic: proxyUrl + '/' + base64Encode(`${e.server.address().url}/website`)
+        vod_pic: proxyUrl + '/' + base64Encode(adminIndexUrl(e.server))
       },
       {
-        vod_id: "openInternalWebsite",
-        vod_name: "点击配置",
-        vod_pic: proxyUrl + '/' + base64Encode(`${e.server.address().url}/website`)
+        vod_id: 'openInternalWebsite',
+        vod_name: '点击配置',
+        vod_pic: CLICK_CONFIG_PIC,
       }
     ]
   }
@@ -57,7 +65,7 @@ async function detail(req, t) {
     await req.server.messageToDart({
       action: 'openInternalWebview',
       opt: {
-        url: `${req.server.address().url}/website`,
+        url: adminIndexUrl(req.server),
       },
     });
     return {

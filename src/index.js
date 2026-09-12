@@ -5,6 +5,8 @@ import axios from 'axios';
 import website from "./website/index.js";
 import {getIPAddress} from "./util/network.js";
 import {getCache as getPansCache} from "./website/pans.js";
+import { installMonitorHook } from "./util/monitor.js";
+import { registerM3u8Gateway } from "./util/m3u8Gateway.js";
 
 let server = null;
 
@@ -93,6 +95,8 @@ export async function start(config) {
               oldPush('/', allData || {})
           }
       });
+    installMonitorHook(server, '/spider', { db: server.db });
+    await registerM3u8Gateway(server);
     server.register(router, {db: server.db, config});
     server.register(website, { prefix: '/website' });
     globalThis.Pans = await getPansCache(server)

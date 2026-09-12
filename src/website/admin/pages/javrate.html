@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Javrate 配置管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-sub: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            min-height: 100vh;
+            padding: 12px;
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            padding-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .info {
+            background: #f0f2f5;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 17px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fcfcfc;
+            min-height: 100px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            min-height: 44px;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-clear {
+            background: #f1f3f5;
+            color: var(--text-sub);
+        }
+
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 30px;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .message.success {
+            background: rgba(46, 213, 115, 0.95);
+        }
+
+        .message.error {
+            background: rgba(255, 71, 87, 0.95);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="message" id="toast"></div>
+
+    <div class="container">
+        <a href="/website/" class="back-link">← 返回配置管理</a>
+        <h1>🔥 Javrate 配置</h1>
+
+        <div class="section-title">🍪 Cookie 配置</div>
+        <div class="info">
+            浏览器访问 <strong>www.javrate.com</strong> 过 CF 后，复制 Cookie 粘贴到下方（需包含 <code>cf_clearance</code>）。<br>
+            也可通过 Shadowrocket 推送到 <code>/website/cf/cookie?domain=javrate.com</code> 自动同步。
+        </div>
+        <textarea id="javrateCookie" placeholder="例如: cf_clearance=xxx; __cf_bm=yyy"></textarea>
+        <div class="btn-group">
+            <button type="button" class="btn-save" onclick="saveCookieConfig()">保存 Cookie</button>
+            <button type="button" class="btn-clear" onclick="clearCookieForm()">清空</button>
+        </div>
+    </div>
+
+    <script>
+        const basePath = location.pathname.replace(/\/+$/, '');
+
+        function showToast(msg, type = 'success') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'message show ' + type;
+            setTimeout(() => { el.className = 'message'; }, 2500);
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch(basePath, { method: 'GET', headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                if (data.code === 0 && data.data?.cookie) {
+                    document.getElementById('javrateCookie').value = data.data.cookie;
+                }
+            } catch {
+                showToast('加载配置失败', 'error');
+            }
+        });
+
+        async function postData(body, successMsg) {
+            try {
+                const res = await fetch(basePath + '/cookie', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                if (data.code === 0) {
+                    showToast(successMsg, 'success');
+                    return data;
+                }
+                showToast(data.message || '操作失败', 'error');
+            } catch (e) {
+                showToast('网络错误: ' + e.message, 'error');
+            }
+            return null;
+        }
+
+        window.saveCookieConfig = async () => {
+            const val = document.getElementById('javrateCookie').value.trim();
+            await postData({ cookie: val || null }, 'Cookie 配置已保存');
+        };
+
+        window.clearCookieForm = () => {
+            document.getElementById('javrateCookie').value = '';
+        };
+    </script>
+</body>
+
+</html>
