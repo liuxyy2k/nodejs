@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import os from 'os';
 import req from './req.js';
 import {
   loadSettings,
@@ -20,7 +21,7 @@ const STRIP_HEADERS = {
   'Sec-Fetch-Site': null,
   'Sec-Fetch-User': null,
 };
-const SKIP_SPIDERS = new Set(['liveSource', 'qrcode']);
+const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav']);
 
 const PAN_HOSTS = [
   'aliyundrive.com', 'alipan.com', 'alihub.net', 'quark.cn', 'pan.quark.cn',
@@ -74,9 +75,38 @@ function isPanHost(url) {
   } catch { return false; }
 }
 
+function lanIPv4() {
+  const cands = [];
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const n of list || []) {
+      const v4 = n.family === 'IPv4' || n.family === 4;
+      if (!v4 || n.internal) continue;
+      cands.push(n.address);
+    }
+  }
+  return (
+    cands.find((a) => a.startsWith('192.168.')) ||
+    cands.find((a) => a.startsWith('10.')) ||
+    cands.find((a) => /^172\.(1[6-9]|2\d|3[0-1])\./.test(a)) ||
+    cands[0] ||
+    '127.0.0.1'
+  );
+}
+
+function isLoopbackHost(host) {
+  const name = String(host || '').replace(/^\[|\]$/g, '').split(':')[0];
+  return !name || ['127.0.0.1', 'localhost', '::1', '0.0.0.0'].includes(name);
+}
+
 export function apiOriginFromReq(request) {
   const proto = request.headers?.['x-forwarded-proto'];
-  return `${proto ? String(proto).split(',')[0].trim() : 'http'}://${request.headers.host}`;
+  const protocol = proto ? String(proto).split(',')[0].trim() : 'http';
+  let host = String(request.headers?.host || '').split(',')[0].trim();
+  if (isLoopbackHost(host)) {
+    const port = /:(\d+)$/.exec(host)?.[1] || process.env.DEV_HTTP_PORT || '3006';
+    host = `${lanIPv4()}:${port}`;
+  }
+  return `${protocol}://${host}`;
 }
 
 function purgeGatewaySessions(now = Date.now()) {
@@ -247,8 +277,15 @@ function normalizeMediaLines(text, baseUrl) {
   }).join('\n');
 }
 
+function isFmp4Playlist(text) {
+  return /#EXT-X-MAP/i.test(text || '') || /\.m4s(?:$|[?#])/i.test(text || '');
+}
+
 async function buildAccelPlaylist(text, baseUrl, origin, sid, headers, db) {
   const normalized = normalizeMediaLines(text, baseUrl);
+  if (isFmp4Playlist(normalized)) {
+    return { content: normalized, sid };
+  }
   const settings = await loadSettings(db);
   if (settings.enabled) {
     const built = createAccelPlaylist(normalized, origin, headers);
@@ -314,6 +351,7 @@ function rewritePlayUrl(raw, origin, headers) {
   if (hashIndex >= 0) url = url.slice(0, hashIndex);
   url = url.trim();
   if (!url || isLocalGateway(url) || !isHttpUrl(url) || isPanHost(url)) return raw;
+  if (/\/spider\/[^/]+\/\d+\/proxy\//i.test(url)) return raw;
   if (!(isM3u8(url) || /\.m3u8($|[?#&])/i.test(url))) return raw;
   let host = '';
   try { host = new URL(url).hostname.toLowerCase(); } catch { return raw; }
