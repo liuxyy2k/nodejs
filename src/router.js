@@ -230,6 +230,7 @@ import avtop10 from "./spider/video/avtop10.js";
 import paradisehill from "./spider/video/paradisehill.js";
 import yemahl from "./spider/video/yemahl.js";
 import miyun from "./spider/video/miyun.js";
+import onlyfans18 from "./spider/video/onlyfans18.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 import baseset from "./spider/video/baseset.js";
 import liveSource from "./spider/video/liveSource.js";
@@ -254,7 +255,7 @@ import CMSFactory from "./spider/video/cms.js";
 const getSpiders = async (server) => {
     const spiders = [
         douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, bdys, jianpian, duoduo, mogg, sefun, dy, dszby, xmlive, pandaLive, sinparty,
-        ai, animei, hanime, hanime2, hdm18, redgif, stripol,  
+        ai, animei, hanime, hanime2, hdm18, redgif, stripol, onlyfans18,
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         cg51, xigua51, baogua, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, xzcg, cgw, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, kb911, rb91, ds91, kdw91, dys18,
         haose, mtw, ncxxx, jptt, xjsp, jiujiu, bwhs, adtv, luolidao, luanlunba,  masexTv, luoli,
