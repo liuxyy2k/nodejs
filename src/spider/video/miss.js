@@ -69,6 +69,7 @@ async function home(inReq) {
     { type_id: 'dm539/cn/new', type_name: '最近更新' },
     { type_id: 'dm634/cn/release', type_name: '新作上市' },
     { type_id: 'dm817/cn/uncensored-leak', type_name: '无码' },
+    { type_id: 'dm301/cn/today-hot', type_name: '今日热门' },
     { type_id: 'dm170/cn/weekly-hot', type_name: '本周热门' },
     { type_id: 'dm270/cn/monthly-hot', type_name: '本月热门' },
     { type_id: 'dm541/cn/fc2', type_name: 'FC2' },
