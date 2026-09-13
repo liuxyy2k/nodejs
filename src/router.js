@@ -123,6 +123,7 @@ import av123 from "./spider/video/123av1.js";
 import mitaotun from "./spider/video/mitaotun.js";
 import njavtv from "./spider/video/njavtv.js";
 import javsb from "./spider/video/javsb.js";
+import fcjav from "./spider/video/fcjav.js";
 import memojav from "./spider/video/memoJav.js";
 import vlxxsex from "./spider/video/vlxxsex.js";
 import pinse from "./spider/video/91pinse.js";
@@ -260,7 +261,7 @@ const getSpiders = async (server) => {
         pinse, j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, wyt, ssp, mitaotun, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
         wnacg, motv, march, pmvhaven, aqx, fulao2, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, okcm, shunvh, xx01, xhs, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, txcy, yese, avtop10, paradisehill, yemahl, miyun, pektino, maomi66, duanju51, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
-        av123, avdb, dsys, javsb, memojav, vlxxsex, njavtv, kanav, jable, jableNew, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, javgg, javhd, av18, miss, missav2, missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, zhizhews, huangguo, huangdou, ndmt, av77, javxx, javrate, javday, javmenu, dogav,
+        av123, avdb, dsys, javsb, fcjav, memojav, vlxxsex, njavtv, kanav, jable, jableNew, hohoj, jav36, avtoday, taiav, xojav, supjav, supjav1, twoJav, popjav, javgg, javhd, av18, miss, missav2, missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, zhizhews, huangguo, huangdou, ndmt, av77, javxx, javrate, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow, liveSource, baseset
     ];
     const t4Data = await getT4(server)

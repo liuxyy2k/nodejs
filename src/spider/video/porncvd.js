@@ -1,22 +1,22 @@
-import axios from 'axios';
 import { load } from 'cheerio';
-import { config } from './config.js';
-
-const FLARE_URL = config.FLARE_URL;
+import req from '../../util/req.js';
 
 const siteUrl = 'https://porncvd.com';
 const searchUrl = siteUrl + '/search/javs?search_query=';
-const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-};
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 
-async function request(url) {
-    const resp = await axios.post(FLARE_URL, {
-        cmd: 'request.get',
-        url: url,
-        maxTimeout: 60000,
-    });
-    return resp.data.solution.response;
+async function request(url, referer = '') {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer || `${siteUrl}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+    };
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(url, { headers });
+    return resp.data;
 }
 
 // 解析视频列表（对应 Java 的 parseVods）
@@ -44,14 +44,13 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-            { type_id: '/cat/探花/', type_name: '探花' },
-            { type_id: '/cat/自拍/', type_name: '自拍' },
-            { type_id: '/cat/流出/', type_name: '流出' },
-            { type_id: '/cat/偷拍/', type_name: '偷拍' },
-            { type_id: '/cat/台灣/', type_name: '台湾' },
-            { type_id: '/cat/國產/', type_name: '国产' },
-            { type_id: '/cat/日韓/', type_name: '日韩' },
-            { type_id: '/cat/动漫/', type_name: '动漫' },
+            { type_id: '/hot/', type_name: '最热' },
+            { type_id: '/cat/tanhua/', type_name: '探花' },
+            { type_id: '/cat/zipai/', type_name: '自拍' },
+            { type_id: '/cat/liuchu/', type_name: '流出' },
+            { type_id: '/cat/toupai/', type_name: '偷拍' },
+            { type_id: '/cat/日本/', type_name: '日本' },
+            { type_id: '/cat/韓國/', type_name: '韩国' }
     ];
     return { class: classes, filters: {} };
 }
@@ -108,10 +107,9 @@ async function decUrl(str) {
 
 async function play(inReq, _outResp) {
     return {
-        parse: 0,
         url: inReq.body.id,
         header: {
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+            'User-Agent': UA,
             'Referer': ''
         },
     };

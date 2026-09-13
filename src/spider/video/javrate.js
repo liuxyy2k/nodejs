@@ -171,8 +171,6 @@ async function detail(inReq, _outResp) {
             Referer: url,
         },
     });
-    console.log(m3u8Data.data)
-    let top = m3u8.replace('playlist.m3u8','')
     const res = []
     const lines = m3u8Data.data.split("\n").filter(v => v.includes("/video.m3u8"))
     for(const line of lines){
@@ -183,7 +181,7 @@ async function detail(inReq, _outResp) {
         res.push({
             name,
             resolution: r,
-            url: `${top}${line.trim()}`
+            url: `${m3u8.replace('playlist.m3u8',line.trim())}`
         })
     }
     // 从高到低排序
