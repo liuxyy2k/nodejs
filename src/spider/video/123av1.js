@@ -46,7 +46,8 @@ async function request(url) {
     headers: {
       'User-Agent': UA,
       Referer: site,
-    }
+    },
+    // httpsAgent: agent
   });
   return data;
 }
@@ -75,14 +76,16 @@ async function init() {
 
 async function home(_inReq, _outResp) {
   const classes = [
-        { type_id: '/cn/all?sort=today', type_name: '今日' },
-        { type_id: '/cn/all?sort=week', type_name: '本周' },
-        { type_id: '/cn/all?sort=month', type_name: '本月' },
+    { type_id: '/cn/new', type_name: '最新' },
         { type_id: '/cn/hot', type_name: '热门' },
         { type_id: '/cn/recent', type_name: '最近' },
         { type_id: '/cn/censored', type_name: '有码' },
         { type_id: '/cn/uncensored', type_name: '无码' },
         { type_id: '/cn/uncensored-leaked', type_name: '无码泄露' },
+        { type_id: '/cn/new', type_name: '最新' },
+        { type_id: '/cn/all?sort=today', type_name: '今日' },
+        { type_id: '/cn/all?sort=week', type_name: '本周' },
+        { type_id: '/cn/all?sort=month', type_name: '本月' },
         { type_id: '/cn/makers/fc2', type_name: 'FC2' },
         { type_id: '/cn/makers/heyzo', type_name: 'HEYZO' },
         { type_id: '/cn/tags/siro', type_name: 'SIRO' },
@@ -150,7 +153,7 @@ async function detail(inReq, _outResp) {
     const poster = u.searchParams.get('poster');
     //嗅探资源
     // const data = await requestM3u8(url);
-    let playUrl = `https://surrit.store/stream?poster=${poster}&id=${code}`;
+    let playUrl = `https://javplayer.cc/stream?poster=${poster}&id=${code}`;
     const { data } = await axios.get(playUrl, {
       headers: {
         'User-Agent': UA,
@@ -180,7 +183,7 @@ async function play(inReq, _outResp) {
     url: id,
     header: {
       'User-Agent': UA,
-      Referer: 'https://surrit.store/',
+      Referer: 'https://javplayer.cc/',
     },
   };
 }
