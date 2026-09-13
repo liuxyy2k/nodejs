@@ -1,32 +1,22 @@
-import axios from 'axios';
 import { load } from 'cheerio';
-import { config } from './config.js';
+import req from '../../util/req.js';
 import CryptoJS from 'crypto-js';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://jav.sb';
 
-
-const SERVER_API = config.SERVER_API;
-
-async function request(targetUrl) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url: targetUrl,
-            referer: site + '/',
-            key: 'mira123'
-        }, {
-            timeout: 60000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        return resp.data;
-    } catch (e) {
-        console.log('中转请求失败:', e.message);
-        throw e;
-    }
+async function request(targetUrl, referer = '') {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer || `${site}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+    };
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(targetUrl, { headers });
+    return resp.data;
 }
 
 async function init(_inReq, _outResp) {
@@ -154,7 +144,6 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     return {
-        parse: 0,
         url: inReq.body.id,
         header: { 'User-Agent': UA, 'Referer': site },
     };

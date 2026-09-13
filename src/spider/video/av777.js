@@ -1,42 +1,23 @@
-import axios from 'axios';
 import { load } from 'cheerio';
-import { config } from './config.js';
+import req from '../../util/req.js';
 
 const siteUrl = 'https://av77.com';
 const searchUrl = siteUrl + '/vodsearch/-------------/?wd=';
-// const FLARE_URL = config.FLARE_URL;
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 
-const SERVER_API = config.SERVER_API;
-
-async function request(targetUrl) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url: targetUrl,
-            referer: siteUrl + '/',
-            key: 'mira123'  // 👈 必须加上这个，对应你 server.js 里的 AUTH_KEY
-        }, {
-            timeout: 60000,
-            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
-        return resp.data;
-    } catch (e) {
-        console.log('中转请求失败:', e.message);
-        // 如果这里报错 403，就说明是 key 的问题
-        // 如果报错 404，说明 SERVER_API 地址写错了
-        throw e;
-    }
+async function request(targetUrl, referer = '') {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer || `${siteUrl}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+    };
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(targetUrl, { headers });
+    return resp.data;
 }
-
-// async function request(url) {
-//     const resp = await axios.get(url, { headers,httpsAgent: agent});
-//     return resp.data;
-// }
 
 // 解析视频列表（对应 Java 的 parseVods）
 function parseVods($) {
@@ -120,8 +101,8 @@ async function detail(inReq, _outResp) {
     const unpacked = unpackPacker(evalStr)
     const m3u8Match = unpacked.match(/https?:\/\/[^\s'"]+\.m3u8/);
     let playUrl = 'https://pl3.vvvvvvvv.top/api/play?url=' + m3u8Match[0]
-    const resp = await axios.get(playUrl, {
-        headers: { 'User-Agent': UA, 'Referer': url }
+    const resp = await req.get(playUrl, {
+        headers: { 'User-Agent': UA, Referer: url },
     });
     let media = getBestM3u8(resp.data)
     console.log(media)
@@ -174,10 +155,9 @@ function unpackPacker(code) {
 
 async function play(inReq, _outResp) {
     return {
-        parse: 0,
         url: inReq.body.id,
         header: {
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
+            'User-Agent': UA
         },
     };
 }

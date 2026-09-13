@@ -55,10 +55,6 @@ export default {
             {
                 name: '🔥欧美大秀',
                 address: 'https://oumeidaxiu.liuxy01999.workers.dev/'
-            },
-            {
-                name: '🔥MissAv111',
-                address: 'https://still-frog-9f1c.liuxy01999.workers.dev/'
             }
         ],
     },
