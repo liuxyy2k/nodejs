@@ -1,36 +1,21 @@
-import axios from 'axios';
 import { load } from 'cheerio';
-import { config } from './config.js';
+import req from '../../util/req.js';
 
-// const FLARE_URL = config.FLARE_URL;
-
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://avple.tv';
 
-const SERVER_API = config.SERVER_API;
-
-async function request(targetUrl) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url: targetUrl,
-            referer: site + '/',
-            key: 'mira123'  // 👈 必须加上这个，对应你 server.js 里的 AUTH_KEY
-        }, {
-            timeout: 60000,
-            // 明确指定是 JSON 格式，确保宝塔那边的 express.json() 能解析
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        // 如果服务器返回的是字符串（HTML），resp.data 就是源码
-        return resp.data;
-    } catch (e) {
-        console.log('中转请求失败:', e.message);
-        // 如果这里报错 403，就说明是 key 的问题
-        // 如果报错 404，说明 SERVER_API 地址写错了
-        throw e;
-    }
+async function request(targetUrl, referer = '') {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer || `${site}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+    };
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(targetUrl, { headers });
+    return resp.data;
 }
 
 function parseCards($) {
@@ -189,7 +174,6 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     return {
-        parse: 0,
         url: inReq.body.id,
         header: { 'User-Agent': UA, 'Referer': site + '/' },
     };

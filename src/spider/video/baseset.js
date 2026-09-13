@@ -45,11 +45,11 @@ async function category(e, t) {
     limit: 1,
     total: 1,
     list: [
-      {
-        vod_id: String(Math.random()),
-        vod_name: "扫码配置",
-        vod_pic: proxyUrl + '/' + base64Encode(adminIndexUrl(e.server))
-      },
+      // {
+      //   vod_id: String(Math.random()),
+      //   vod_name: "扫码配置",
+      //   vod_pic: proxyUrl + '/' + base64Encode(adminIndexUrl(e.server))
+      // },
       {
         vod_id: 'openInternalWebsite',
         vod_name: '点击配置',

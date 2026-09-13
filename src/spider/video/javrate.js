@@ -210,7 +210,6 @@ async function decUrl(str) {
 
 async function play(inReq, _outResp) {
     return {
-        parse: 0,
         url: inReq.body.id,
         header: {
             'User-Agent': UA,
