@@ -124,34 +124,22 @@ function rebase(url) {
 }
 
 function getProxyBase(inReq) {
-    const prefix =inReq?.server?.prefix ||'/spider/dsav/3';
-    // let port = process.env.DEV_HTTP_PORT || '';
-    // const hostHeader = String(
-    //     inReq?.headers?.['x-forwarded-host'] ||
-    //     inReq?.headers?.host ||
-    //     ''
-    // )
-    //     .split(',')[0]
-    //     .trim();
-    // const m = /:(\d+)$/.exec(hostHeader);
-
-    // if (m) {
-    //     port = m[1];
-    // }
-    // if (!port) {
-    //     try {
-    //         const addr =inReq?.server?.address?.();
-
-    //         if (addr?.port) {
-    //             port = String(addr.port);
-    //         }
-
-    //     } catch (e) {}
-    // }
-
-    // if (!port) {
-    //     port = '9988';
-    // }
+    const prefix = inReq?.server?.prefix || '/spider/dsav/3';
+    const hostHeader = String(
+        inReq?.headers?.['x-forwarded-host'] ||
+        inReq?.headers?.host ||
+        ''
+    )
+        .split(',')[0]
+        .trim();
+    if (hostHeader) {
+        const proto = String(
+            inReq?.headers?.['x-forwarded-proto'] || 'http'
+        )
+            .split(',')[0]
+            .trim();
+        return `${proto}://${hostHeader}${prefix}/proxy`;
+    }
     return `http://127.0.0.1:${PORT}${prefix}/proxy`;
 }
 
@@ -199,7 +187,7 @@ function mpdDir(url) {
 
 function dashAttr(tag, name) {
     const m = new RegExp(
-        `${name}="([^"]*)"`,
+        `(?:^|\\s)${name}="([^"]*)"`,
         'i'
     ).exec(tag || '');
     return m ? m[1] : '';
@@ -438,7 +426,6 @@ async function fetchMpdXml(absUrl) {
     const response = await axios.get(
         signedCdnUrl(absUrl),
         {
-            httpsAgent: agent,
             timeout: 20000,
             responseType: 'text',
             headers: playHeaders,
@@ -759,39 +746,47 @@ async function detail(
     return {
         list: [{
             vod_id: id,
-            vod_play_from: 'HLS$$$DASH',
-            vod_play_url: `播放$hls:${purl}$$$播放$dash:${purl}`,
+            vod_play_from: 'DASH$$$HLS',
+            vod_play_url: `播放$dash:${purl}$$$播放$hls:${purl}`,
         }],
     };
 }
 
 async function play(inReq,_outResp) {
     let id = inReq.body.id;
-    let mode = 'hls';
+    let mode = 'dash';
     const raw = String(id || '');
     if (raw.startsWith('dash:')) {
         mode = 'dash';
         id = raw.slice(5);
     } else if (raw.startsWith('hls:')) {
+        mode = 'hls';
         id = raw.slice(4);
     }
     if (String(id).includes('.mpd')) {
-        const q =`url=${encodeURIComponent(e64(id))}`;
+        const q = `url=${encodeURIComponent(e64(id))}`;
+        const hdr = {
+            'User-Agent': playHeaders['user-agent'],
+            Referer: playHeaders.referer,
+            Origin: playHeaders.origin,
+        };
         if (mode === 'dash') {
             return {
                 parse: 0,
                 jx: 0,
                 url: `${getProxyBase(inReq)}/index.mpd?${q}&type=mpd`,
-                header: {
-                    'User-Agent': playHeaders['user-agent'],
-                    Referer: playHeaders.referer,
-                    Origin: playHeaders.origin,
-                },
+                header: hdr,
                 format: 'application/dash+xml',
             };
         }
-
-        id = `${getProxyBase(inReq)}/index.m3u8?${q}&type=hls&track=video`;
+        return {
+            parse: 0,
+            jx: 0,
+            url: `${getProxyBase(inReq)}/index.m3u8?${q}&type=hls`,
+            header: hdr,
+            format: 'application/x-mpegURL',
+            type: 'm3u8',
+        };
     }
 
     return {
@@ -952,11 +947,10 @@ async function proxySeg(segPath, req) {
         url,
         method: 'GET',
         responseType: 'arraybuffer',
-        httpsAgent: agent,
         timeout: 30000,
         headers: hdrs,
         validateStatus: () => true,
-        maxRedirects: 0,
+        maxRedirects: 5,
     });
     const out = {
         'access-control-allow-origin':
