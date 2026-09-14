@@ -20,6 +20,7 @@ import zhizhews from "./spider/video/zhizhews.js";
 import huangguo from "./spider/video/huangguo.js";
 import huangdou from "./spider/video/huangdou.js";
 import dys18 from "./spider/video/dys18.js";
+import crdj91 from "./spider/video/crdj91.js";
 import kanav from "./spider/video/kanav2.js";
 import jable from "./spider/video/jable.js";
 import jableNew from "./spider/video/jableNew.js";
@@ -251,7 +252,7 @@ const getSpiders = async (server) => {
         douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, dszby, xmlive, pandaLive, sinparty,
         ai, animei, hanime, hanime2, hdm18, redgif, stripol, onlyfans18, huangguo, huangdou,
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
-        cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, cg91, cg911, dsj911, cg007, xzcg, cgw, baogua, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, kb911, rb91, ds91, kdw91, dys18,
+        cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, cg91, cg911, dsj911, cg007, xzcg, cgw, baogua, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, kb911, rb91, ds91, kdw91, dys18, crdj91,
         haose, mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luolidao, luanlunba,  masexTv, luoli,
         pinse, j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
         wnacg, motv, march, pmvhaven, aqx, fulao2, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01, xhs, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, txcy, yese, paradisehill, yemahl, miyun, pektino, maomi66, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
