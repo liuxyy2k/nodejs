@@ -114,10 +114,7 @@ function aes(text, operation = true) {
 function rebase(url) {
     try {
         const u = new URL(url);
-        return new URL(
-            u.pathname,
-            phost
-        ).href;
+        return new URL(u.pathname,phost).href;
     } catch (e) {
         return url;
     }
@@ -161,9 +158,7 @@ function signedCdnUrl(absUrl) {
             3600;
 
     const u = new URL(absUrl);
-    const sign =
-        cdnSign(u.pathname, expire);
-
+    const sign = cdnSign(u.pathname, expire);
     u.searchParams.set('sign', sign);
     u.searchParams.set(
         'expire',
@@ -635,21 +630,12 @@ function getl(data) {
 // handlers
 // ─────────────────────────────────────────────────────
 
-async function init(
-    _inReq,
-    _outResp
-) {
-
+async function init(_inReq, _outResp) {
     return {};
 }
 
-async function home(
-    _inReq,
-    _outResp
-) {
-
-    const cfg =
-        await ensureConfig();
+async function home( _inReq,_outResp) {
+    const cfg = await ensureConfig();
 
     const classes =
         (cfg.video_type || [])
@@ -658,7 +644,6 @@ async function home(
                 type_id: i.type_id,
                 type_name: i.type_name,
             }));
-
     return {
         class: classes,
         list: [],
@@ -666,26 +651,14 @@ async function home(
     };
 }
 
-async function category(
-    inReq,
-    _outResp
-) {
-
-    const tid =
-        String(
-            inReq.body.id ?? ''
-        );
-
-    const pg =
-        parseInt(
-            inReq.body.page
-        ) || 1;
+async function category(inReq,_outResp) {
+    const tid =String(inReq.body.id ?? '');
+    const pg =parseInt(inReq.body.page) || 1;
 
     // tag 搜索
     if (
         tid.startsWith('skey_')
     ) {
-
         return search({
             body: {
                 wd: tid
@@ -706,8 +679,7 @@ async function category(
         route: '/videos/search',
     };
 
-    const res =
-        await getdata(data);
+    const res = await getdata(data);
 
     return {
         page: pg,
@@ -722,10 +694,7 @@ async function category(
     };
 }
 
-async function detail(
-    inReq,
-    _outResp
-) {
+async function detail(inReq, _outResp) {
     const id =inReq.body.id;
     const data = {
         search_type: 'video_detail_filter_id',
@@ -826,8 +795,7 @@ async function search(
         route: '/videos/search',
     };
 
-    const res =
-        await getdata(data);
+    const res = await getdata(data);
 
     return {
         list: getl(
@@ -850,8 +818,7 @@ async function proxyMpd(param, req) {
 
     // 不要把 $Number%05d$ 写成绝对 URL，%05 会被当成百分号编码。
     // 用 BaseURL 拼前缀，模板保持相对路径。
-    const base =
-        `${getProxyBase(req)}/seg/${mpdDir(url)}/`;
+    const base = `${getProxyBase(req)}/seg/${mpdDir(url)}/`;
 
     const data = xml
         .replace(
@@ -894,8 +861,7 @@ async function proxyHls(param, req) {
     const audio = sets.find(
         (s) => s.contentType === 'audio'
     );
-    const segBase =
-        `${getProxyBase(req)}/seg/${mpdDir(url)}/`;
+    const segBase = `${getProxyBase(req)}/seg/${mpdDir(url)}/`;
 
     let body = '';
     if (track === 'audio' && audio) {
@@ -972,8 +938,7 @@ async function proxySeg(segPath, req) {
     }
     return [
         response.status,
-        response.headers['content-type'] ||
-            'application/octet-stream',
+        response.headers['content-type'] || 'application/octet-stream',
         out,
         Buffer.from(response.data || []),
     ];
