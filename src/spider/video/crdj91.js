@@ -1,13 +1,18 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 const DEFAULT_HOST = 'https://91crdj.com';
-const UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+// import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const EPISODE_RE = /\/(?:duanju|manju|zhenrenju)\/\d+-[^/]+\/(\d+)\/?$/;
 const LIST_HREF_RE =
     /href="(https?:\/\/[^"]*?\/(?:duanju|manju|zhenrenju)\/(\d+)-([^/"]+)\/)"/g;
 const EP_HREF_RE =
     /href="(https?:\/\/[^"]*?\/(?:duanju|manju|zhenrenju)\/\d+-[^/"]+\/(\d+)\/)"/g;
+
+const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const CHANNELS = [
     { type_id: 'duanju', type_name: '成人短剧', path: '/duanju/' },
@@ -90,6 +95,25 @@ async function request(url, referer) {
     }
 }
 
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
+}
+
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
+}
+
+function aesDecrypt(buf) {
+    const key      = Buffer.from('f5d965df75336270');
+    const iv       = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
+function proxyImgUrl(raw) {
+    return `http://127.0.0.1:${PORT}/spider/crdj91/3/img?url=${encodeURIComponent(e64(raw))}`;
+}
+
 function parseList(html) {
     const videos = [];
     const seen = new Set();
@@ -114,7 +138,7 @@ function parseList(html) {
         videos.push({
             vod_id: href,
             vod_name: title.slice(0, 80),
-            vod_pic: absUrl(pic || ''),
+            vod_pic: proxyImgUrl(absUrl(pic)),
             vod_remarks: '',
         });
     }
@@ -260,10 +284,39 @@ async function play(inReq) {
     return { parse: 1, jx: 1, url: play, header };
 }
 
+async function imgProxy(inReq, reply) {
+    try {
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${DEFAULT_HOST}/`,
+                'Origin':     DEFAULT_HOST,
+            },
+            responseType: 'arraybuffer',
+            timeout:      10000,
+        });
+
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
+    }
+}
+
 export default {
     meta: {
         key: 'crdj91',
-        name: '🔥91成人短剧',
+        name: '🔥91短剧',
         type: 3,
     },
     api: async (fastify) => {
@@ -273,5 +326,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img',  imgProxy);
     },
 };
