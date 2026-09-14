@@ -961,7 +961,7 @@ async function localProxy(param, req) {
 export default {
     meta: {
         key: 'dsav',
-        name: '🔥DSYS',
+        name: '🔥DSAV',
         type: 3,
     },
 
