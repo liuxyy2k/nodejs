@@ -1588,7 +1588,7 @@
             });
         }
 
-        const API_BASE = window.location.origin;
+        const API_BASE = '';
 
         // 工具函数
         function showToast(message, type = 'info') {
@@ -1651,7 +1651,7 @@
         async function loadSpiders() {
             try {
                 addLog('正在加载爬虫列表...', 'pending');
-                const response = await fetch(`${API_BASE}/config`);
+                const response = await fetch(`${API_BASE}/full-config`);
                 if (!response.ok) throw new Error('加载配置失败');
                 const data = await response.json();
 
