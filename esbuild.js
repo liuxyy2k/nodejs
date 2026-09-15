@@ -4,6 +4,7 @@ import path from 'path';
 import { createHash } from 'crypto';
 import {getWebsiteBundle, getDanmuBundle} from "./esbuild-website.js";
 import JavaScriptObfuscator from 'javascript-obfuscator';
+import { injectBack } from './src/website/admin/pages.js';
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -38,7 +39,8 @@ function embedAdminPages() {
                 const pages = {};
                 for (const name of fs.readdirSync(pagesDir)) {
                     if (!name.endsWith('.html')) continue;
-                    pages[name.slice(0, -5)] = fs.readFileSync(path.join(pagesDir, name), 'utf8');
+                    const key = name.slice(0, -5);
+                    pages[key] = injectBack(key, fs.readFileSync(path.join(pagesDir, name), 'utf8'));
                 }
                 const contents = `export function loadPage(name) {
   const PAGES = ${JSON.stringify(pages)};

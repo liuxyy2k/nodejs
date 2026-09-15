@@ -3,6 +3,7 @@ import router from './router.js';
 import { JsonDB, Config } from 'node-json-db';
 import axios from 'axios';
 import website from "./website/index.js";
+import jsApis from "./website/js-apis.js";
 import {getIPAddress} from "./util/network.js";
 import {getCache as getPansCache} from "./website/pans.js";
 import { installMonitorHook } from "./util/monitor.js";
@@ -28,6 +29,7 @@ export async function start(config) {
     server = fastify({
         serverFactory: catServerFactory,
         forceCloseConnections: true,
+        ignoreTrailingSlash: true,
         logger: !!(process.env.NODE_ENV !== 'development'),
         maxParamLength: 10240,
     });
@@ -99,6 +101,7 @@ export async function start(config) {
     await registerM3u8Gateway(server);
     server.register(router, {db: server.db, config});
     server.register(website, { prefix: '/website' });
+    server.register(jsApis, { prefix: '/js' });
     globalThis.Pans = await getPansCache(server)
     globalThis.getPanName = (key) => globalThis.Pans.find(pan => pan.key === key)?.name
     globalThis.getPanEnabled = (key) => globalThis.Pans.find(pan => pan.key === key)?.enable

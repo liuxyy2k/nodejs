@@ -93,7 +93,7 @@ async function proxy(inReq, outResp) {
 export default {
   meta: {
     key: 'baseset',
-    name: '⚙️ 配置',
+    name: '⚙️配置页面',
     type: 3,
   },
   api: async (fastify) => {

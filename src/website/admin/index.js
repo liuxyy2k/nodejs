@@ -9,7 +9,7 @@ import {
   getSite, setSite, getMissavCookie, setMissavCookie,
   getJableActors, setJableActors, resetJableActors,
   getMissavActors, setMissavActors, resetMissavActors,
-  getLiveSources, setLiveSources,
+  setLiveSources,
   getCmsSources, setCmsSources, addCmsSource, updateCmsSource, deleteCmsSource,
   getM3u8Settings, setM3u8Settings, resetM3u8Settings,
   clearDbCookies, findDbCookiePaths, getDbFileName,
@@ -17,6 +17,9 @@ import {
 import cookieStore from '../../util/cookieStore.js';
 import monitorRoutes from '../../util/monitor.js';
 import { getStats as getM3u8Stats } from '../../util/m3u8Accel.js';
+import {
+  mergeLiveSources, reloadLiveCache, testLiveParse, probeLiveSource,
+} from '../../spider/video/liveSource.js';
 
 function ok(data, message) {
   return message ? { code: 0, message, data } : { code: 0, data };
@@ -69,13 +72,26 @@ export default async function admin(fastify) {
   const db = (req) => req.server.db;
 
   fastify.get('/', async (req, res) => {
-    if (wantsHtml(req)) return res.type('text/html').send(loadPage('index'));
+    const accept = String(req.headers.accept || '');
+    const wantJson = accept.includes('application/json') && !accept.includes('text/html');
+    if (!wantJson) return res.type('text/html').send(loadPage('index'));
     const d = db(req);
     return res.send(ok({
       sites: { missav: await getSite(d, 'missav') },
       jableActors: await getJableActors(d),
       missavActors: await getMissavActors(d),
     }));
+  });
+
+  fastify.get('/js', async (req, res) => {
+    if (wantsHtml(req) || !req.headers['x-requested-with']) {
+      return res.type('text/html; charset=utf-8').send(loadPage('js'));
+    }
+    return res.send(ok({ files: [] }));
+  });
+
+  fastify.get('/sites', async (_req, res) => {
+    return res.type('text/html; charset=utf-8').send(loadPage('sites'));
   });
 
   fastify.get('/missav', async (req, res) => {
@@ -276,7 +292,7 @@ export default async function admin(fastify) {
 
   fastify.get('/live', async (req, res) => {
     if (wantsHtml(req)) return res.type('text/html').send(loadPage('live'));
-    return res.send(ok({ sources: await getLiveSources(db(req)) }));
+    return res.send(ok({ sources: await mergeLiveSources(db(req)) }));
   });
 
   fastify.post('/live', async (req, res) => {
@@ -290,9 +306,40 @@ export default async function admin(fastify) {
     }
     try {
       await setLiveSources(db(req), sources);
-      res.send(ok(null, '直播源配置保存成功'));
+      reloadLiveCache();
+      res.send(ok(null, '直播源配置保存成功，已立即生效'));
     } catch (e) {
       fail(res, 500, '保存失败: ' + e.message);
+    }
+  });
+
+  fastify.post('/live/test', async (req, res) => {
+    const url = String(req.body?.url || '').trim();
+    if (!url) return fail(res, 400, '请填写列表链接');
+    try {
+      const data = await testLiveParse({
+        url,
+        ua: req.body?.ua || '',
+        cookie: req.body?.cookie || '',
+      });
+      res.send(ok(data));
+    } catch (e) {
+      fail(res, 500, e.message || '解析失败');
+    }
+  });
+
+  fastify.post('/live/probe', async (req, res) => {
+    const url = String(req.body?.url || '').trim();
+    if (!url) return fail(res, 400, '请填写列表链接');
+    try {
+      const data = await probeLiveSource({
+        url,
+        ua: req.body?.ua || '',
+        cookie: req.body?.cookie || '',
+      }, { sample: req.body?.sample, group: req.body?.group, deep: req.body?.deep });
+      res.send(ok(data));
+    } catch (e) {
+      fail(res, 500, e.message || '探测失败');
     }
   });
 

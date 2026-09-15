@@ -2,618 +2,1147 @@
 <html lang="zh-CN">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>直播源配置</title>
-    <style>
-        :root {
-            --primary: #667eea;
-            --primary-dark: #5a6fd6;
-            --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
-            --text-main: #333;
-            --text-sub: #666;
-            --danger: #ff4757;
-            --success: #2ed573;
-        }
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>直播源配置</title>
+<style>
+:root {
+--primary: #667eea;
+--primary-dark: #5a6fd6;
+--bg-color: #f4f7f6;
+--card-bg: #ffffff;
+--text-main: #333;
+--text-sub: #666;
+--danger: #ff4757;
+--success: #2ed573;
+}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+-webkit-tap-highlight-color: transparent;
+}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg-color);
-            min-height: 100vh;
-            padding: 12px;
-            color: var(--text-main);
-            -webkit-overflow-scrolling: touch;
-        }
+body {
+font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+background: var(--bg-color);
+min-height: 100vh;
+padding: 12px;
+color: var(--text-main);
+-webkit-overflow-scrolling: touch;
+}
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            padding: 20px;
-        }
+.container {
+max-width: 800px;
+margin: 0 auto;
+background: var(--card-bg);
+border-radius: 16px;
+box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+padding: 20px;
+}
 
-        h1 {
-            text-align: center;
-            color: var(--text-main);
-            margin-bottom: 30px;
-            font-size: 20px;
-            font-weight: 700;
-        }
+h1 {
+text-align: center;
+color: var(--text-main);
+margin-bottom: 30px;
+font-size: 20px;
+font-weight: 700;
+}
 
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: var(--primary);
-            text-decoration: none;
-            font-size: 14px;
-        }
+.back-link {
+display: inline-block;
+margin-bottom: 20px;
+color: var(--primary);
+text-decoration: none;
+font-size: 14px;
+}
 
-        .back-link:hover {
-            text-decoration: underline;
-        }
+.back-link:hover {
+text-decoration: underline;
+}
 
-        .form-section {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-        }
+.form-section {
+background: #f9f9f9;
+padding: 20px;
+border-radius: 12px;
+margin-bottom: 25px;
+}
 
-        .form-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: var(--text-main);
-        }
+.form-title {
+font-size: 16px;
+font-weight: 600;
+margin-bottom: 15px;
+color: var(--text-main);
+}
 
-        .form-group {
-            margin-bottom: 15px;
-        }
+.form-group {
+margin-bottom: 15px;
+}
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-main);
-        }
+label {
+display: block;
+margin-bottom: 8px;
+font-size: 14px;
+font-weight: 500;
+color: var(--text-main);
+}
 
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-            appearance: none;
-        }
+input[type="text"] {
+width: 100%;
+padding: 12px 15px;
+border: 1px solid #ddd;
+border-radius: 8px;
+font-size: 14px;
+transition: border-color 0.2s;
+appearance: none;
+}
 
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
+input[type="text"]:focus {
+outline: none;
+border-color: var(--primary);
+}
 
-        input.error {
-            border-color: var(--danger);
-        }
+input.error {
+border-color: var(--danger);
+}
 
-        .error-msg {
-            color: var(--danger);
-            font-size: 12px;
-            margin-top: 5px;
-            display: none;
-        }
+.error-msg {
+color: var(--danger);
+font-size: 12px;
+margin-top: 5px;
+display: none;
+}
 
-        .error-msg.show {
-            display: block;
-        }
+.error-msg.show {
+display: block;
+}
 
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-        }
+.btn {
+display: inline-block;
+padding: 12px 24px;
+border: none;
+border-radius: 8px;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.2s;
+text-align: center;
+}
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            width: 100%;
-        }
+.btn-primary {
+background: var(--primary);
+color: white;
+width: 100%;
+}
 
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
+.btn-primary:hover {
+background: var(--primary-dark);
+}
 
-        .btn-success {
-            background: var(--success);
-            color: white;
-            width: 100%;
-            margin-top: 20px;
-        }
+.btn-success {
+background: var(--success);
+color: white;
+width: 100%;
+margin-top: 20px;
+}
 
-        .btn-success:hover {
-            background: #26af61;
-        }
+.btn-success:hover {
+background: #26af61;
+}
 
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-            padding: 8px 16px;
-            font-size: 13px;
-        }
+.btn-danger {
+background: var(--danger);
+color: white;
+padding: 8px 16px;
+font-size: 13px;
+}
 
-        .btn-danger:hover {
-            background: #e84118;
-        }
+.btn-danger:hover {
+background: #e84118;
+}
 
-        .source-list {
-            margin-top: 25px;
-        }
+.source-list {
+margin-top: 25px;
+}
 
-        .list-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: var(--text-main);
-        }
+.list-title {
+font-size: 16px;
+font-weight: 600;
+margin-bottom: 15px;
+color: var(--text-main);
+}
 
-        .source-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            border: 1px solid #eee;
-            transition: all 0.2s;
-        }
+.source-item {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 15px;
+background: #f9f9f9;
+border-radius: 12px;
+margin-bottom: 12px;
+border: 1px solid #eee;
+transition: all 0.2s;
+}
 
-        .source-item:hover {
-            border-color: var(--primary);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-        }
+.source-item:hover {
+border-color: var(--primary);
+box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
 
-        .source-info {
-            flex: 1;
-            min-width: 0;
-        }
+.source-info {
+flex: 1;
+min-width: 0;
+}
 
-        .source-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-        }
+.source-header {
+display: flex;
+align-items: center;
+margin-bottom: 5px;
+}
 
-        .source-name {
-            font-weight: 600;
-            font-size: 15px;
-            margin-right: 10px;
-        }
+.source-name {
+font-weight: 600;
+font-size: 15px;
+margin-right: 10px;
+}
 
-        .source-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: var(--success);
-            color: white;
-            font-size: 11px;
-            border-radius: 10px;
-            font-weight: 500;
-        }
+.source-badge {
+display: inline-block;
+padding: 2px 8px;
+background: var(--success);
+color: white;
+font-size: 11px;
+border-radius: 10px;
+font-weight: 500;
+}
 
-        .source-badge.disabled {
-            background: #ccc;
-        }
+.source-badge.disabled {
+background: #ccc;
+}
 
-        .source-url {
-            font-size: 12px;
-            color: var(--text-sub);
-            word-break: break-all;
-            line-height: 1.4;
-        }
+.source-url {
+font-size: 12px;
+color: var(--text-sub);
+word-break: break-all;
+line-height: 1.4;
+}
 
-        .source-actions {
-            display: flex;
-            gap: 8px;
-            margin-left: 15px;
-        }
+.source-actions {
+display: flex;
+gap: 8px;
+margin-left: 15px;
+}
 
-        .btn-icon {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 5px;
-            opacity: 0.6;
-            transition: opacity 0.2s;
-        }
+.btn-icon {
+background: none;
+border: none;
+font-size: 18px;
+cursor: pointer;
+padding: 5px;
+opacity: 0.6;
+transition: opacity 0.2s;
+}
 
-        .btn-icon:hover {
-            opacity: 1;
-        }
+.btn-icon:hover {
+opacity: 1;
+}
 
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-sub);
-        }
+.empty-state {
+text-align: center;
+padding: 40px 20px;
+color: var(--text-sub);
+}
 
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
+.empty-state-icon {
+font-size: 48px;
+margin-bottom: 15px;
+opacity: 0.5;
+}
 
-        .help-text {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fff3cd;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #856404;
-            line-height: 1.6;
-        }
+.help-text {
+margin-top: 20px;
+padding: 15px;
+background: #fff3cd;
+border-radius: 8px;
+font-size: 13px;
+color: #856404;
+line-height: 1.6;
+}
 
-        .help-text strong {
-            display: block;
-            margin-bottom: 8px;
-        }
+.help-text strong {
+display: block;
+margin-bottom: 8px;
+}
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: var(--text-sub);
-        }
+.loading {
+display: none;
+text-align: center;
+padding: 20px;
+color: var(--text-sub);
+}
 
-        .loading.active {
-            display: block;
-        }
+.loading.active {
+display: block;
+}
 
-        /* Toast 提示样式 */
-        .toast {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            z-index: 10000;
-            max-width: 80%;
-            text-align: center;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s, visibility 0.3s;
-        }
+/* Toast 提示样式 */
+.toast {
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background: rgba(0, 0, 0, 0.8);
+color: white;
+padding: 16px 24px;
+border-radius: 8px;
+font-size: 14px;
+z-index: 10000;
+max-width: 80%;
+text-align: center;
+opacity: 0;
+visibility: hidden;
+transition: opacity 0.3s, visibility 0.3s;
+}
 
-        .toast.show {
-            opacity: 1;
-            visibility: visible;
-        }
+.toast.show {
+opacity: 1;
+visibility: visible;
+}
 
-        .toast.success {
-            background: rgba(46, 213, 115, 0.95);
-        }
+.toast.success {
+background: rgba(46, 213, 115, 0.95);
+}
 
-        .toast.error {
-            background: rgba(255, 71, 87, 0.95);
-        }
-    </style>
+.toast.error {
+background: rgba(255, 71, 87, 0.95);
+}
+</style>
+<style id="hs-app-skin">/* ================= hs 统一设计系统 v2 ================= */
+:root{
+--app-primary:#667eea;--app-primary-rgb:102,126,234;--app-primary-hover:#5a6fd6;--app-primary-active:#4f62c8;
+--app-primary-soft:rgba(102,126,234,.1);--app-primary-soft2:rgba(102,126,234,.16);
+--page-bg:#eef0f8;--container-bg:#ffffff;--content-bg:#ffffff;
+--panel-bg:rgba(102,126,234,.045);--panel-strong:rgba(102,126,234,.09);--panel-hover:rgba(102,126,234,.07);
+--header:#ffffff;--text:#1a1a22;--muted:#6e6e7a;--faint:#9698a3;
+--border:rgba(30,30,36,.08);--border-strong:rgba(30,30,36,.13);
+--input-bg:#ffffff;--code-bg:#171923;--code-text:#e6e8ef;--switch-off:rgba(30,30,36,.18);
+--success:#52a67d;--warning:#d89b50;--danger:#e0707a;
+--ease:cubic-bezier(.22,1,.36,1);
+--radius-shell:24px;--radius-card:16px;--radius-card-sm:12px;--radius-btn:14px;
+--shell-pad:18px;--field-h:44px;
+--shadow-sm:0 1px 2px rgba(15,23,42,.03),0 2px 8px rgba(15,23,42,.04);
+--shadow-md:0 2px 4px rgba(15,23,42,.04),0 8px 18px rgba(15,23,42,.06);
+--shadow-lg:0 4px 12px rgba(15,23,42,.06),0 12px 28px rgba(15,23,42,.05);
+--primary:var(--app-primary);--primary-dark:var(--app-primary-hover);--bg-color:var(--page-bg);
+--card-bg:var(--container-bg);--text-main:var(--text);--text-sub:var(--muted);--border-color:var(--border);
+}
+html[data-color-scheme='dark']{
+--app-primary:#8b9cf7;--app-primary-rgb:139,156,247;--app-primary-hover:#9aa9ff;--app-primary-active:#7889e8;
+--app-primary-soft:rgba(139,156,247,.12);--app-primary-soft2:rgba(139,156,247,.2);
+--page-bg:#11131a;--container-bg:#1b1e27;--content-bg:#1b1e27;
+--panel-bg:rgba(139,156,247,.06);--panel-strong:rgba(139,156,247,.11);--panel-hover:rgba(139,156,247,.14);
+--header:#1b1e27;--text:#f0f1f6;--muted:#a7aab6;--faint:#777b89;
+--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.17);
+--input-bg:#222631;--code-bg:#0e1016;--code-text:#e8eaf2;--switch-off:rgba(255,255,255,.26);--success:#5fb789;--warning:#dfa765;--danger:#e5787f;
+--shadow-sm:0 2px 8px rgba(0,0,0,.18);--shadow-md:0 8px 20px rgba(0,0,0,.24);--shadow-lg:0 14px 34px rgba(0,0,0,.32);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{min-height:100%;background:var(--page-bg);-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{min-height:100vh;margin:0;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;background:var(--page-bg)!important;color:var(--text)!important;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif!important;-webkit-font-smoothing:antialiased;line-height:1.55}
+body::before{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 58% at 0 0,rgba(var(--app-primary-rgb),.13),transparent 68%),radial-gradient(ellipse 62% 48% at 100% 6%,rgba(var(--app-primary-rgb),.08),transparent 66%)}
+html.theme-switching,html.theme-switching *{transition:none!important}
+
+/* ---------- 外壳 ---------- */
+.container{position:relative!important;width:100%;max-width:1100px;margin:0 auto!important;padding:var(--shell-pad)!important;overflow:hidden;border:1px solid rgba(var(--app-primary-rgb),.16)!important;border-radius:var(--radius-shell)!important;background:var(--container-bg)!important;box-shadow:var(--shadow-lg)!important;color:var(--text)!important}
+@keyframes hsSweep{0%{transform:translateX(-70%)}60%,100%{transform:translateX(240%)}}
+
+/* ---------- 页头 ---------- */
+.container>h1:first-child,body>h1,.container>.page-title,.container>.header,.container>.page-header,.container>header{
+position:relative;margin:calc(var(--shell-pad)*-1) calc(var(--shell-pad)*-1) var(--shell-pad)!important;
+padding:22px 56px 18px!important;border:0!important;border-bottom:3px solid var(--app-primary)!important;
+border-radius:0!important;background:var(--header)!important;color:var(--text)!important;
+text-align:center!important;font-size:20px!important;font-weight:700!important;letter-spacing:.2px;overflow:hidden;box-shadow:none!important
+}
+.container>h1:first-child::after,body>h1::after,.container>.header::after,.container>.page-header::after,.container>header::after{
+content:"";position:absolute;inset:0 auto 0 0;width:46%;pointer-events:none;
+background:linear-gradient(90deg,transparent,var(--app-primary-soft),transparent);animation:hsSweep 6s var(--ease) infinite
+}
+.container>.header h1,.container>.page-header h1,.container>header h1{margin:0!important;color:var(--text)!important;font-size:20px!important;font-weight:700!important}
+.container>.header p,.container>.page-header p,.container>header p{margin:6px 0 0!important;color:var(--muted)!important;font-size:12.5px!important;opacity:1!important}
+.container>.header .back-link,.container>.header .back-button,.container>.page-header .back-link,.container>header .back-link{color:var(--app-primary)!important}
+h2,h3{color:var(--text)!important;font-weight:700}
+h2{font-size:16px!important}
+p,span,div,label,li,td,th,strong,b{color:inherit}
+a{color:var(--app-primary);text-decoration:none}
+a:hover{text-decoration:underline}
+small,sub{color:var(--muted)}
+
+/* ---------- 分区标题 ---------- */
+.section-title,.card-title,.section-header,.block-title,.group-title{
+color:var(--text)!important;font-size:15px!important;font-weight:700!important;letter-spacing:.2px
+}
+.section-title{margin:0 0 12px!important;padding-left:11px!important;border-left:3px solid var(--app-primary)!important;line-height:1.3}
+.card-head,.section-header{padding-bottom:10px!important;border-bottom:1px solid var(--border)!important}
+
+/* ---------- 卡片 / 面板 ---------- */
+.card,.menu-item,.section,.block,.panel,.form-section,.form-group,.source-item,.file-item,.list-item,.folder,.stat,.metric,.info-box,.saved-remote,.result-card{
+border:1px solid var(--border)!important;border-radius:var(--radius-card)!important;
+background:var(--container-bg)!important;color:var(--text)!important;box-shadow:var(--shadow-sm)!important
+}
+.card,.section,.block,.form-section,.form-group{padding:16px!important}
+.card+.card,.section+.section,.form-section+.form-section,.block+.block{margin-top:14px!important}
+.card:hover,.section:hover,.form-section:hover{box-shadow:var(--shadow-md)!important}
+.menu{display:flex;flex-direction:column;gap:12px}
+.menu-item{display:flex;flex-direction:column;padding:16px!important;transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s var(--ease)}
+.menu-item:hover{border-color:var(--app-primary)!important;box-shadow:var(--shadow-md)!important;transform:translateY(-2px)}
+.menu-title{display:flex;align-items:center;font-size:16px;font-weight:600;color:var(--text)!important}
+.menu-icon{display:grid;width:38px;height:38px;margin-right:12px;place-items:center;border-radius:12px;background:var(--panel-strong);font-size:20px}
+.menu-desc{margin-top:8px;color:var(--muted)!important;font-size:12.5px;line-height:1.6}
+
+/* ---------- 按钮 ---------- */
+button,.btn,[class$="-btn"],[class*="btn-"],input[type=submit],input[type=button]{
+display:inline-flex;min-height:var(--field-h);padding:0 18px!important;align-items:center;justify-content:center;gap:6px;
+border:1px solid var(--border-strong)!important;border-radius:var(--radius-btn)!important;
+background:var(--container-bg)!important;color:var(--text)!important;font:600 14px inherit!important;cursor:pointer;
+transition:transform .18s var(--ease),border-color .18s var(--ease),background .18s var(--ease),color .18s var(--ease),box-shadow .18s var(--ease)
+}
+button:hover,.btn:hover,[class*="btn-"]:hover{border-color:var(--app-primary)!important;color:var(--app-primary)!important;transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+button:active,.btn:active{transform:scale(.98)}
+button:disabled,.btn:disabled{opacity:.45!important;cursor:not-allowed;transform:none}
+.btn-primary,[class*="btn-primary"],button.primary,[class*="save"],[class*="btn-add"],[class*="btn-confirm"],.btn-save{
+border-color:transparent!important;background:linear-gradient(135deg,var(--app-primary),var(--app-primary-hover))!important;
+color:#fff!important;box-shadow:0 3px 12px rgba(var(--app-primary-rgb),.24)!important
+}
+.btn-primary:hover,[class*="btn-primary"]:hover,.btn-save:hover{color:#fff!important;filter:brightness(1.05)}
+.btn-danger,[class*="btn-danger"],[class*="btn-del"],button.danger,[class*="btn-delete"],.btn-clear,[class*="clear"]{
+border-color:rgba(224,112,122,.35)!important;background:rgba(224,112,122,.1)!important;color:var(--danger)!important
+}
+.btn-danger:hover,[class*="btn-danger"]:hover{background:rgba(224,112,122,.18)!important;color:var(--danger)!important}
+.btn-sm,.btn-small,[class*="btn-sm"]{min-height:34px!important;padding:0 13px!important;border-radius:11px!important;font-size:12.5px!important}
+.btn-dashed,[class*="btn-dashed"]{border-style:dashed!important;color:var(--muted)!important;background:transparent!important}
+.btn-dashed:hover{color:var(--app-primary)!important;border-color:var(--app-primary)!important}
+.btn-block,[class*="btn-block"]{width:100%}
+.btn-group,.actions,.button-group,.ops,.row-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* ---------- 表单 ---------- */
+input[type=text],input[type=url],input[type=password],input[type=number],input[type=search],input[type=tel],input[type=email],textarea,select,.input{
+width:100%;padding:11px 14px!important;border:1px solid var(--border-strong)!important;border-radius:14px!important;
+background:var(--input-bg)!important;color:var(--text)!important;font:inherit!important;-webkit-appearance:none;appearance:none
+}
+input[type=number]{text-align:left}
+input::placeholder,textarea::placeholder{color:var(--faint)!important}
+input:focus,textarea:focus,select:focus{outline:none!important;border-color:var(--app-primary)!important;box-shadow:0 0 0 3px var(--app-primary-soft)!important}
+textarea{min-height:96px;border-radius:var(--radius-card-sm)!important;line-height:1.6;resize:vertical}
+input[type=file]{padding:9px 12px!important;border-style:dashed!important;color:var(--muted)!important}
+label{color:inherit;font-size:13.5px}
+.field-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.switch{position:relative;display:inline-flex;width:50px;height:29px;flex:0 0 auto}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.slider{position:absolute;inset:0;border-radius:999px;background:rgba(30,30,36,.18);transition:none;cursor:pointer}
+.slider::before{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.22);transition:transform .22s var(--ease)}
+.switch input:checked+.slider{background:var(--app-primary)!important}
+.switch input:checked+.slider::before{transform:translateX(21px)}
+
+/* ---------- 表格 ---------- */
+table{width:100%;margin-top:14px!important;border-collapse:separate!important;border-spacing:0;overflow:hidden;border:1px solid var(--border)!important;border-radius:var(--radius-card-sm);background:var(--container-bg)}
+thead{background:var(--panel-bg)!important}
+th{padding:12px 14px!important;border:0!important;border-bottom:1px solid var(--border)!important;background:var(--panel-bg)!important;color:var(--muted)!important;font-size:12.5px!important;font-weight:700!important;text-align:left}
+td{padding:12px 14px!important;border:0!important;border-bottom:1px solid var(--border)!important;color:var(--text)!important;font-size:13.5px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0!important}
+tbody tr:nth-child(even){background:var(--panel-bg)}
+tbody tr:hover{background:var(--panel-hover)}
+
+/* ---------- 状态标签 ---------- */
+.tag,.badge,.status-badge,.pill,.chip,[class*="tag-"]{
+display:inline-flex;padding:3px 10px!important;align-items:center;border:1px solid transparent;border-radius:999px!important;
+background:var(--panel-strong)!important;color:var(--app-primary)!important;font-size:11.5px!important;font-weight:600;line-height:1.7
+}
+.status-enabled,.tag-ok,[class*="enabled"]{background:rgba(82,166,125,.14)!important;color:var(--success)!important}
+.status-disabled,.tag-err,[class*="disabled"]{background:rgba(224,112,122,.14)!important;color:var(--danger)!important}
+.status-warn,[class*="warn"],[class*="pending"]{background:rgba(216,155,80,.16)!important;color:var(--warning)!important}
+
+/* ---------- 提示条 / 说明 ---------- */
+.alert,.info,.tip,.notice,.banner,[class*="alert-"]{
+padding:12px 14px!important;border:1px solid var(--border)!important;border-left:3px solid var(--app-primary)!important;
+border-radius:var(--radius-card-sm)!important;background:var(--panel-bg)!important;color:var(--muted)!important;font-size:13px;line-height:1.7
+}
+.alert-success,.success{background:rgba(82,166,125,.12)!important;border-left-color:var(--success)!important;color:var(--success)!important}
+.alert-error,.error{background:rgba(224,112,122,.12)!important;border-left-color:var(--danger)!important;color:var(--danger)!important}
+.alert-info{background:var(--panel-bg)!important;border-left-color:var(--app-primary)!important;color:var(--muted)!important}
+.info b,.alert b,.tip b{color:var(--text)!important}
+.muted,.desc,.sub,.help-text,.field-desc,[class*="desc"]{color:var(--muted)!important}
+.faint{color:var(--faint)!important}
+.small{font-size:12.5px;line-height:1.65}
+
+/* ---------- 代码 / 预览 ---------- */
+pre,code,.code,.json-viewer,.content-display,.raw-content,.response-area,.log-view{
+border-radius:var(--radius-card-sm)!important;background:var(--code-bg)!important;color:var(--code-text)!important;
+border:1px solid var(--border)!important;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
+}
+pre{padding:14px!important;font-size:12px;line-height:1.6;overflow:auto;white-space:pre-wrap;word-break:break-all}
+code{padding:2px 6px!important;font-size:12.5px}
+pre code{padding:0!important;background:transparent!important;border:0!important}
+
+/* ---------- 弹窗 / 遮罩 ---------- */
+/* 遮罩：只在弹层已打开时生效，避免强制显示隐藏的弹层 */
+.modal,.mask,.overlay,.dialog-mask{position:fixed;z-index:10000;inset:0;background:rgba(15,23,42,.5)!important}
+.modal.active,.modal.show,.modal.open,.modal[style*="display: flex"],.modal[style*="display:flex"],.modal[style*="display: block"],.modal[style*="display:block"],
+.overlay.active,.overlay.show,.overlay[style*="display: flex"],.overlay[style*="display:flex"],.overlay[style*="display: block"],
+.dialog-mask.active,.dialog-mask.show,.dialog-mask[style*="display: flex"],.dialog-mask[style*="display:flex"],
+.mask.show,.mask.active,.mask[style*="display: flex"],.mask[style*="display:flex"],.mask[style*="display: block"],.mask[style*="display:block"]{
+display:flex!important;padding:20px;align-items:center;justify-content:center;
+backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)
+}
+.modal-content,.modal-box,.dialog,.sheet{
+width:min(560px,100%);max-height:86vh;overflow:auto;padding:20px!important;
+border:1px solid var(--border)!important;border-radius:20px!important;background:var(--container-bg)!important;
+color:var(--text)!important;box-shadow:0 24px 60px rgba(0,0,0,.32)!important
+}
+.modal-content h3,.modal-box h3{margin:0 0 10px!important;color:var(--text)!important;font-size:17px!important}
+.modal-actions{display:flex;gap:10px;margin-top:16px}
+.modal-actions .modal-btn,.modal-actions button{flex:1 1 0}
+.modal-button-confirm,.modal-confirm{background:linear-gradient(135deg,var(--app-primary),var(--app-primary-hover))!important;color:#fff!important;border-color:transparent!important}
+.modal-button-cancel,.modal-cancel{background:var(--panel-strong)!important;color:var(--muted)!important}
+
+/* ---------- 空态 ---------- */
+.empty,.empty-state,.empty-box{display:grid;gap:8px;padding:34px 16px!important;place-items:center;color:var(--faint)!important;font-size:13.5px;text-align:center}
+.empty img,.empty-state img,.empty svg,.empty-state svg{opacity:.5;max-width:88px}
+
+/* ---------- 状态提示气泡 ---------- */
+.message,#toast,.toast{
+position:fixed;z-index:12000;left:50%;top:calc(env(safe-area-inset-top) + 18px);max-width:86vw;
+padding:11px 18px!important;transform:translate(-50%,-14px);border-radius:12px!important;border:1px solid var(--border);
+background:rgba(26,26,34,.92)!important;color:#fff!important;font-size:13.5px;box-shadow:var(--shadow-lg);
+opacity:0;transition:opacity .24s var(--ease),transform .24s var(--ease);pointer-events:none
+}
+.message.show,.toast.show{opacity:1;transform:translate(-50%,0)}
+.message.success{background:rgba(46,180,120,.95)!important}
+.message.error{background:rgba(230,90,100,.95)!important}
+
+/* ---------- API 测试页（IDE 布局） ---------- */
+.layout{background:transparent!important;color:var(--text)!important}
+.layout .sidebar,.layout .right-panel{border:1px solid var(--border)!important;border-radius:var(--radius-card)!important;background:var(--container-bg)!important;overflow:hidden}
+.sidebar-header,.panel-header,.right-panel-header{border-bottom:1px solid var(--border)!important;background:var(--panel-bg)!important;color:var(--text)!important}
+.sidebar-title,.panel-title{color:var(--text)!important;font-weight:700}
+.spider-list,.file-list,.log-list{background:transparent!important}
+.spider-item,.list-item,.file-item{padding:10px 12px!important;border-radius:var(--radius-card-sm)!important;border:1px solid var(--border)!important;background:var(--container-bg)!important;margin-bottom:8px}
+.spider-item:hover,.list-item:hover{border-color:var(--app-primary)!important;background:var(--panel-hover)!important}
+.spider-item.active,.list-item.selected{border-color:var(--app-primary)!important;background:var(--app-primary-soft)!important;color:var(--app-primary)!important}
+.resizer,.resizer-horizontal{background:var(--border)!important}
+.resizer:hover,.resizer.resizing{background:var(--app-primary)!important}
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{border-radius:999px;background:var(--border-strong)}
+::-webkit-scrollbar-thumb:hover{background:var(--faint)}
+
+/* ---------- 移动端 ---------- */
+@media(max-width:700px){
+:root{--shell-pad:12px}
+body{padding-left:8px!important;padding-right:8px!important}
+.container{border-radius:18px!important}
+.container>h1:first-child,body>h1,.container>.page-title,.container>.header,.container>.page-header,.container>header{
+padding:18px 44px 15px!important;font-size:18px!important
+}
+.container>.header h1,.container>header h1{font-size:18px!important}
+.menu-item{padding:14px!important}
+.menu-icon{width:34px;height:34px;font-size:18px}
+button,.btn,[class*="btn-"]{min-height:42px}
+.btn-group,.actions,.button-group,.ops{width:100%}
+table{display:block;overflow-x:auto;white-space:nowrap}
+.modal,.mask{padding:12px}
+.modal-content,.modal-box{padding:16px!important;border-radius:18px!important}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- 深色模式硬编码兜底 ---------- */
+html[data-color-scheme='dark'] .form-section,html[data-color-scheme='dark'] .section,html[data-color-scheme='dark'] .block,
+html[data-color-scheme='dark'] .source-item,html[data-color-scheme='dark'] .file-item,html[data-color-scheme='dark'] .list-item,
+html[data-color-scheme='dark'] .folder,html[data-color-scheme='dark'] .item,html[data-color-scheme='dark'] .panel,
+html[data-color-scheme='dark'] .card,html[data-color-scheme='dark'] .menu-item,html[data-color-scheme='dark'] .sidebar,
+html[data-color-scheme='dark'] .right-panel,html[data-color-scheme='dark'] .modal-content,html[data-color-scheme='dark'] .modal-box,
+html[data-color-scheme='dark'] .response-area,html[data-color-scheme='dark'] .tabs,html[data-color-scheme='dark'] .tab,
+html[data-color-scheme='dark'] .toolbar,html[data-color-scheme='dark'] .pagination,html[data-color-scheme='dark'] .search,
+html[data-color-scheme='dark'] .stat,html[data-color-scheme='dark'] .metric,html[data-color-scheme='dark'] .info-box,
+html[data-color-scheme='dark'] .help-text,html[data-color-scheme='dark'] .empty,html[data-color-scheme='dark'] .empty-state{
+background:var(--container-bg)!important;color:var(--text)!important;border-color:var(--border)!important
+}
+html[data-color-scheme='dark'] thead,html[data-color-scheme='dark'] th{background:var(--panel-bg)!important;color:var(--muted)!important}
+html[data-color-scheme='dark'] tbody tr:nth-child(even){background:var(--panel-bg)!important}
+html[data-color-scheme='dark'] input,html[data-color-scheme='dark'] textarea,html[data-color-scheme='dark'] select{background:var(--input-bg)!important;color:var(--text)!important;border-color:var(--border-strong)!important}
+html[data-color-scheme='dark'] .stats,html[data-color-scheme='dark'] .info,html[data-color-scheme='dark'] .alert,html[data-color-scheme='dark'] .tip{background:var(--panel-bg)!important;color:var(--muted)!important}
+
+/* ---------- IDE 布局页（API 测试工具）修正 ---------- */
+body>.layout{padding-top:58px!important}
+.breadcrumb,.breadcrumb-item,[class*="breadcrumb"]{color:var(--muted)!important}
+.breadcrumb-current{color:var(--text)!important;font-weight:600}
+.main-content,.right-panel-inner{color:var(--text)!important}
+[class*="log-time"],[class*="log-msg"]{color:var(--muted)!important}
+[class*="placeholder"],.text-muted{color:var(--faint)!important}
+html[data-color-scheme='dark'] .breadcrumb,html[data-color-scheme='dark'] [class*="breadcrumb"]{color:var(--muted)!important}
+html[data-color-scheme='dark'] .slider{background:#3b4252!important}
+.slider{background:rgba(30,30,36,.18)}
+
+/* ---------- 分隔线 ---------- */
+hr{border:0!important;border-top:1px solid var(--border)!important;margin:16px 0!important;background:transparent!important;height:0!important}
+.divider,.separator,[class*="divider"]{border-color:var(--border)!important;background:var(--border)!important}
+
+/* ---------- 全局角标按钮：主题（左上）/ 返回（右上） ---------- */
+.hs-theme-toggle{
+position:fixed!important;z-index:9999!important;top:max(18px,env(safe-area-inset-top))!important;
+left:max(18px,env(safe-area-inset-left))!important;right:auto!important;
+display:inline-flex!important;width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;
+min-height:38px!important;max-height:38px!important;box-sizing:border-box!important;padding:0!important;
+align-items:center!important;justify-content:center!important;border:1px solid var(--border)!important;border-radius:50%!important;
+background:var(--panel-strong)!important;color:var(--app-primary)!important;font-size:17px!important;line-height:1!important;
+box-shadow:var(--shadow-sm)!important;cursor:pointer
+}
+.hs-theme-toggle:hover{transform:scale(1.06)}
+.hs-unified-back,.container>.back-link{
+position:fixed!important;z-index:9998!important;top:max(18px,env(safe-area-inset-top))!important;
+right:max(18px,env(safe-area-inset-right))!important;left:auto!important;
+display:inline-flex!important;min-width:0!important;min-height:38px!important;margin:0!important;padding:0 13px!important;
+align-items:center!important;justify-content:center!important;border:1px solid var(--border)!important;border-radius:12px!important;
+background:var(--container-bg)!important;color:var(--app-primary)!important;box-shadow:var(--shadow-sm)!important;
+font:600 12.5px -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif!important;text-decoration:none!important
+}
+.hs-unified-back:hover,.container>.back-link:hover{border-color:var(--app-primary)!important;background:var(--panel-strong)!important;text-decoration:none!important}
+.container>header .back-link,.container>.header .back-link,.container>.page-header .back-link{position:static!important;margin:0 0 6px!important}
+@media(max-width:480px){
+.hs-unified-back,.container>.back-link{width:38px!important;height:38px!important;padding:0!important;font-size:0!important}
+.hs-unified-back::before,.container>.back-link::before{content:'↩';font-size:17px}
+}
+body.hs-has-back{padding-top:calc(env(safe-area-inset-top) + 58px)!important}
+@media(max-width:480px){body.hs-has-back{padding-top:calc(env(safe-area-inset-top) + 58px)!important}}
+</style>
+<script>
+(function () {
+try {
+var saved = '';
+try { saved = localStorage.getItem('hs-theme') || ''; } catch (e) { }
+if (!saved) saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+document.documentElement.setAttribute('data-color-scheme', saved);
+} catch (e) { }
+window.hsToggleTheme = function () {
+var root = document.documentElement;
+var dark = root.getAttribute('data-color-scheme') === 'dark';
+root.classList.add('theme-switching');
+root.setAttribute('data-color-scheme', dark ? 'light' : 'dark');
+try { localStorage.setItem('hs-theme', dark ? 'light' : 'dark'); } catch (e) { }
+setTimeout(function () { root.classList.remove('theme-switching'); }, 120);
+var b = document.getElementById('hsThemeBtn');
+if (b) b.textContent = dark ? '🌙' : '☀️';
+};
+document.addEventListener('DOMContentLoaded', function () {
+if (document.getElementById('hsThemeBtn')) return;
+var b = document.createElement('button');
+b.id = 'hsThemeBtn'; b.type = 'button'; b.className = 'hs-theme-toggle';
+b.textContent = document.documentElement.getAttribute('data-color-scheme') === 'dark' ? '☀️' : '🌙';
+b.onclick = window.hsToggleTheme;
+document.body.appendChild(b);
+});
+})();
+</script>
+
+
+<style>
+/* hs 直播源配置 v2（对齐 Lmentor 直播源模型：名称/链接/UA/Cookie/台标/启用） */
+.live-card{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:14px;margin-bottom:10px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.count-badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:rgba(0,122,255,.12);color:#007aff;font-size:12px;vertical-align:middle}
+.src-item{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px;margin-bottom:10px}
+.src-item.off{opacity:.62}
+.src-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.src-no{font-size:12px;color:#9ca3af;min-width:20px}
+.src-name{font-weight:600;font-size:15px;word-break:break-all}
+.src-badge{padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px}
+.src-badge.on{background:rgba(22,163,74,.14);color:#16a34a}
+.src-badge.off{background:rgba(156,163,175,.2);color:#6b7280}
+.src-url{font-size:12px;color:#6b7280;word-break:break-all;line-height:1.55;margin-bottom:4px}
+.src-meta{font-size:12px;color:#9ca3af;word-break:break-all;line-height:1.55;margin-bottom:8px}
+.src-meta b{font-weight:600;color:#6b7280}
+.src-actions{display:flex;gap:8px;flex-wrap:wrap}
+.act{padding:5px 11px!important;min-height:0!important;height:auto!important;font-size:12px!important;line-height:1.5!important;border-radius:8px!important;border:1px solid #d1d5db!important;background:transparent!important;color:inherit!important;box-shadow:none!important}
+.act.danger{border-color:rgba(220,38,38,.5)!important;color:#dc2626!important}
+.act.ok{border-color:rgba(22,163,74,.5)!important;color:#16a34a!important}
+.act[disabled]{opacity:.5}
+.test-result{margin-top:10px;font-size:13px;line-height:1.6;color:#6b7280;white-space:pre-wrap;word-break:break-all;display:none}
+.test-result.show{display:block}
+.test-result.ok{color:#16a34a}
+.test-result.err{color:#dc2626}
+.live-tip{font-size:12px;color:#9ca3af;margin-top:6px;line-height:1.6}
+</style>
+
+<style>
+/* hs 直播源配置 v2（对齐 Lmentor 直播源模型：名称/链接/UA/Cookie/台标/启用） */
+.live-card{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:14px;margin-bottom:10px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.count-badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:rgba(0,122,255,.12);color:#007aff;font-size:12px;vertical-align:middle}
+.src-item{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px;margin-bottom:10px}
+.src-item.off{opacity:.62}
+.src-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.src-no{font-size:12px;color:#9ca3af;min-width:20px}
+.src-name{font-weight:600;font-size:15px;word-break:break-all}
+.src-badge{padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px}
+.src-badge.on{background:rgba(22,163,74,.14);color:#16a34a}
+.src-badge.off{background:rgba(156,163,175,.2);color:#6b7280}
+.src-url{font-size:12px;color:#6b7280;word-break:break-all;line-height:1.55;margin-bottom:4px}
+.src-meta{font-size:12px;color:#9ca3af;word-break:break-all;line-height:1.55;margin-bottom:8px}
+.src-meta b{font-weight:600;color:#6b7280}
+.src-actions{display:flex;gap:8px;flex-wrap:wrap}
+.act{padding:5px 11px!important;min-height:0!important;height:auto!important;font-size:12px!important;line-height:1.5!important;border-radius:8px!important;border:1px solid #d1d5db!important;background:transparent!important;color:inherit!important;box-shadow:none!important}
+.act.danger{border-color:rgba(220,38,38,.5)!important;color:#dc2626!important}
+.act.ok{border-color:rgba(22,163,74,.5)!important;color:#16a34a!important}
+.act[disabled]{opacity:.5}
+.test-result{margin-top:10px;font-size:13px;line-height:1.6;color:#6b7280;white-space:pre-wrap;word-break:break-all;display:none}
+.test-result.show{display:block}
+.test-result.ok{color:#16a34a}
+.test-result.err{color:#dc2626}
+.live-tip{font-size:12px;color:#9ca3af;margin-top:6px;line-height:1.6}
+</style>
+
+<style>
+/* hs 直播源配置 v2（对齐 Lmentor 直播源模型：名称/链接/UA/Cookie/台标/启用） */
+.live-card{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:14px;margin-bottom:10px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.count-badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:rgba(0,122,255,.12);color:#007aff;font-size:12px;vertical-align:middle}
+.src-item{background:var(--panel-bg,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px;margin-bottom:10px}
+.src-item.off{opacity:.62}
+.src-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.src-no{font-size:12px;color:#9ca3af;min-width:20px}
+.src-name{font-weight:600;font-size:15px;word-break:break-all}
+.src-badge{padding:1px 8px;border-radius:10px;font-size:12px;line-height:18px}
+.src-badge.on{background:rgba(22,163,74,.14);color:#16a34a}
+.src-badge.off{background:rgba(156,163,175,.2);color:#6b7280}
+.src-badge.app{background:rgba(0,122,255,.14);color:#007aff}
+.src-url{font-size:12px;color:#6b7280;word-break:break-all;line-height:1.55;margin-bottom:4px}
+.src-meta{font-size:12px;color:#9ca3af;word-break:break-all;line-height:1.55;margin-bottom:8px}
+.src-meta b{font-weight:600;color:#6b7280}
+.src-actions{display:flex;gap:8px;flex-wrap:wrap}
+.act{padding:5px 11px!important;min-height:0!important;height:auto!important;font-size:12px!important;line-height:1.5!important;border-radius:8px!important;border:1px solid #d1d5db!important;background:transparent!important;color:inherit!important;box-shadow:none!important}
+.act.danger{border-color:rgba(220,38,38,.5)!important;color:#dc2626!important}
+.act.ok{border-color:rgba(22,163,74,.5)!important;color:#16a34a!important}
+.act[disabled]{opacity:.5}
+.test-result{margin-top:10px;font-size:13px;line-height:1.6;color:#6b7280;white-space:pre-wrap;word-break:break-all;display:none}
+.test-result.show{display:block}
+.test-result.ok{color:#16a34a}
+.test-result.err{color:#dc2626}
+.live-tip{font-size:12px;color:#9ca3af;margin-top:6px;line-height:1.6}
+</style>
 </head>
 
 <body>
-    <div class="container">
-        <a href="/website/" class="back-link">← 返回配置管理</a>
+<div class="container">
+<a href="/website" class="back-link">← 返回配置管理</a>
 
-        <h1>📺 直播源配置</h1>
+<h1>📺 直播源配置</h1>
 
-        <!-- 添加新源表单 -->
-        <div class="form-section">
-            <div class="form-title">添加直播源</div>
+<div class="form-section">
+<div class="form-title" id="editorTitle">添加直播源</div>
 
-            <div class="form-group">
-                <label for="sourceName">直播源名称</label>
-                <input type="text" id="sourceName" placeholder="例如：央视频道、湖南卫视等" />
-                <div class="error-msg" id="sourceNameError"></div>
-            </div>
+<div class="form-group">
+    <label for="sourceName">直播源名称</label>
+    <input type="text" id="sourceName" placeholder="例如：央视频道、IPTV4 等" />
+    <div class="error-msg" id="sourceNameError"></div>
+</div>
 
-            <div class="form-group">
-                <label for="sourceUrl">TXT 链接地址</label>
-                <input type="text" id="sourceUrl" placeholder="例如：http://example.com/live.txt" />
-                <div class="error-msg" id="sourceUrlError"></div>
-            </div>
+<div class="form-group">
+    <label for="sourceUrl">列表链接（m3u / txt）</label>
+    <input type="text" id="sourceUrl" placeholder="例如：https://example.com/live.m3u" />
+    <div class="error-msg" id="sourceUrlError"></div>
+</div>
 
-            <button class="btn btn-primary" id="addSourceBtn">添加直播源</button>
-        </div>
+<div class="form-group">
+    <label for="sourceUA">User-Agent（可选）</label>
+    <input type="text" id="sourceUA" placeholder="留空默认 okhttp/3.15" />
+    <div class="live-tip">部分源只认特定 UA（如 okhttp/3.15、VLC、浏览器 UA），失败时会自动用浏览器 UA 重试一次。</div>
+</div>
 
-        <!-- 直播源列表 -->
-        <div class="source-list">
-            <div class="list-title">已配置的直播源</div>
-            <div id="loading" class="loading">加载中...</div>
-            <div id="sourceList"></div>
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <div class="empty-state-icon">📭</div>
-                <div>暂无直播源配置</div>
-            </div>
-        </div>
+<div class="form-group">
+    <label for="sourceCookie">Cookie（可选）</label>
+    <input type="text" id="sourceCookie" placeholder="需要登录 / 鉴权的源才填写" />
+</div>
 
-        <!-- 保存按钮 -->
-        <button class="btn btn-success" id="saveBtn">💾 保存所有配置</button>
+<div class="form-group">
+    <label for="sourceLogo">台标图片地址（可选）</label>
+    <input type="text" id="sourceLogo" placeholder="http://example.com/logo.png" />
+</div>
 
-        <!-- 帮助文本 -->
-        <div class="help-text">
-            <strong>📝 TXT 格式说明：</strong>
-            支持格式：频道名,http://链接<br>
-            示例：驚艷台,http://15.204.105.50:25461/live/xxx.ts<br>
-            纯链接会自动命名为"频道N"，# 开头的行会被视为注释
-        </div>
-    </div>
+<div class="btn-row">
+    <button class="btn btn-primary" id="addSourceBtn">添加直播源</button>
+    <button class="btn" id="cancelEditBtn" style="display:none">取消编辑</button>
+    <button class="btn" id="testFormBtn">🔍 解析测试</button>
+    <button class="btn" id="probeFormBtn">🔬 全套测试</button>
+    <label for="probeSample" style="font-size:12px;color:#9ca3af">抽样</label>
+    <input type="number" id="probeSample" value="8" min="1" max="20" style="width:64px" />
+</div>
+<div class="live-tip">「解析测试」只统计分组与频道数量；「全套测试」会按分组均匀抽样频道，实际请求播放地址（跟随跳转、校验清单与首个分片），给出可播放率——耗时约 10~40 秒。</div>
+<div class="test-result" id="testResult"></div>
+</div>
 
-    <!-- Toast 提示容器 -->
-    <div id="toast" class="toast"></div>
+<div class="source-list">
+<div class="list-title">已配置的直播源 <span class="count-badge" id="srcCount">0</span></div>
+<div id="loading" class="loading">加载中...</div>
+<div id="sourceList"></div>
+<div id="emptyState" class="empty-state" style="display:none">
+    <div class="empty-state-icon">📭</div>
+    <div>暂无直播源配置</div>
+</div>
+</div>
 
-    <script>
-        let sources = [];
+<button class="btn btn-success" id="saveBtn">💾 保存所有配置</button>
 
-        // Toast 提示函数
-        function showToast(message, type = 'info', duration = 2000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'toast show ' + type;
+<div class="help-text">
+<strong>📝 说明：</strong><br />
+支持 m3u（#EXTINF / group-title / tvg-logo / #EXTGRP / #EXTVLCOPT）与 txt（频道名,链接、分组#genre#、纯链接）两种格式。<br />
+直播页结构：直播源 → 分组 → 频道；播放时自动携带 UA / Cookie / Referer，<code>.php</code> 与 <code>playlist/</code> 地址会先解析跳转再播放。<br />
+列表会自动读取 App 内置的直播源配置（与 Lmentor 引擎同一份数据，标记「App 配置」）并与本页配置合并；本页保存只写本页配置。<br />
+列表顺序即 App 里直播源的显示顺序，可用「上移 / 下移」调整；保存后重启服务（或重新进入直播源）生效。<br />
+列表项「解析」= 统计分组与频道数量；「全测」= 抽样实测播放地址（跟随跳转、校验清单与首个分片），用于排查「列表能解析但播不了」的源。
+</div>
+</div>
 
-            setTimeout(() => {
-                toast.className = 'toast';
-            }, duration);
+<div id="toast" class="toast"></div>
+
+<script>
+var sources = [];
+var editingIndex = -1;
+
+function $(id) { return document.getElementById(id); }
+
+function toast(message, type, duration) {
+var el = $('toast');
+el.textContent = message;
+el.className = 'toast show ' + (type || 'info');
+setTimeout(function () { el.className = 'toast'; }, duration || 2200);
+}
+
+function esc(text) {
+var div = document.createElement('div');
+div.textContent = (text === null || text === undefined) ? '' : String(text);
+return div.innerHTML;
+}
+
+function showError(inputId, message) {
+var input = $(inputId), div = $(inputId + 'Error');
+if (input) input.classList.add('error');
+if (div) { div.textContent = message; div.classList.add('show'); }
+}
+
+function clearError(inputId) {
+var input = $(inputId), div = $(inputId + 'Error');
+if (input) input.classList.remove('error');
+if (div) div.classList.remove('show');
+}
+
+async function loadConfig() {
+var loading = $('loading');
+loading.classList.add('active');
+try {
+    var res = await fetch('/website/live', { headers: { 'Accept': 'application/json' } });
+    var json = await res.json();
+    sources = (json && json.code === 0 && json.data && json.data.sources) ? json.data.sources : [];
+} catch (error) {
+    console.error('加载配置失败:', error);
+    toast('加载配置失败，请刷新页面重试', 'error', 3000);
+    sources = [];
+} finally {
+    loading.classList.remove('active');
+    renderList();
+}
+}
+
+function renderList() {
+var list = $('sourceList'), emptyState = $('emptyState');
+$('srcCount').textContent = sources.length;
+if (sources.length === 0) {
+    list.innerHTML = '';
+    emptyState.style.display = 'block';
+    return;
+}
+emptyState.style.display = 'none';
+var html = '';
+for (var i = 0; i < sources.length; i++) html += itemHtml(sources[i], i);
+list.innerHTML = html;
+}
+
+function itemHtml(s, i) {
+var off = s.enabled === false;
+var meta = '';
+meta += '<div><b>UA：</b>' + esc(s.ua || '默认 okhttp/3.15') + '</div>';
+if (s.cookie) meta += '<div><b>Cookie：</b>' + esc(s.cookie) + '</div>';
+if (s.logo || s.logoUrl) meta += '<div><b>台标：</b>' + esc(s.logo || s.logoUrl) + '</div>';
+var html = '<div class="src-item' + (off ? ' off' : '') + '">'
+    + '<div class="src-top">'
+    + '<span class="src-no">' + (i + 1) + '</span>'
+    + '<span class="src-name">' + esc(s.name) + '</span>'
+    + '<span class="src-badge ' + (off ? 'off' : 'on') + '">' + (off ? '已禁用' : '已启用') + '</span>'
+    + (s.origin === 'app' ? '<span class="src-badge app">App 配置</span>' : '')
+    + '</div>'
+    + '<div class="src-url">' + esc(s.url) + '</div>'
+    + '<div class="src-meta">' + meta + '</div>'
+    + '<div class="src-actions">'
+    + '<button class="act" data-act="edit" data-i="' + i + '">编辑</button>'
+    + '<button class="act ok" data-act="test" data-i="' + i + '">解析</button>'
+    + '<button class="act ok" data-act="probe" data-i="' + i + '">全测</button>'
+    + '<button class="act" data-act="up" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + '>上移</button>'
+    + '<button class="act" data-act="down" data-i="' + i + '"' + (i === sources.length - 1 ? ' disabled' : '') + '>下移</button>'
+    + '<button class="act" data-act="toggle" data-i="' + i + '">' + (off ? '启用' : '禁用') + '</button>'
+    + '<button class="act danger" data-act="del" data-i="' + i + '">删除</button>'
+    + '</div>'
+    + '<div class="test-result" id="testResult' + i + '"></div>'
+    + '</div>';
+return html;
+}
+
+function clearForm() {
+['sourceName', 'sourceUrl', 'sourceUA', 'sourceCookie', 'sourceLogo'].forEach(function (id) {
+    var el = $(id); if (el) el.value = '';
+    clearError(id);
+});
+editingIndex = -1;
+$('addSourceBtn').textContent = '添加直播源';
+$('editorTitle').textContent = '添加直播源';
+$('cancelEditBtn').style.display = 'none';
+$('testResult').classList.remove('show', 'ok', 'err');
+}
+
+function validate() {
+var name = $('sourceName').value.trim();
+var url = $('sourceUrl').value.trim();
+clearError('sourceName');
+clearError('sourceUrl');
+if (!name) { showError('sourceName', '请输入直播源名称'); $('sourceName').focus(); return null; }
+if (!url) { showError('sourceUrl', '请输入列表链接'); $('sourceUrl').focus(); return null; }
+if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
+    showError('sourceUrl', '链接必须以 http:// 或 https:// 开头');
+    $('sourceUrl').focus();
+    return null;
+}
+return { name: name, url: url };
+}
+
+function addOrUpdate() {
+var base = validate();
+if (!base) return;
+var item = {
+    name: base.name,
+    url: base.url,
+    ua: $('sourceUA').value.trim(),
+    cookie: $('sourceCookie').value.trim(),
+    logo: $('sourceLogo').value.trim(),
+    enabled: true
+};
+if (editingIndex >= 0 && sources[editingIndex]) {
+    item.id = sources[editingIndex].id || Date.now();
+    item.enabled = sources[editingIndex].enabled !== false;
+    sources[editingIndex] = item;
+    toast('已更新：' + item.name, 'success');
+} else {
+    for (var i = 0; i < sources.length; i++) {
+        if (sources[i].url === item.url) { showError('sourceUrl', '该直播源链接已存在'); return; }
+    }
+    item.id = Date.now();
+    sources.push(item);
+    toast('添加成功', 'success');
+}
+clearForm();
+renderList();
+}
+
+function startEdit(i) {
+var s = sources[i];
+if (!s) return;
+$('sourceName').value = s.name || '';
+$('sourceUrl').value = s.url || '';
+$('sourceUA').value = s.ua || '';
+$('sourceCookie').value = s.cookie || '';
+$('sourceLogo').value = s.logo || s.logoUrl || '';
+editingIndex = i;
+$('addSourceBtn').textContent = '保存修改';
+$('editorTitle').textContent = '编辑直播源（第 ' + (i + 1) + ' 项）';
+$('cancelEditBtn').style.display = 'inline-block';
+['sourceName', 'sourceUrl', 'sourceUA', 'sourceCookie', 'sourceLogo'].forEach(function (id) { clearError(id); });
+$('sourceName').scrollIntoView({ block: 'center' });
+}
+
+function delSource(i) {
+var s = sources[i];
+if (!s) return;
+if (!confirm('确定删除「' + s.name + '」？')) return;
+if (editingIndex === i) clearForm();
+sources.splice(i, 1);
+renderList();
+toast('已删除：' + s.name, 'success');
+}
+
+function moveSource(i, step) {
+var j = i + step;
+if (j < 0 || j >= sources.length) return;
+var tmp = sources[i];
+sources[i] = sources[j];
+sources[j] = tmp;
+if (editingIndex === i) editingIndex = j;
+else if (editingIndex === j) editingIndex = i;
+renderList();
+}
+
+function toggleSource(i) {
+var s = sources[i];
+if (!s) return;
+s.enabled = s.enabled === false;
+renderList();
+toast(s.enabled === false ? '已禁用' : '已启用', 'info');
+}
+
+function showResult(el, text, ok) {
+if (!el) return;
+el.textContent = text;
+el.className = 'test-result show ' + (ok ? 'ok' : 'err');
+}
+
+async function testSource(url, ua, cookie, elId, btn) {
+var el = $(elId);
+if (!url) { showResult(el, '请先填写列表链接', false); return; }
+if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
+    showResult(el, '链接必须以 http:// 或 https:// 开头', false);
+    return;
+}
+if (btn) btn.disabled = true;
+showResult(el, '正在拉取并解析...', true);
+try {
+    var res = await fetch('/website/live/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, ua: ua || '', cookie: cookie || '' })
+    });
+    var json = await res.json();
+    if (json && json.code === 0 && json.data) {
+        var d = json.data;
+        var lines = ['解析成功：' + d.groups + ' 个分组 / ' + d.channels + ' 个频道'];
+        if (d.sample && d.sample.length) {
+            for (var i = 0; i < d.sample.length; i++) lines.push('　· ' + d.sample[i].name + '（' + d.sample[i].count + ' 频道）');
         }
+        if (d.channelSample && d.channelSample.length) lines.push('频道示例：' + d.channelSample.join('、'));
+        showResult(el, lines.join(String.fromCharCode(10)), true);
+    } else {
+        showResult(el, '测试失败：' + ((json && json.message) || '未知错误'), false);
+    }
+} catch (error) {
+    showResult(el, '测试失败：' + (error && error.message ? error.message : error), false);
+} finally {
+    if (btn) btn.disabled = false;
+}
+}
 
-        // 显示错误信息
-        function showError(inputId, message) {
-            const input = document.getElementById(inputId);
-            const errorDiv = document.getElementById(inputId + 'Error');
-            input.classList.add('error');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('show');
+async function probeSource(url, ua, cookie, elId, btn, sample) {
+var el = $(elId);
+if (!url) { showResult(el, '请先填写列表链接', false); return; }
+if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
+    showResult(el, '链接必须以 http:// 或 https:// 开头', false);
+    return;
+}
+var n = parseInt(sample, 10);
+if (!n || n < 1) n = 8;
+if (n > 20) n = 20;
+if (btn) btn.disabled = true;
+showResult(el, '正在抽样探测（约 10~40 秒，请稍候）...', true);
+try {
+    var res = await fetch('/website/live/probe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, ua: ua || '', cookie: cookie || '', sample: n })
+    });
+    var json = await res.json();
+    if (json && json.code === 0 && json.data) {
+        var d = json.data;
+        var lines = [];
+        lines.push('全套测试：' + d.groups + ' 个分组 / ' + d.channels + ' 个频道；抽样 ' + d.sample + ' 个，可播放 ' + d.ok + ' 个（' + d.rate + '%）');
+        var items = d.items || [];
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var line = (it.ok ? '✅ ' : '❌ ') + it.group + ' / ' + it.name + ' — ';
+            if (it.status) line += 'HTTP ' + it.status + (it.type ? ' ' + it.type : '');
+            else line += (it.note || '请求失败');
+            if (it.seg) line += ' · 分片 ' + it.seg.status + ' ' + Math.max(1, Math.round(it.seg.bytes / 1024)) + 'KB';
+            line += ' · ' + it.ms + 'ms';
+            if (!it.ok && it.note && it.status) line += '（' + it.note + '）';
+            lines.push(line);
         }
+        showResult(el, lines.join(String.fromCharCode(10)), (d.rate || 0) >= 50);
+    } else {
+        showResult(el, '测试失败：' + ((json && json.message) || '未知错误'), false);
+    }
+} catch (error) {
+    showResult(el, '测试失败：' + (error && error.message ? error.message : error), false);
+} finally {
+    if (btn) btn.disabled = false;
+}
+}
 
-        // 清除错误信息
-        function clearError(inputId) {
-            const input = document.getElementById(inputId);
-            const errorDiv = document.getElementById(inputId + 'Error');
-            input.classList.remove('error');
-            errorDiv.classList.remove('show');
-        }
+async function saveAll() {
+try {
+    var res = await fetch('/website/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: sources })
+    });
+    var json = await res.json();
+    if (json && json.code === 0) {
+        toast('保存成功！重启服务后生效', 'success', 3000);
+    } else {
+        toast('保存失败：' + ((json && json.message) || '未知错误'), 'error', 3000);
+    }
+} catch (error) {
+    console.error('保存失败:', error);
+    toast('保存失败，请检查网络连接', 'error', 3000);
+}
+}
 
-        // 加载配置
-        async function loadConfig() {
-            const loading = document.getElementById('loading');
-            const sourceList = document.getElementById('sourceList');
-            const emptyState = document.getElementById('emptyState');
+function bindEvents() {
+$('addSourceBtn').addEventListener('click', addOrUpdate);
+$('cancelEditBtn').addEventListener('click', function () { clearForm(); toast('已取消编辑', 'info'); });
+$('saveBtn').addEventListener('click', saveAll);
+$('testFormBtn').addEventListener('click', function () {
+    testSource($('sourceUrl').value.trim(), $('sourceUA').value.trim(), $('sourceCookie').value.trim(), 'testResult', this);
+});
+$('probeFormBtn').addEventListener('click', function () {
+    probeSource($('sourceUrl').value.trim(), $('sourceUA').value.trim(), $('sourceCookie').value.trim(), 'testResult', this, $('probeSample').value);
+});
+$('sourceList').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.disabled) return;
+    var act = btn.dataset.act, i = parseInt(btn.dataset.i, 10);
+    if (isNaN(i)) return;
+    if (act === 'edit') startEdit(i);
+    else if (act === 'del') delSource(i);
+    else if (act === 'up') moveSource(i, -1);
+    else if (act === 'down') moveSource(i, 1);
+    else if (act === 'toggle') toggleSource(i);
+    else if (act === 'test') {
+        var s = sources[i] || {};
+        testSource(s.url, s.ua, s.cookie, 'testResult' + i, btn);
+    } else if (act === 'probe') {
+        var s2 = sources[i] || {};
+        probeSource(s2.url, s2.ua, s2.cookie, 'testResult' + i, btn, $('probeSample').value);
+    }
+});
+['sourceName', 'sourceUrl'].forEach(function (id) {
+    $(id).addEventListener('focus', function () { clearError(id); });
+});
+$('sourceUrl').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') addOrUpdate();
+});
+}
 
-            loading.classList.add('active');
-
-            try {
-                const res = await fetch('/website/live', {
-                    headers: { 'Accept': 'application/json' }
-                });
-                const json = await res.json();
-
-                if (json.code === 0) {
-                    sources = json.data.sources || [];
-                } else {
-                    sources = [];
-                }
-
-                renderList();
-            } catch (error) {
-                console.error('加载配置失败:', error);
-                showToast('加载配置失败，请刷新页面重试', 'error', 3000);
-                sources = [];
-                renderList();
-            } finally {
-                loading.classList.remove('active');
-            }
-        }
-
-        // 渲染列表
-        function renderList() {
-            const list = document.getElementById('sourceList');
-            const emptyState = document.getElementById('emptyState');
-
-            if (sources.length === 0) {
-                list.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            list.innerHTML = sources.map((s, i) => `
-                <div class="source-item">
-                    <div class="source-info">
-                        <div class="source-header">
-                            <span class="source-name">${escapeHtml(s.name)}</span>
-                            <span class="source-badge ${s.enabled === false ? 'disabled' : ''}">
-                                ${s.enabled === false ? '已禁用' : '已启用'}
-                            </span>
-                        </div>
-                        <div class="source-url">${escapeHtml(s.url)}</div>
-                    </div>
-                    <div class="source-actions">
-                        <button class="btn-icon" data-action="toggle" data-index="${i}" title="切换启用状态">
-                            ${s.enabled === false ? '🔓' : '🔒'}
-                        </button>
-                        <button class="btn btn-danger" data-action="delete" data-index="${i}">删除</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // 添加源
-        function addSource() {
-            const nameInput = document.getElementById('sourceName');
-            const urlInput = document.getElementById('sourceUrl');
-            const name = nameInput.value.trim();
-            const url = urlInput.value.trim();
-
-            // 清除之前的错误提示
-            clearError('sourceName');
-            clearError('sourceUrl');
-
-            if (!name) {
-                showError('sourceName', '请输入直播源名称');
-                nameInput.focus();
-                return;
-            }
-
-            if (!url) {
-                showError('sourceUrl', '请输入 TXT 链接地址');
-                urlInput.focus();
-                return;
-            }
-
-            // 验证 URL 格式
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                showError('sourceUrl', '请输入有效的链接地址（必须以 http:// 或 https:// 开头）');
-                urlInput.focus();
-                return;
-            }
-
-            // 检查重复
-            if (sources.some(s => s.url === url)) {
-                showError('sourceUrl', '该直播源链接已存在');
-                urlInput.focus();
-                return;
-            }
-
-            sources.push({
-                id: Date.now(),
-                name,
-                url,
-                enabled: true
-            });
-
-            renderList();
-            showToast('添加成功', 'success');
-
-            nameInput.value = '';
-            urlInput.value = '';
-            nameInput.focus();
-        }
-
-        // 删除源
-        function deleteSource(index) {
-            const source = sources[index];
-            sources.splice(index, 1);
-            renderList();
-            showToast(`已删除：${source.name}`, 'success');
-        }
-
-        // 切换启用状态
-        function toggleSource(index) {
-            if (sources[index].enabled === false) {
-                sources[index].enabled = true;
-                showToast('已启用', 'success');
-            } else {
-                sources[index].enabled = false;
-                showToast('已禁用', 'info');
-            }
-            renderList();
-        }
-
-        // 保存
-        async function saveAll() {
-            try {
-                const res = await fetch('/website/live', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sources })
-                });
-
-                const json = await res.json();
-
-                if (json.code === 0) {
-                    showToast('保存成功！重启服务器后生效', 'success', 3000);
-                } else {
-                    showToast('保存失败：' + json.message, 'error', 3000);
-                }
-            } catch (error) {
-                console.error('保存失败:', error);
-                showToast('保存失败，请检查网络连接', 'error', 3000);
-            }
-        }
-
-        // HTML 转义
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // 绑定事件监听器
-        function bindEvents() {
-            // 添加直播源按钮
-            document.getElementById('addSourceBtn').addEventListener('click', addSource);
-
-            // 保存按钮
-            document.getElementById('saveBtn').addEventListener('click', saveAll);
-
-            // 列表中的按钮（使用事件委托）
-            document.getElementById('sourceList').addEventListener('click', function(e) {
-                const button = e.target.closest('button');
-                if (!button) return;
-
-                const action = button.dataset.action;
-                const index = parseInt(button.dataset.index);
-
-                if (action === 'delete') {
-                    deleteSource(index);
-                } else if (action === 'toggle') {
-                    toggleSource(index);
-                }
-            });
-
-            // 输入框获取焦点时清除错误提示
-            document.getElementById('sourceName').addEventListener('focus', function() {
-                clearError('sourceName');
-            });
-
-            document.getElementById('sourceUrl').addEventListener('focus', function() {
-                clearError('sourceUrl');
-            });
-
-            // 支持 Enter 键提交
-            document.getElementById('sourceUrl').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    addSource();
-                }
-            });
-        }
-
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            bindEvents();
-            loadConfig();
-        });
-    </script>
+document.addEventListener('DOMContentLoaded', function () {
+bindEvents();
+loadConfig();
+});
+</script>
 </body>
 
 </html>
