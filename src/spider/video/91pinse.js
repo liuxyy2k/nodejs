@@ -1,22 +1,37 @@
-import axios from 'axios';
 import { load } from 'cheerio';
-import { config } from './config.js';
-import CryptoJS from 'crypto-js';
+import req from '../../util/req.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91pinse.com';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+function pageHeaders(referer, extra = {}) {
+    return {
+        'User-Agent': UA,
+        Referer: referer || `${site}/`,
+        Origin: site,
+        Accept: '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...extra,
+    };
+}
 
-
-async function request(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
-        // httpsAgent: agent
+async function request(reqUrl, referer = '') {
+    const resp = await req.get(reqUrl, {
+        headers: pageHeaders(referer, {
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }),
+        timeout: 20000,
     });
     return resp.data;
+}
+
+async function csrfToken(url) {
+    await req.loadCookies();
+    const cookie = await req.getCookieJar().getCookieString(url);
+    const m = String(cookie || '').match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
 }
 
 async function init(_inReq, _outResp) {
@@ -72,34 +87,36 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const url = inReq.body.id;
-    let html = await request(site + url);
+    const pageUrl = site + url;
+    const html = await request(pageUrl, pageUrl);
     const $ = load(html);
 
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic  = $('meta[property="og:image"]').attr('content') || '';
-    const description = $('meta[property="og:description"]').attr('content') || '';
-    let play = site + `/api/videos/${url.split('/')[2]}/playback`
-    const resp = await axios.post(
-        play,
-        null,
-        {
-            headers: {
-                'User-Agent': UA,
-                'Referer': play,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            withCredentials: true,
-            httpsAgent: agent
-        }
-    );
+    const vid = String(url).split('/').filter(Boolean).pop();
+    const play = `${site}/api/videos/${vid}/playback`;
+    const csrf = await csrfToken(play);
+    const resp = await req.post(play, null, {
+        headers: pageHeaders(pageUrl, {
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(csrf ? { 'X-CSRFToken': csrf } : {}),
+        }),
+        timeout: 20000,
+    });
+    const data = resp.data || {};
+    const lines = [];
+    if (data.url) lines.push(`播放$${data.url}`);
+    if (data.fallback_url && data.fallback_url !== data.url) {
+        lines.push(`备用$${data.fallback_url}`);
+    }
     return {
         list: [{
             vod_id: url,
             vod_name: name,
             vod_pic: pic,
             vod_play_from: '91pinse',
-            vod_play_url: `播放$${plat.data}`
-        }]
+            vod_play_url: lines.join('#') || `播放$`,
+        }],
     };
 }
 
