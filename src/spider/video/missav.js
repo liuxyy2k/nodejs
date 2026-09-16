@@ -6,7 +6,7 @@
  * 2. 播放地址经 /spider/missav/3/m3u8|seg 代理（跨域 / Referer 透传）
  */
 import { load } from 'cheerio';
-import req from './src/util/req.js';
+import req from '../../util/req.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0';
 const DEFAULT_SITE = 'https://missav.live';
