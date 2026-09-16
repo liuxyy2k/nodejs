@@ -15,7 +15,7 @@ const PORT = 3001;
 const AUTH_KEY = 'mira123';
 const PROXY_URL = 'http://127.0.0.1:7897';
 
-async function curlFetch(url, proxy, referer) {
+async function curlFetch(url, proxy, referer, binary = false) {
     const args = [
         '-sSL',
         '--proxy', proxy,
@@ -23,19 +23,32 @@ async function curlFetch(url, proxy, referer) {
         '-H', 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8',
         '-H', `Referer: ${referer || ''}`,
         '--insecure',
-        '--max-time', '30',
+        '--max-time', binary ? '60' : '30',
         url
     ];
-    const { stdout } = await execFileAsync('curl', args, { maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await execFileAsync('curl', args, {
+        maxBuffer: 20 * 1024 * 1024,
+        encoding: binary ? 'buffer' : 'utf8',
+    });
     return stdout;
 }
 
 app.post('/proxy', async (req, res) => {
-    const { url, referer, key, sniff } = req.body;
+    const { url, referer, key, sniff, binary } = req.body;
 
     // 1. 安全校验
     if (key !== AUTH_KEY) return res.status(403).send('Unauthorized');
     if (!url) return res.status(400).send('Missing URL');
+
+    if (binary) {
+        try {
+            const body = await curlFetch(url, PROXY_URL, referer, true);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            return res.send(body);
+        } catch (error) {
+            return res.status(500).send(`代理转发失败: ${error.message}`);
+        }
+    }
 
     // --- 场景 A: Playwright 嗅探模式 (当 sniff 为 true 时) ---
     if (sniff) {

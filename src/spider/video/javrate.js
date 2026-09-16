@@ -3,8 +3,58 @@ import req from '../../util/req.js';
 
 const siteUrl = 'https://www.javrate.com';
 const searchUrl = siteUrl + '/search/';
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
+
+function getProxyBase(inReq) {
+    const prefix = inReq?.server?.prefix || '/spider/javrate/3';
+    return `http://127.0.0.1:${PORT}${prefix}/proxy`;
+}
+
+function e64url(s) {
+    return Buffer.from(String(s), 'utf8').toString('base64url');
+}
+
+function d64url(s) {
+    return Buffer.from(String(s || '').replace(/ /g, '+'), 'base64url').toString('utf8');
+}
+
+function withPlaylistQuery(abs, playlistUrl) {
+    const u = new URL(abs);
+    const p = new URL(playlistUrl);
+    if (!u.search && p.search) {
+        p.searchParams.forEach((v, k) => {
+            if (!u.searchParams.has(k)) u.searchParams.set(k, v);
+        });
+    }
+    return u.href;
+}
+
+function proxyMediaLine(abs, playlistUrl, proxyBase) {
+    const signed = withPlaylistQuery(abs, playlistUrl);
+    if (/\.m3u8($|[?#])/i.test(signed)) {
+        return `${proxyBase}/${e64url(signed)}/index.m3u8`;
+    }
+    return `${proxyBase}/seg/${e64url(signed)}`;
+}
+
+function rewriteM3u8(text, playlistUrl, proxyBase) {
+    return String(text || '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((line) => {
+            const t = line.trim();
+            if (t.includes('URI="')) {
+                return line.replace(/URI="([^"]+)"/g, (_, uri) => {
+                    return `URI="${proxyMediaLine(new URL(uri, playlistUrl).href, playlistUrl, proxyBase)}"`;
+                });
+            }
+            if (!t || t.startsWith('#')) return line;
+            return proxyMediaLine(new URL(t, playlistUrl).href, playlistUrl, proxyBase);
+        })
+        .join('\n');
+}
 
 async function request(targetUrl, referer = '') {
     const headers = {
@@ -17,6 +67,21 @@ async function request(targetUrl, referer = '') {
     };
     // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
     const resp = await req.get(targetUrl, { headers });
+    return resp.data;
+}
+
+async function cdnRequest(targetUrl, { binary = false } = {}) {
+    const resp = await req.get(targetUrl, {
+        headers: {
+            'User-Agent': UA,
+            Referer: `${siteUrl}/`,
+            Accept: '*/*',
+            'Accept-Encoding': 'identity',
+        },
+        timeout: 60000,
+        responseType: binary ? 'arraybuffer' : 'text',
+        validateStatus: () => true,
+    });
     return resp.data;
 }
 
@@ -165,14 +230,9 @@ async function detail(inReq, _outResp) {
     const resp = await request(plaUrl);
     const match = resp.match(/initialSignedUrl:\s*'([^']+\.m3u8[^']*)'/);
     let m3u8 = match ? match[1] : '';
-    const m3u8Data = await req.get(m3u8, {
-        headers: {
-            'User-Agent': UA,
-            Referer: url,
-        },
-    });
+    const m3u8Text = String((await cdnRequest(m3u8)) || '');
     const res = []
-    const lines = m3u8Data.data.split("\n").filter(v => v.includes("/video.m3u8"))
+    const lines = m3u8Text.split('\n').filter(v => v.includes('/video.m3u8'))
     for(const line of lines){
         const name = line.trim().replace("/video.m3u8", "")
         const m = name.match(/(\d+)p|(\d+)x(\d+)/)
@@ -207,13 +267,45 @@ async function decUrl(str) {
 }
 
 async function play(inReq, _outResp) {
+    const src = String(inReq.body.id || '');
     return {
-        url: inReq.body.id,
+        parse: 0,
+        url: `${getProxyBase(inReq)}/${e64url(src)}/index.m3u8`,
         header: {
             'User-Agent': UA,
-            'Referer': siteUrl + '/'
+            Referer: siteUrl + '/',
         },
     };
+}
+
+async function proxyM3u8(token, inReq) {
+    const src = d64url(token);
+    const text = String((await cdnRequest(src)) || '');
+    if (!text.includes('#EXTM3U')) throw new Error('m3u8 empty');
+    const body = rewriteM3u8(text, src, getProxyBase(inReq));
+    return [200, 'application/vnd.apple.mpegurl', {
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-cache',
+    }, body];
+}
+
+async function proxySeg(token) {
+    const src = d64url(token);
+    const data = await cdnRequest(src, { binary: true });
+    return [200, 'video/MP2T', {
+        'access-control-allow-origin': '*',
+    }, Buffer.from(data || [])];
+}
+
+function sendProxy(reply, result) {
+    const [status, mime, hdrs, body] = result;
+    if (hdrs) {
+        for (const [k, v] of Object.entries(hdrs)) {
+            if (v != null) reply.header(k, v);
+        }
+    }
+    if (mime) reply.type(mime);
+    return reply.code(status).send(body);
 }
 
 async function search(inReq, _outResp) {
@@ -239,5 +331,19 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/proxy/:token/index.m3u8', async (req, reply) => {
+            try {
+                return sendProxy(reply, await proxyM3u8(req.params.token, req));
+            } catch (e) {
+                return reply.code(502).send(String(e.message || e));
+            }
+        });
+        fastify.get('/proxy/seg/:token', async (req, reply) => {
+            try {
+                return sendProxy(reply, await proxySeg(req.params.token));
+            } catch (e) {
+                return reply.code(502).send(String(e.message || e));
+            }
+        });
     },
 };
