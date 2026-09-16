@@ -12,7 +12,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const DEFAULT_SITE = 'https://missav.live';
 const KEY_SITE = '/missavSite';
 const KEY_COOKIE = '/missavCookie';
-const PROXY_BASE = '/spider/missav/3';
+const PROXY_BASE = '/spider/miss/3';
 const SURRIT_ORIGIN = 'https://surrit.com/';
 
 let siteBase = DEFAULT_SITE;
@@ -422,8 +422,8 @@ async function proxySeg(inReq, reply) {
 
 export default {
   meta: {
-    key: 'missav',
-    name: '🔥MissAV',
+    key: 'miss',
+    name: '🔥Miss',
     type: 3,
   },
   api: async (fastify) => {

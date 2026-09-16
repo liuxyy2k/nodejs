@@ -3,8 +3,8 @@ import duoduo from "./spider/video/duoduo.js";
 import nsp from "./spider/video/nisp.js";
 import duboku from "./spider/video/duboku.js";
 import jianpian from "./spider/video/jianpian.js";
-// import miss from "./spider/video/miss.js";
-import miss from './spider/video/missav.js';
+import miss from "./spider/video/miss.js";
+import missav from './spider/video/missav.js';
 import missav02 from "./spider/video/missav02.js";
 import hubff from "./spider/video/hubff.js";
 import oneapi from "./spider/video/oneapi.js";
@@ -250,7 +250,7 @@ import CMSFactory from "./spider/video/cms.js";
 export const getSpiders = async (server) => {
     const spiders = [
         baseset, liveSource, douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, dszby, xmlive, pandaLive, sinparty,
-        miss, dsys, supjav, jable, jableNew, av123, javsb, memojav, popjav, hohoj, kanav, avdb, av77, javrate, av18, xojav, 
+        miss, missav, dsys, supjav, jable, jableNew, av123, javsb, memojav, popjav, hohoj, kanav, avdb, av77, javrate, av18, xojav, 
         cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, cg91, cg911, dsj911, cg007, xzcg, cgw, baogua, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, kb911, rb91, ds91, kdw91, dys18, crdj91,
         ai, animei, hanime, hanime2, hdm18, redgif, stripol, onlyfans18, huangguo, huangdou,
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
