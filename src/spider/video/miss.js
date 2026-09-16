@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
 
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0';
 const DEFAULT_SITE = 'https://missav.live';
 const KEY_SITE = '/missavSite';
@@ -157,6 +158,10 @@ async function category(inReq) {
 async function detail(inReq) {
   const url = inReq.body.id;
   const html = await request(url, inReq.server.db);
+  const $ = load(html);
+  const name = $('meta[property="og:title"]').attr('content') || '';
+  const des  = $('meta[property="og:description"]').attr('content') || '';
+  const pic  = $('meta[property="og:image"]').attr('content') || '';
   const match = html.match(/surrit\.com\\\/(.+?)\\\/seek\\\/_0\.jpg/);
   const streams = [];
 
@@ -171,8 +176,9 @@ async function detail(inReq) {
   return {
     list: [{
       vod_id: url,
-      vod_name: '',
-      vod_pic: '',
+      vod_name: name,
+      vod_pic: pic,
+      vod_remarks: des,
       vod_play_from: 'MissAV',
       vod_play_url: streams.map((s) => `${s.name}$${s.url}`).join('#'),
     }],

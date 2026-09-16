@@ -258,6 +258,10 @@ async function category(inReq) {
 async function detail(inReq) {
   const pageUrl = inReq.body.id;
   const html = await request(pageUrl, inReq.server.db);
+  const $ = load(html);
+  const name = $('meta[property="og:title"]').attr('content') || '';
+  const des  = $('meta[property="og:description"]').attr('content') || '';
+  const pic  = $('meta[property="og:image"]').attr('content') || '';
   const match = html.match(/surrit\.com\\\/(.+?)\\\/seek\\\/_0\.jpg/);
   const streams = [];
 
@@ -309,9 +313,10 @@ async function detail(inReq) {
 
   return {
     list: [{
-      vod_id: pageUrl,
-      vod_name: '',
-      vod_pic: '',
+      vod_id: pageUrl,  
+      vod_name: name,
+      vod_pic: pic,
+      vod_remarks: des,
       vod_play_from: 'MissAV',
       vod_play_url: streams.map((s) => `${s.name}$${s.url}`).join('#'),
     }],
