@@ -6,15 +6,14 @@ import CryptoJS from 'crypto-js';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://vlxxsex.online';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
-        // httpsAgent: agent
     });
     return resp.data;
 }
@@ -119,8 +118,13 @@ function unpackPacker(code) {
 async function play(inReq, _outResp) {
     const id = inReq.body.id
     const origin = new URL(id).origin;
-    const embResp = await request(id);
-
+    console.log(origin)
+    const resp = await axios.get(id, {
+        headers: { 'User-Agent': UA,
+            'Referer': site
+         },
+    });
+    const embResp = resp.data;
     const match = embResp.match(
         /eval\(function\(p,a,c,k,e,d\)[\s\S]+?}\(\s*'[\s\S]+?'\s*,\s*\d+\s*,\s*\d+\s*,\s*'[\s\S]+?'\.split\('\|'\)\s*\)\)/
     );
@@ -134,13 +138,13 @@ async function play(inReq, _outResp) {
         let links = {};
         if (link) {
             links = JSON.parse(link[1]);
-            m3u8 = links.hls4
+            m3u8 = origin + links.hls4
         }
     }
 
     return {
         parse: 0,
-        url: origin + m3u8,
+        url: m3u8,
         header: { 'User-Agent': UA, 'Referer': id },
     };
 }

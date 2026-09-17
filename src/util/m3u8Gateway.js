@@ -21,7 +21,7 @@ const STRIP_HEADERS = {
   'Sec-Fetch-Site': null,
   'Sec-Fetch-User': null,
 };
-const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate']);
+const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate', 'vlxxsex']);
 
 const PAN_HOSTS = [
   'aliyundrive.com', 'alipan.com', 'alihub.net', 'quark.cn', 'pan.quark.cn',
