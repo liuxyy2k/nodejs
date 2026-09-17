@@ -194,14 +194,6 @@ async function detail(inReq) {
   const maker = pickMeta(meta, '發行商', '发行商');
   const director = pickMeta(meta, '導演', '导演');
   const tags = pickMeta(meta, '標籤', '标签');
-  const content = [
-    code && `番号: ${code}`,
-    year && `发行日期: ${year}`,
-    maker && `发行商: ${maker}`,
-    genres && `类型: ${genres}`,
-    tags && `标签: ${tags}`,
-    des,
-  ].filter(Boolean).join('\n');
   const match = html.match(/surrit\.com\\\/(.+?)\\\/seek\\\/_0\.jpg/);
   const streams = [];
 
@@ -225,7 +217,7 @@ async function detail(inReq) {
       vod_class: genres,
       vod_tag: tags,
       vod_remarks: code,
-      vod_content: content,
+      vod_content: des,
       vod_play_from: 'MissAV',
       vod_play_url: streams.map((s) => `${s.name}$${s.url}`).join('#'),
     }],
