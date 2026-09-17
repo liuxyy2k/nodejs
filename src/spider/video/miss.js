@@ -59,6 +59,28 @@ function parseList(html) {
   return list;
 }
 
+function parseDetailMeta($) {
+  const meta = {};
+  $('.space-y-2 > .text-secondary').each((_, el) => {
+    const $el = $(el);
+    const label = $el.find('span').first().text().replace(/[:：]/g, '').trim();
+    if (!label) return;
+    const links = $el.find('a').map((_, a) => $(a).text().trim()).get().filter(Boolean);
+    const value = links.length
+      ? links.join(', ')
+      : ($el.find('time, .font-medium').last().text() || '').trim();
+    if (value) meta[label] = value;
+  });
+  return meta;
+}
+
+function pickMeta(meta, ...keys) {
+  for (const key of keys) {
+    if (meta[key]) return meta[key];
+  }
+  return '';
+}
+
 async function init() {
   return {};
 }
@@ -159,9 +181,27 @@ async function detail(inReq) {
   const url = inReq.body.id;
   const html = await request(url, inReq.server.db);
   const $ = load(html);
-  const name = $('meta[property="og:title"]').attr('content') || '';
-  const des  = $('meta[property="og:description"]').attr('content') || '';
+  const meta = parseDetailMeta($);
+  const name = pickMeta(meta, '標題', '标题')
+    || $('meta[property="og:title"]').attr('content')
+    || '';
+  const des = $('meta[property="og:description"]').attr('content') || '';
   const pic  = $('meta[property="og:image"]').attr('content') || '';
+  const year = pickMeta(meta, '發行日期', '发行日期');
+  const code = pickMeta(meta, '番號', '番号');
+  const actor = pickMeta(meta, '女優', '女优');
+  const genres = pickMeta(meta, '類型', '类型');
+  const maker = pickMeta(meta, '發行商', '发行商');
+  const director = pickMeta(meta, '導演', '导演');
+  const tags = pickMeta(meta, '標籤', '标签');
+  const content = [
+    code && `番号: ${code}`,
+    year && `发行日期: ${year}`,
+    maker && `发行商: ${maker}`,
+    genres && `类型: ${genres}`,
+    tags && `标签: ${tags}`,
+    des,
+  ].filter(Boolean).join('\n');
   const match = html.match(/surrit\.com\\\/(.+?)\\\/seek\\\/_0\.jpg/);
   const streams = [];
 
@@ -178,7 +218,14 @@ async function detail(inReq) {
       vod_id: url,
       vod_name: name,
       vod_pic: pic,
-      vod_remarks: des,
+      vod_year: year,
+      vod_area: '日本',
+      vod_actor: actor,
+      vod_director: director,
+      vod_class: genres,
+      vod_tag: tags,
+      vod_remarks: code,
+      vod_content: content,
       vod_play_from: 'MissAV',
       vod_play_url: streams.map((s) => `${s.name}$${s.url}`).join('#'),
     }],

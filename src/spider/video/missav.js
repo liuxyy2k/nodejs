@@ -316,7 +316,7 @@ async function detail(inReq) {
       vod_id: pageUrl,  
       vod_name: name,
       vod_pic: pic,
-      vod_remarks: des,
+      vod_content: des,
       vod_play_from: 'MissAV',
       vod_play_url: streams.map((s) => `${s.name}$${s.url}`).join('#'),
     }],
