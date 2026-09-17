@@ -4,7 +4,7 @@ import { config } from './config.js';
 import CryptoJS from 'crypto-js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://vlxxsex.page';
+const site = 'https://vlxxsex.online';
 
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
@@ -82,7 +82,6 @@ async function detail(inReq, _outResp) {
     const pic  = $('meta[property="twitter:image"]').attr('content') || '';
     const description = $('meta[name="description"]').attr('content') || '';
     let embed = $('.responsive-player iframe').attr('src') || '';
-
     return {
         list: [{
             vod_id: url,

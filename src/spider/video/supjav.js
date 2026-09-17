@@ -46,6 +46,11 @@ async function home(_inReq, _outResp) {
         { type_id: 'category/uncensored-jav',     type_name: '无码'     },
         { type_id: 'category/amateur',            type_name: '素人'     },
         { type_id: 'category/chinese-subtitles',  type_name: '中文字幕' },
+        { type_id: 'tag/4k',                      type_name: '4K'     },
+        { type_id: 'tag/bareback',                type_name: '无套'     },
+        { type_id: 'tag/acmeorgasm',              type_name: '高潮'     },
+        { type_id: 'tag/creampie',                type_name: '中出' },
+        { type_id: 'tag/huge-cock',               type_name: '巨根' },
         { type_id: 'category/reducing-mosaic',    type_name: '无码破解' },
     ];
     return { class: classes, filters: {} };
