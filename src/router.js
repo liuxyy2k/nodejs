@@ -252,16 +252,16 @@ import CMSFactory from "./spider/video/cms.js";
 
 export const getSpiders = async (server) => {
     const spiders = [
-        baseset, liveSource, douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, novipnoad, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, jinguo,
-        miss, missav, dsys, supjav, jable, jableNew, av123, javsb, memojav, popjav, hohoj, kanav, avdb, av77, javrate, av18, xojav, 
-        cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, cg91, cg911, dsj911, cg007, xzcg, cgw, baogua, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, kb911, rb91, ds91, kdw91, dys18, crdj91,
-        ai, animei, hanime, hanime2, hdm18, redgif, stripol, onlyfans18, huangguo, huangdou,
+        baseset, liveSource, douban, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, novipnoad, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, 
+        miss, missav, dsys, supjav, jable, jableNew, av123, javsb, memojav, popjav, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, vlxxsex, njavtv, jav36, avtoday, taiav, twoJav, javgg, javhd, 
+        cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, cg91, cg911, dsj911, cg007, xzcg, cgw, baogua, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porn99, porna91, pinse,  kb911, rb91, ds91, kdw91, crdj91, dys18, 
+        ai, animei, hanime, hanime2, hdm18, redgif, stripol, onlyfans18, huangguo, huangdou, jinguo, haose,
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
-        haose, mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luolidao, luanlunba,  masexTv, luoli,
-        pinse, j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
+        mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luolidao, luanlunba,  masexTv, luoli,
+        j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav, rou, uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
         wnacg, motv, march, pmvhaven, aqx, fulao2, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01, xhs, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, txcy, yese, paradisehill, yemahl, miyun, pektino, maomi66, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
-        fcjav, vlxxsex, njavtv, jav36, avtoday, taiav, twoJav, javgg, javhd, missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, zhizhews, ndmt, javxx, javday, javmenu, dogav,
+        missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, zhizhews, ndmt, javxx, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
     const t4Data = await getT4(server)
