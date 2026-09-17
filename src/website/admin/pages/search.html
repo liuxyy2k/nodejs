@@ -204,85 +204,121 @@
         let modelIndex = [];
         let modelsList = [];
         let searchTimeout = null;
+        let dataLoaded = false;
+        let dataLoading = false;
 
-        // 构建正确的 API 路径
-        const API_BASE = location.pathname.replace(/\/search$, '');
+        const API_BASE = (() => {
+            const path = location.pathname.replace(/\/+$/, '');
+            const idx = path.lastIndexOf('/search');
+            return idx >= 0 ? (path.slice(0, idx) || '/') : '/website';
+        })();
 
-        // 加载数据
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const res = await fetch(API_BASE + '/search-data');
-                const data = await res.json();
-                if (data.code === 0) {
-                    modelIndex = data.data.modelIndex || [];
-                    modelsList = data.data.modelsList || [];
-                }
-            } catch (error) {
-                showToast('加载数据失败', 'error');
-            }
-        });
-
-        // 搜索输入监听
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const query = e.target.value.trim();
-
-            // 防抖
-            if (searchTimeout) clearTimeout(searchTimeout);
-
-            if (!query) {
-                document.getElementById('searchResults').innerHTML = '<div class="no-results">请输入演员名称进行搜索</div>';
-                return;
-            }
-
-            searchTimeout = setTimeout(() => {
-                performSearch(query);
-            }, 300);
-        });
-
-        // 执行搜索
-        function performSearch(query) {
-            const results = document.getElementById('searchResults');
-
-            if (!modelIndex.length) {
-                results.innerHTML = '<div class="loading">数据加载中...</div>';
-                return;
-            }
-
-            // 模糊搜索
-            const matches = modelIndex.filter(name =>
-                name.toLowerCase().includes(query.toLowerCase())
-            ).slice(0, 20); // 限制显示前 20 个结果
-
-            if (matches.length === 0) {
-                results.innerHTML = '<div class="no-results">未找到匹配的演员</div>';
-                return;
-            }
-
-            results.innerHTML = matches.map(name => {
-                const index = modelIndex.indexOf(name);
-                const modelData = modelsList[index];
-
-                return `
-                    <div class="result-item">
-                        <span class="result-name">${name}</span>
-                        <div class="result-actions">
-                            <button class="btn-missav" onclick="addToMissav('${index}')">添加到 MissAV</button>
-                            <button class="btn-jable" onclick="addToJable('${index}', '${name.replace(/'/g, "\\\\'")}')">添加到 Jable</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
-        // 添加到 MissAV
-        window.addToMissav = async (index) => {
+        function showResultsMessage(text, className = 'no-results') {
+            document.getElementById('searchResults').innerHTML =
+                `<div class="${className}">${escapeHtml(text)}</div>`;
+        }
+
+        async function loadSearchData() {
+            if (dataLoading || dataLoaded) return;
+            dataLoading = true;
+            try {
+                const res = await fetch(`${API_BASE}/search-data`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.code !== 0) throw new Error(data.message || '加载失败');
+                modelIndex = data.data.modelIndex || [];
+                modelsList = data.data.modelsList || [];
+                dataLoaded = true;
+                const query = document.getElementById('searchInput').value.trim();
+                if (query) performSearch(query);
+            } catch (error) {
+                showResultsMessage('加载演员库失败: ' + error.message);
+                showToast('加载数据失败', 'error');
+            } finally {
+                dataLoading = false;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadSearchData);
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => performSearch(query), 300);
+        });
+
+        document.getElementById('searchInput').addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            if (searchTimeout) clearTimeout(searchTimeout);
+            performSearch(e.target.value.trim());
+        });
+
+        document.getElementById('searchResults').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const index = Number(btn.dataset.index);
+            if (btn.dataset.action === 'missav') addToMissav(index);
+            if (btn.dataset.action === 'jable') addToJable(index, btn.dataset.name || '');
+        });
+
+        function performSearch(query) {
+            if (!query) {
+                showResultsMessage('请输入演员名称进行搜索');
+                return;
+            }
+
+            if (!dataLoaded) {
+                showResultsMessage('数据加载中...', 'loading');
+                loadSearchData();
+                return;
+            }
+
+            if (!modelIndex.length) {
+                showResultsMessage('演员库为空，请检查 /website/search-data');
+                return;
+            }
+
+            const q = query.toLowerCase();
+            const matches = [];
+            for (let i = 0; i < modelIndex.length && matches.length < 20; i++) {
+                const name = modelIndex[i];
+                if (String(name).toLowerCase().includes(q)) {
+                    matches.push({ name, index: i });
+                }
+            }
+
+            if (!matches.length) {
+                showResultsMessage('未找到匹配的演员');
+                return;
+            }
+
+            document.getElementById('searchResults').innerHTML = matches.map(({ name, index }) => `
+                <div class="result-item">
+                    <span class="result-name">${escapeHtml(name)}</span>
+                    <div class="result-actions">
+                        <button type="button" class="btn-missav" data-action="missav" data-index="${index}">添加到 MissAV</button>
+                        <button type="button" class="btn-jable" data-action="jable" data-index="${index}" data-name="${escapeHtml(name)}">添加到 Jable</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addToMissav(index) {
             const modelData = modelsList[index];
             if (!modelData) return;
 
             showToast('正在添加到 MissAV...', 'info');
 
             try {
-                const res = await fetch(API_BASE + '/add-actor/missav', {
+                const res = await fetch(`${API_BASE}/add-actor/missav`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: modelData.missav })
@@ -297,17 +333,16 @@
             } catch (error) {
                 showToast('网络错误: ' + error.message, 'error');
             }
-        };
+        }
 
-        // 添加到 Jable
-        window.addToJable = async (index, displayName) => {
+        async function addToJable(index, displayName) {
             const modelData = modelsList[index];
             if (!modelData) return;
 
             showToast('正在添加到 Jable...', 'info');
 
             try {
-                const res = await fetch(API_BASE + '/add-actor/jable', {
+                const res = await fetch(`${API_BASE}/add-actor/jable`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -325,9 +360,8 @@
             } catch (error) {
                 showToast('网络错误: ' + error.message, 'error');
             }
-        };
+        }
 
-        // 提示框
         function showToast(text, type) {
             const el = document.getElementById('toast');
             el.textContent = text;
