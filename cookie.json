@@ -1,0 +1,40 @@
+{
+  "version": "tough-cookie@6.0.1",
+  "storeType": "MemoryCookieStore",
+  "rejectPublicSuffixes": true,
+  "enableLooseMode": false,
+  "allowSpecialUseDomain": true,
+  "prefixSecurity": "silent",
+  "cookies": [
+    {
+      "key": "PHPSESSID",
+      "value": "njeug73bkhqmuuquu3hg3blukq",
+      "domain": "www.jennyhow.com",
+      "path": "/",
+      "hostOnly": true,
+      "creation": "2026-09-17T08:04:33.956Z",
+      "lastAccessed": "2026-09-17T08:04:34.293Z"
+    },
+    {
+      "key": "server_session_d8988f71",
+      "value": "c145d3f0b6995a7f55a689eb265790be",
+      "maxAge": 864000,
+      "domain": "www.jennyhow.com",
+      "path": "/",
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-09-17T08:04:33.956Z",
+      "lastAccessed": "2026-09-17T08:04:34.293Z"
+    },
+    {
+      "key": "X_CACHE_KEY",
+      "value": "0f47be0cd6ecaebbea432fc7ba288e95",
+      "expires": "9999-12-31T23:59:59.000Z",
+      "domain": "www.jennyhow.com",
+      "path": "/",
+      "hostOnly": true,
+      "creation": "2026-09-17T08:04:34.290Z",
+      "lastAccessed": "2026-09-17T08:04:34.293Z"
+    }
+  ]
+}

@@ -1,20 +1,24 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import req from '../../util/req.js';
 
 /**
  * 韩小圈 / 韩剧TV
  * https://hanxiaoquan.com
  * API: hxqapi.hiyun.tv / hxqapi.zmdcq.com
  * 请求头 AES 签名 + 响应体 AES 解密
+ * 播放：API playurl 常为空，降级抓取网页 var now m3u8
  */
 
 const SITE_URL = 'https://hanxiaoquan.com';
+const WEB_HOST = 'https://www.jennyhow.com';
 const APP_HOSTS = [
     'https://hxqapi.hiyun.tv',
     'https://hxqapi.zmdcq.com',
 ];
 
 const UA = 'HanjuTV/6.8.2 (Redmi Note 12; Android 14; Scale/2.00)';
+const WEB_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const VN = '6.8.2';
 const VC = 'a_8280';
 const CH = 'xiaomi';
@@ -272,12 +276,139 @@ function isVideoFormat(url) {
     return ['.m3u8', '.mp4', '.mpd', '.flv'].some((x) => u.includes(x));
 }
 
-function playHeaders() {
+function isExternalPage(url) {
+    if (!url || !String(url).startsWith('http')) return false;
+    const u = String(url).toLowerCase();
+    return u.includes('iqiyi.com') || u.includes('v.qq.com') || u.includes('youku.com')
+        || u.includes('mgtv.com') || u.includes('bilibili.com') || u.includes('/search');
+}
+
+function webHeaders(referer = WEB_HOST) {
     return {
-        'User-Agent': UA,
-        Referer: `${SITE_URL}/`,
-        Origin: SITE_URL,
+        'User-Agent': WEB_UA,
+        Referer: referer.endsWith('/') ? referer : `${referer}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
     };
+}
+
+function playHeaders(useWeb = false) {
+    const host = useWeb ? WEB_HOST : SITE_URL;
+    return {
+        'User-Agent': useWeb ? WEB_UA : UA,
+        Referer: `${host}/`,
+        Origin: host,
+    };
+}
+
+async function fetchWebHtml(url, referer = WEB_HOST) {
+    try {
+        const resp = await req.get(url, {
+            headers: webHeaders(referer),
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        if (resp.status >= 400) return '';
+        return String(resp.data || '');
+    } catch (e) {
+        console.warn('[hanxiaoquan] web fetch err', e.message);
+        return '';
+    }
+}
+
+async function searchWebDetail(keyword) {
+    const key = String(keyword || '').trim();
+    if (!key) return '';
+
+    const searchUrls = [
+        `${WEB_HOST}/index.php/vod/search.html?wd=${encodeURIComponent(key)}`,
+        `${WEB_HOST}/vodsearch/${encodeURIComponent(key)}----------1---.html`,
+    ];
+    for (const searchUrl of searchUrls) {
+        const html = await fetchWebHtml(searchUrl);
+        if (!html) continue;
+        const re = /href="([^"]+\.html)"/g;
+        let m;
+        while ((m = re.exec(html))) {
+            const href = m[1];
+            if (href.includes('search') || href.includes('login') || href.includes('register')) continue;
+            return href.startsWith('http') ? href : `${WEB_HOST}${href.startsWith('/') ? '' : '/'}${href}`;
+        }
+    }
+    return '';
+}
+
+function collectWebPlayLinks(html, detailUrl) {
+    const links = [];
+    const tabRe = /href="#([^"]+)"/g;
+    const tabs = [];
+    let m;
+    while ((m = tabRe.exec(html))) tabs.push(m[1]);
+
+    for (const tab of tabs) {
+        const block = html.match(new RegExp(`id="${tab}"[\\s\\S]*?</div>`, 'i'));
+        if (!block) continue;
+        const hrefRe = /href="([^"]+\.html)"/g;
+        while ((m = hrefRe.exec(block[0]))) {
+            const href = m[1];
+            if (!href.includes('play') && !href.includes('/vod/')) continue;
+            links.push(href.startsWith('http') ? href : new URL(href, detailUrl).href);
+        }
+    }
+
+    if (!links.length) {
+        const playRe = /href="(\/play\/[^"]+\.html)"/g;
+        while ((m = playRe.exec(html))) {
+            links.push(new URL(m[1], detailUrl).href);
+        }
+    }
+    return [...new Set(links)];
+}
+
+function extractM3u8(html) {
+    if (!html) return '';
+    const now = html.match(/var now=['"]([^'"]+)['"]/);
+    if (now?.[1]?.startsWith('http')) return now[1];
+
+    const player = html.match(/player_aaaa\s*=\s*(\{[\s\S]*?\});/);
+    if (player?.[1]) {
+        try {
+            const data = JSON.parse(player[1]);
+            if (typeof data.url === 'string' && data.url.startsWith('http')) return data.url;
+        } catch { /* ignore */ }
+    }
+    return '';
+}
+
+function pickEpisodeLink(playLinks, serialNo) {
+    if (!playLinks.length) return '';
+    const idx = Math.max(0, (Number(serialNo) || 1) - 1);
+    if (playLinks[idx]) return playLinks[idx];
+
+    const suffix = `-${idx}-`;
+    const matched = playLinks.find((url) => url.includes(suffix));
+    return matched || playLinks[0];
+}
+
+async function resolveWebPlay(dramaName, serialNo = 1) {
+    const detailUrl = await searchWebDetail(dramaName);
+    if (!detailUrl) return '';
+
+    const detailHtml = await fetchWebHtml(detailUrl);
+    const playLinks = collectWebPlayLinks(detailHtml, detailUrl);
+    const playUrl = pickEpisodeLink(playLinks, serialNo);
+    if (!playUrl) return '';
+
+    const playHtml = await fetchWebHtml(playUrl, detailUrl);
+    return extractM3u8(playHtml);
+}
+
+function findEpisode(episodes, pid) {
+    if (!pid || !Array.isArray(episodes)) return null;
+    return episodes.find((ep) => {
+        const id = ep?.pid || ep?.playItemId || ep?.id || ep?.eid;
+        return String(id) === String(pid);
+    }) || null;
 }
 
 async function init(inReq, _outResp) {
@@ -487,6 +618,7 @@ async function play(inReq, _outResp) {
     }
 
     let finalUrl = '';
+    let useWebHeader = false;
     try {
         if (pid) {
             const playPaths = [
@@ -498,13 +630,29 @@ async function play(inReq, _outResp) {
             for (const [path, params] of playPaths) {
                 const js = await fetchApi(path, params);
                 const url = pickUrl(js);
-                if (url) {
+                if (url && isVideoFormat(url)) {
                     finalUrl = url;
                     break;
                 }
             }
         }
-        if (!finalUrl && src.startsWith('http')) {
+        if (!finalUrl && src.startsWith('http') && isVideoFormat(src)) {
+            finalUrl = src;
+        }
+        if (!finalUrl) {
+            const { drama, episodes } = await fetchEpisodes(sid);
+            const ep = findEpisode(episodes, pid);
+            const dramaName = drama?.name || drama?.title || drama?.seriesName || '';
+            const serialNo = ep?.serialNo || ep?.episode || ep?.num || 1;
+            if (dramaName) {
+                const webUrl = await resolveWebPlay(dramaName, serialNo);
+                if (webUrl) {
+                    finalUrl = webUrl;
+                    useWebHeader = true;
+                }
+            }
+        }
+        if (!finalUrl && src.startsWith('http') && !isExternalPage(src)) {
             finalUrl = src;
         }
     } catch (e) {
@@ -513,7 +661,12 @@ async function play(inReq, _outResp) {
 
     if (finalUrl) {
         const direct = isVideoFormat(finalUrl);
-        return { parse: direct ? 0 : 1, jx: direct ? 0 : 1, url: finalUrl, header: hdr };
+        return {
+            parse: direct ? 0 : 1,
+            jx: direct ? 0 : 1,
+            url: finalUrl,
+            header: playHeaders(useWebHeader),
+        };
     }
 
     return { parse: 1, jx: 1, url: `${SITE_URL}/`, header: hdr };
