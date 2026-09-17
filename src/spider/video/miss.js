@@ -59,16 +59,27 @@ function parseList(html) {
   return list;
 }
 
+function rowLabel($, el) {
+  return $(el).children('span').first().text().replace(/[:：]/g, '').trim();
+}
+
+function rowValue($, el) {
+  const $el = $(el);
+  const links = $el.find('a').toArray().map((a) => $(a).text().trim()).filter(Boolean);
+  if (links.length) return links.join(', ');
+  const text = $el.find('time, .font-medium').first().text().trim();
+  if (text) return text;
+  const $clone = $el.clone();
+  $clone.children('span').first().remove();
+  return $clone.text().replace(/\s+/g, ' ').trim();
+}
+
 function parseDetailMeta($) {
   const meta = {};
-  $('.space-y-2 > .text-secondary').each((_, el) => {
-    const $el = $(el);
-    const label = $el.find('span').first().text().replace(/[:：]/g, '').trim();
+  $('.text-secondary').each((_, el) => {
+    const label = rowLabel($, el);
     if (!label) return;
-    const links = $el.find('a').map((_, a) => $(a).text().trim()).get().filter(Boolean);
-    const value = links.length
-      ? links.join(', ')
-      : ($el.find('time, .font-medium').last().text() || '').trim();
+    const value = rowValue($, el);
     if (value) meta[label] = value;
   });
   return meta;
@@ -78,7 +89,21 @@ function pickMeta(meta, ...keys) {
   for (const key of keys) {
     if (meta[key]) return meta[key];
   }
+  for (const key of keys) {
+    const hit = Object.entries(meta).find(([k]) => k.includes(key) || key.includes(k));
+    if (hit) return hit[1];
+  }
   return '';
+}
+
+function pickActor($, meta) {
+  const fromMeta = pickMeta(meta, '女優', '女优', '演員', '演员');
+  if (fromMeta) return fromMeta;
+  const $row = $('.text-secondary').filter((_, el) =>
+    /女優|女优|演員|演员/.test($(el).children('span').first().text())
+  ).first();
+  if (!$row.length) return '';
+  return $row.find('a').first().text().trim() || rowValue($, $row.get(0));
 }
 
 async function init() {
@@ -182,18 +207,16 @@ async function detail(inReq) {
   const html = await request(url, inReq.server.db);
   const $ = load(html);
   const meta = parseDetailMeta($);
-  const name = pickMeta(meta, '標題', '标题')
-    || $('meta[property="og:title"]').attr('content')
-    || '';
+  const name = pickMeta(meta, '標題', '标题') || '';
   const des = $('meta[property="og:description"]').attr('content') || '';
   const pic  = $('meta[property="og:image"]').attr('content') || '';
   const year = pickMeta(meta, '發行日期', '发行日期');
   const code = pickMeta(meta, '番號', '番号');
-  const actor = pickMeta(meta, '女優', '女优');
+  const actor = pickActor($, meta);
+  const tags = pickMeta(meta, '標籤', '标签');
   const genres = pickMeta(meta, '類型', '类型');
   const maker = pickMeta(meta, '發行商', '发行商');
   const director = pickMeta(meta, '導演', '导演');
-  const tags = pickMeta(meta, '標籤', '标签');
   const match = html.match(/surrit\.com\\\/(.+?)\\\/seek\\\/_0\.jpg/);
   const streams = [];
 
@@ -215,7 +238,7 @@ async function detail(inReq) {
       vod_actor: actor,
       vod_director: director,
       vod_class: genres,
-      vod_tag: tags,
+      vod_tag: tags || genres,
       vod_remarks: code,
       vod_content: des,
       vod_play_from: 'MissAV',
