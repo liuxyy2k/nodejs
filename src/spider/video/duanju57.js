@@ -37,6 +37,8 @@ const SORT_FILTER = [{
     ],
 }];
 
+const PORT = process.env.DEV_HTTP_PORT || 9988;
+
 let options = {};
 
 function applyConfig(extend) {
@@ -103,10 +105,37 @@ async function fetchHtml(targetUrl, referer = '') {
     }
 }
 
-function wrapPic(picUrl) {
+function getProxyBase(inReq) {
+    const prefix = inReq?.server?.prefix || '/spider/duanju57/3';
+    const hostHeader = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host;
+    if (hostHeader) {
+        const proto = inReq?.headers?.['x-forwarded-proto'] || 'http';
+        return `${proto}://${hostHeader}${prefix}`;
+    }
+    return `http://127.0.0.1:${PORT}${prefix}`;
+}
+
+function imageMime(buf) {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+    if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+    if (buf.length >= 4 && buf.subarray(0, 4).toString() === 'GIF8') return 'image/gif';
+    if (buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP') {
+        return 'image/webp';
+    }
+    return 'image/jpeg';
+}
+
+function wrapPic(picUrl, inReq) {
     if (!picUrl) return '';
-    let pic = absUrl(picUrl);
-    if (pic.includes('s.chigua.media') && !pic.includes('@')) {
+    const pic = absUrl(picUrl);
+    if (pic.includes('/img?url=') || pic.includes('@Referer=')) return pic;
+
+    if (inReq && pic.startsWith('http')) {
+        const b64 = Buffer.from(pic, 'utf8').toString('base64');
+        return `${getProxyBase(inReq)}/img?url=${encodeURIComponent(b64)}`;
+    }
+
+    if (pic.includes('s.chigua.media')) {
         return `${pic}@Referer=${encodeURIComponent(imgReferer())}@User-Agent=${encodeURIComponent(UA)}`;
     }
     return pic;
@@ -116,7 +145,7 @@ function stripTags(s) {
     return String(s || '').replace(/<[^>]+>/g, '').trim();
 }
 
-function parseCardList(html) {
+function parseCardList(html, inReq) {
     const vodList = [];
     const seen = new Set();
     if (!html) return vodList;
@@ -142,7 +171,7 @@ function parseCardList(html) {
         }
 
         let pic = '';
-        const imgMatches = [...inner.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)];
+        const imgMatches = [...inner.matchAll(/<img[^>]+(?:data-src|data-original|src)=["']([^"']+)["']/gi)];
         for (const im of imgMatches) {
             const src = im[1];
             if (!src.endsWith('.svg') && !src.includes('logo')) {
@@ -154,7 +183,7 @@ function parseCardList(html) {
         vodList.push({
             vod_id: eventId,
             vod_name: name,
-            vod_pic: wrapPic(pic),
+            vod_pic: wrapPic(pic, inReq),
             vod_remarks: '蝴蝶影视',
             style: { type: 'rect', ratio: 1.78 },
         });
@@ -241,13 +270,13 @@ async function init(inReq, _outResp) {
     return {};
 }
 
-async function home(_inReq, _outResp) {
+async function home(inReq, _outResp) {
     const filters = {};
     for (const item of CLASSES) {
         filters[item.type_id] = SORT_FILTER;
     }
     const html = await fetchHtml(buildCategoryUrl('cat_aichengduanju', 1));
-    const list = parseCardList(html).slice(0, 12);
+    const list = parseCardList(html, inReq).slice(0, 12);
     return { class: CLASSES, filters, list };
 }
 
@@ -258,7 +287,7 @@ async function category(inReq, _outResp) {
     const sortVal = typeof extend === 'object' ? (extend.sort || '') : '';
 
     const html = await fetchHtml(buildCategoryUrl(tid, pg, sortVal));
-    const list = parseCardList(html);
+    const list = parseCardList(html, inReq);
 
     return {
         page: pg,
@@ -306,7 +335,7 @@ async function detail(inReq, _outResp) {
         list: [{
             vod_id: eventId,
             vod_name: title,
-            vod_pic: wrapPic(cover),
+            vod_pic: wrapPic(cover, inReq),
             vod_actor: BRAND_ACTOR,
             vod_director: BRAND_DIRECTOR,
             vod_remarks: episodes.length > 1 ? `共 ${episodes.length} 个片段` : '蝴蝶影视',
@@ -331,6 +360,31 @@ async function play(inReq, _outResp) {
     };
 }
 
+async function imgProxy(inReq, reply) {
+    try {
+        let imgB64 = inReq.query.url || '';
+        try { imgB64 = decodeURIComponent(imgB64); } catch { /* ignore */ }
+        const pad = (4 - (imgB64.length % 4)) % 4;
+        if (pad) imgB64 += '='.repeat(pad);
+        const imgUrl = Buffer.from(imgB64, 'base64').toString('utf8');
+        if (!imgUrl || !imgUrl.startsWith('http')) return reply.code(404).send('');
+
+        const resp = await req.get(imgUrl, {
+            headers: fetchHeaders(imgReferer()),
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        if (resp.status !== 200 || !resp.data) return reply.code(404).send('');
+
+        const body = Buffer.from(resp.data);
+        return reply.code(200).header('Content-Type', imageMime(body)).send(body);
+    } catch (e) {
+        console.warn('[duanju57] imgProxy err', e.message);
+        return reply.code(500).send('');
+    }
+}
+
 async function search(inReq, _outResp) {
     const pg = Math.max(1, parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1);
     const key = String(inReq.body.wd || inReq.body.key || '').trim();
@@ -338,7 +392,7 @@ async function search(inReq, _outResp) {
     if (pg > 1) searchUrl += `&page=${pg}`;
 
     const html = await fetchHtml(searchUrl);
-    const list = parseCardList(html);
+    const list = parseCardList(html, inReq);
 
     return {
         page: pg,
@@ -362,5 +416,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img', imgProxy);
     },
 };

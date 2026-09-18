@@ -56,6 +56,8 @@ const CLASSES = [
     { type_id: '/dm42/cn/xxxav', type_name: 'XXX-AV' },
 ];
 
+const PORT = process.env.DEV_HTTP_PORT || 9988;
+
 const BANNED_SLUGS = new Set([
     'chinese-subtitle', 'new', 'release', 'uncensored-leak', 'today-hot',
     'weekly-hot', 'monthly-hot', 'genres', 'actresses', 'makers', 'series', 'tags',
@@ -235,10 +237,41 @@ async function ensureHost(db, force = false) {
     return baseHost;
 }
 
-function wrapPic(rawPic) {
+function getProxyBase(inReq) {
+    const prefix = inReq?.server?.prefix || '/spider/thisavfull/3';
+    const hostHeader = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host;
+    if (hostHeader) {
+        const proto = inReq?.headers?.['x-forwarded-proto'] || 'http';
+        return `${proto}://${hostHeader}${prefix}`;
+    }
+    return `http://127.0.0.1:${PORT}${prefix}`;
+}
+
+function imageMime(buf) {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+    if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+    if (buf.length >= 4 && buf.subarray(0, 4).toString() === 'GIF8') return 'image/gif';
+    if (buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP') {
+        return 'image/webp';
+    }
+    return 'image/jpeg';
+}
+
+function wrapPic(rawPic, inReq, mode = 'video') {
     if (!rawPic) return '';
-    let pic = absUrl(rawPic);
-    return `${pic}@Referer=${encodeURIComponent(baseHost)}/@User-Agent=${encodeURIComponent(UA)}`;
+    const pic = absUrl(rawPic);
+    if (pic.includes('/img?url=') || pic.includes('@Referer=')) return pic;
+
+    if (inReq && pic.startsWith('http')) {
+        const b64 = Buffer.from(pic, 'utf8').toString('base64');
+        return `${getProxyBase(inReq)}/img?url=${encodeURIComponent(b64)}`;
+    }
+
+    const refEnc = encodeURIComponent(baseHost.replace(/\/$/, ''));
+    if (mode === 'actress') {
+        return `${pic}@Referer=${refEnc}/@User-Agent=${encodeURIComponent(UA)}`;
+    }
+    return `${pic}@Referer=${refEnc}@User-Agent=${encodeURIComponent(UA)}`;
 }
 
 function int2base(x, radix) {
@@ -262,7 +295,7 @@ function unpackPacker(p, a, c, k) {
     return p.replace(/\b\w+\b/g, (w) => (d[w] !== undefined ? d[w] : w));
 }
 
-function parseActressCards(body, isRanking) {
+function parseActressCards(body, isRanking, inReq) {
     const vodList = [];
     const seen = new Set();
     let chunks = [...body.matchAll(/(<div[^>]*>\s*<a[^>]+href=["'][^"']*\/actresses\/[^"']+["'][^>]*>[\s\S]*?<\/div>\s*<\/div>)/gi)];
@@ -280,7 +313,7 @@ function parseActressCards(body, isRanking) {
 
         const picM = block.match(/(?:data-src|data-original|src)=["']([^"']+\.(?:jpg|jpeg|png|webp)[^"']*)["']/i);
         let rawPic = picM ? picM[1].trim() : '';
-        const proxyPic = rawPic ? wrapPic(rawPic) : '';
+        const proxyPic = rawPic ? wrapPic(rawPic, inReq, 'actress') : '';
 
         const altM = block.match(/alt=["']([^"']+)["']/i);
         let title = altM ? altM[1].trim() : '';
@@ -364,7 +397,7 @@ function parseGenreMakerCards(body, mode) {
     return vodList;
 }
 
-function parseVideoCards(body) {
+function parseVideoCards(body, inReq) {
     const vodList = [];
     const seen = new Set();
     let chunks = [];
@@ -412,7 +445,7 @@ function parseVideoCards(body) {
         vodList.push({
             vod_id: absUrl(fullHref),
             vod_name: title,
-            vod_pic: wrapPic(rawPic),
+            vod_pic: wrapPic(rawPic, inReq),
             vod_remarks: dur,
             style: { type: 'rect', ratio: 1.78 },
         });
@@ -420,15 +453,15 @@ function parseVideoCards(body) {
     return vodList;
 }
 
-function parseCards(html, mode = 'video') {
+function parseCards(html, mode = 'video', inReq) {
     let body = html || '';
     if (body.includes('</nav>')) body = body.split('</nav>')[1];
     else if (body.includes('</header>')) body = body.split('</header>')[1];
 
-    if (mode === 'actress') return parseActressCards(body, false);
-    if (mode === 'actress_ranking') return parseActressCards(body, true);
+    if (mode === 'actress') return parseActressCards(body, false, inReq);
+    if (mode === 'actress_ranking') return parseActressCards(body, true, inReq);
     if (mode === 'genres' || mode === 'makers') return parseGenreMakerCards(body, mode);
-    return parseVideoCards(body);
+    return parseVideoCards(body, inReq);
 }
 
 function buildFilters() {
@@ -566,9 +599,86 @@ function buildCategoryUrl(tid, page, extend = {}) {
     return { targetUrl, parseMode };
 }
 
+function cleanStreamUrl(u) {
+    return htmlUnescape(String(u || '').replace(/\\\//g, '/').trim());
+}
+
+function isVideoFormat(url) {
+    const u = String(url || '').toLowerCase();
+    return ['.m3u8', '.mp4', '.flv', '.mkv', '.avi', '.ts', '.mpd', 'index.png', '/jmpres/']
+        .some((k) => u.includes(k));
+}
+
+function playHeaders(referer = '') {
+    const ref = referer || `${baseHost}/`;
+    return {
+        'User-Agent': UA,
+        Referer: ref,
+        Origin: baseHost.replace(/\/$/, ''),
+        Accept: '*/*',
+    };
+}
+
 function proxyStreamUrl(u) {
-    const prefix = `${baseHost.replace(/\/$/, '')}/jmpres/\\1/`;
-    return u.replace(/https?:\/\/(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})\//, prefix);
+    const raw = cleanStreamUrl(u);
+    if (!raw || raw.includes('/jmpres/')) return raw;
+    const prefix = `${baseHost.replace(/\/$/, '')}/jmpres/$1/`;
+    return raw.replace(/https?:\/\/(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})\//, prefix);
+}
+
+function extractPackedSources(html) {
+    const results = [];
+    const packerM = html.match(/}\s*\(\s*['"]([\s\S]*?)['"]\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*['"]([^'"]+)['"]\.split\(['"]\|['"]\)/);
+    if (!packerM) return results;
+
+    const payload = packerM[1]
+        .replace(/\\'/g, "'")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+    const unpacked = unpackPacker(
+        payload,
+        parseInt(packerM[2], 10),
+        parseInt(packerM[3], 10),
+        packerM[4].split('|'),
+    );
+
+    const defs = [
+        ['1080P超清', /source1280\s*=\s*['"]([^'"]+)['"]/],
+        ['720P高清', /source842\s*=\s*['"]([^'"]+)['"]/],
+        ['自适应线路', /(?:^|[^0-9A-Za-z_])source\s*=\s*['"]([^'"]+)['"]/m],
+    ];
+    for (const [from, re] of defs) {
+        const m = unpacked.match(re);
+        if (m?.[1]) {
+            results.push({ from, url: proxyStreamUrl(m[1]) });
+        }
+    }
+    return results;
+}
+
+async function resolveJmpresUrl(url, referer = '') {
+    const jmp = cleanStreamUrl(url);
+    if (!jmp.includes('/jmpres/')) return jmp;
+    try {
+        const resp = await req.get(jmp, {
+            headers: playHeaders(referer),
+            maxRedirects: 10,
+            timeout: 20000,
+            validateStatus: () => true,
+        });
+        const finalUrl = resp.request?.res?.responseUrl || jmp;
+        const text = typeof resp.data === 'string' ? resp.data.slice(0, 4096) : '';
+        const ct = String(resp.headers['content-type'] || '').toLowerCase();
+        if (finalUrl && isVideoFormat(finalUrl) && !finalUrl.includes('/jmpres/')) {
+            return finalUrl;
+        }
+        if (resp.status === 200 && (text.includes('#EXTM3U') || ct.includes('mpegurl') || ct.includes('mp4'))) {
+            return finalUrl.includes('/jmpres/') ? finalUrl : jmp;
+        }
+    } catch (e) {
+        console.warn('[thisavfull] jmpres resolve err', e.message);
+    }
+    return jmp;
 }
 
 async function init(inReq, _outResp) {
@@ -588,7 +698,7 @@ async function home(inReq, _outResp) {
         referer: `${baseHost}/dm247/cn`,
         db: inReq.server?.db,
     });
-    const list = parseCards(res.text, parseMode);
+    const list = parseCards(res.text, parseMode, inReq);
     return { class: CLASSES, filters: buildFilters(), list };
 }
 
@@ -602,7 +712,7 @@ async function category(inReq, _outResp) {
         referer: `${baseHost}/dm247/cn`,
         db: inReq.server?.db,
     });
-    const list = parseCards(res.text, parseMode);
+    const list = parseCards(res.text, parseMode, inReq);
     return {
         page: pg,
         pagecount: list.length >= 12 ? pg + 1 : pg,
@@ -610,6 +720,32 @@ async function category(inReq, _outResp) {
         total: 9999,
         list,
     };
+}
+
+async function imgProxy(inReq, reply) {
+    try {
+        await ensureHost(inReq.server?.db);
+        let imgB64 = inReq.query.url || '';
+        try { imgB64 = decodeURIComponent(imgB64); } catch { /* ignore */ }
+        const pad = (4 - (imgB64.length % 4)) % 4;
+        if (pad) imgB64 += '='.repeat(pad);
+        const imgUrl = Buffer.from(imgB64, 'base64').toString('utf8');
+        if (!imgUrl || !imgUrl.startsWith('http')) return reply.code(404).send('');
+
+        const resp = await req.get(imgUrl, {
+            headers: fetchHeaders(`${baseHost}/`),
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        if (resp.status !== 200 || !resp.data) return reply.code(404).send('');
+
+        const body = Buffer.from(resp.data);
+        return reply.code(200).header('Content-Type', imageMime(body)).send(body);
+    } catch (e) {
+        console.warn('[thisavfull] imgProxy err', e.message);
+        return reply.code(500).send('');
+    }
 }
 
 async function detail(inReq, _outResp) {
@@ -628,29 +764,9 @@ async function detail(inReq, _outResp) {
     const posterM = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
     const vodPic = posterM ? posterM[1].trim() : '';
 
-    const fromList = [];
-    const urlList = [];
-    const packerM = html.match(/}\s*\(\s*['"]([\s\S]*?)['"]\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*['"]([^'"]+)['"]\.split\(['"]\|['"]\)/);
-
-    if (packerM) {
-        const unpacked = unpackPacker(packerM[1], parseInt(packerM[2], 10), parseInt(packerM[3], 10), packerM[4].split('|'));
-        const source1080 = unpacked.match(/source1280\s*=\s*['"]([^'"]+)['"]/);
-        const source720 = unpacked.match(/source842\s*=\s*['"]([^'"]+)['"]/);
-        const sourceAuto = unpacked.match(/source\s*=\s*['"]([^'"]+)['"]/);
-
-        if (source1080) {
-            fromList.push('1080P超清');
-            urlList.push(`正片$${proxyStreamUrl(source1080[1])}`);
-        }
-        if (source720) {
-            fromList.push('720P高清');
-            urlList.push(`正片$${proxyStreamUrl(source720[1])}`);
-        }
-        if (sourceAuto) {
-            fromList.push('自适应线路');
-            urlList.push(`正片$${proxyStreamUrl(sourceAuto[1])}`);
-        }
-    }
+    const streams = extractPackedSources(html);
+    const fromList = streams.map((s) => s.from);
+    const urlList = streams.map((s) => `正片$${s.url}`);
 
     if (!fromList.length) {
         fromList.push('官方原线');
@@ -668,7 +784,7 @@ async function detail(inReq, _outResp) {
         list: [{
             vod_id: targetUrl,
             vod_name: vodName,
-            vod_pic: vodPic,
+            vod_pic: wrapPic(vodPic, inReq),
             vod_actor: BRAND_ACTOR,
             vod_director: BRAND_DIRECTOR,
             vod_remarks: '蝴蝶影视',
@@ -681,17 +797,37 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     await ensureHost(inReq.server?.db);
-    const playUrl = String(inReq.body.id || '').trim();
-    const isPage = !/\.(m3u8|mp4)(\?|$)/i.test(playUrl);
+    let playUrl = cleanStreamUrl(inReq.body.id);
+    let referer = `${baseHost}/`;
+
+    // 详情页 fallback 或 jmpres 被误判时，重新从页面解包
+    if (playUrl.startsWith('http') && !isVideoFormat(playUrl)) {
+        const pageUrl = playUrl;
+        const res = await fetchHtml(pageUrl, { db: inReq.server?.db });
+        const streams = extractPackedSources(res.text || '');
+        if (streams.length) {
+            playUrl = streams[0].url;
+            referer = pageUrl;
+        }
+    }
+
+    if (isVideoFormat(playUrl)) {
+        if (playUrl.includes('/jmpres/')) {
+            playUrl = await resolveJmpresUrl(playUrl, referer);
+        }
+        return {
+            parse: 0,
+            jx: 0,
+            url: playUrl,
+            header: playHeaders(referer),
+        };
+    }
+
     return {
-        parse: isPage ? 1 : 0,
-        jx: 0,
+        parse: 1,
+        jx: 1,
         url: playUrl,
-        header: {
-            'User-Agent': UA,
-            Referer: `${baseHost}/`,
-            Accept: '*/*',
-        },
+        header: playHeaders(referer),
     };
 }
 
@@ -705,7 +841,7 @@ async function search(inReq, _outResp) {
         : `${baseHost}/cn/search/${encoded}`;
 
     const res = await fetchHtml(searchUrl, { db: inReq.server?.db });
-    const list = parseCards(res.text, 'video');
+    const list = parseCards(res.text, 'video', inReq);
 
     return {
         page: pg,
@@ -729,5 +865,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img', imgProxy);
     },
 };
