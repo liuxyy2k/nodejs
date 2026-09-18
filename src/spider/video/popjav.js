@@ -1,18 +1,60 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const site = 'https://popjav.in';
 
 async function request(url) {
     const resp = await axios.get(url, {
         headers: { 'User-Agent': UA },
-        // httpsAgent: agent
     });
     return resp.data;
+}
+
+const PACKER_FN = String.raw`function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*d\s*\)`;
+const PACKED_EVAL_RE = new RegExp(
+    String.raw`eval\(${PACKER_FN}[\s\S]+?}\(\s*'[\s\S]+',\s*\d+,\s*\d+,\s*'[\s\S]+?'\.split\('\|'\)\s*\)+`
+);
+
+function parsePackerArgs(code) {
+    const patterns = [
+        /}\(\s*'([\s\S]+)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/,
+        /}\(\s*'([\s\S]+)',\s*(\d+),\s*(\d+),\s*"([\s\S]*?)"\.split\('\|'\)/,
+        /}\(\s*"([\s\S]+)",\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/,
+    ];
+    for (const re of patterns) {
+        const m = code.match(re);
+        if (m) return m;
+    }
+    return null;
+}
+
+function unpackPacker(code) {
+    const args = parsePackerArgs(code);
+    if (!args) return '';
+    let payload = args[1];
+    const base = parseInt(args[2], 10);
+    const count = parseInt(args[3], 10);
+    if (!Number.isFinite(base) || base < 2 || base > 36) return '';
+    if (!Number.isFinite(count) || count < 0 || count > 100000) return '';
+    const dict = args[4].split('|');
+    for (let i = count - 1; i >= 0; i--) {
+        if (!dict[i]) continue;
+        payload = payload.replace(new RegExp('\\b' + i.toString(base) + '\\b', 'g'), dict[i]);
+    }
+    return payload;
+}
+
+function extractStreamUrl(unpacked) {
+    if (!unpacked) return '';
+    for (const key of ['hls2', 'hls3', 'hls4']) {
+        const m = unpacked.match(new RegExp(`["']${key}["']\\s*:\\s*["']([^"']+)["']`));
+        if (m?.[1]) return m[1];
+    }
+    return '';
 }
 
 function parseCards($) {
@@ -67,19 +109,18 @@ async function detail(inReq, _outResp) {
     const name = $('#player-width h1').text().trim() || '';
     const des  = $('#post-content').text() || '';
     let pic  = $('#iframe img').attr('src') || '';
-    let playUrl = ''
     let vod_play_from = '';
     let vod_play_url = '';
-    const reg = /<script>\s*eval\(function\(p,a,c,k,e,d\)[\s\S]*?\)\)\s*<\/script>/
-    const match = html.match(reg)
+    const reg = /<script>\s*eval\(function\(p,a,c,k,e,d\)[\s\S]*?\)\)\s*<\/script>/;
+    const match = html.match(reg);
     if (match) {
-        const js = match[0].replace(/<script>\s*/i, '').replace(/\s*<\/script>/i, '')
-        const unpacked = eval(js.replace('eval', ''))
+        const js = match[0].replace(/<script>\s*/i, '').replace(/\s*<\/script>/i, '');
+        const unpacked = eval(js.replace('eval', ''));
         const urls = [...new Set(
             [...unpacked.matchAll(/https?:\/\/[^"' ]+\/[ev]\/[a-z0-9]+/gi)]
-            .map(v => v[0])
-        )]
-        
+                .map((v) => v[0]),
+        )];
+
         const fromArr = [];
         const urlArr = [];
 
@@ -90,7 +131,7 @@ async function detail(inReq, _outResp) {
 
         vod_play_from = fromArr.join('$$$');
         vod_play_url = urlArr.join('$$$');
-    }   
+    }
     return {
         list: [{
             vod_id:        href,
@@ -107,52 +148,56 @@ async function play(inReq, _outResp) {
     const url = inReq.body.id;
     let playUrl = ''
     const resp = await axios.get(url, {
-        headers: { 'User-Agent': UA,'Referer': site + '/' },
-        // httpsAgent: agent
+        headers: { 'User-Agent': UA, Referer: site + '/' },
     });
-    
-    const reg2 = /eval\(function\(p,a,c,k,e,d\)[\s\S]*?split\('\|'\)\)\)/
-    const match2 = resp.data.match(reg2)
+    const match2 = String(resp.data || '').match(PACKED_EVAL_RE);
     if (match2) {
-        const packed = match2[0]
-        const unpacked = eval(packed.replace('eval', ''))
-        const hls4 = unpacked.match(/"hls4":"(\/stream\/[^"]+\.m3u8)"/)?.[1];
-        if (hls4) {
-            playUrl = hls4
-        }
+        const unpacked = unpackPacker(match2[0]);
+        playUrl = extractStreamUrl(unpacked);
     }
-    const domain = 'https://' +  new URL(url).hostname;
-    const m3u8 = domain + playUrl
-    const resm3U8 = await axios.get(m3u8, {
-        headers: {
-            "User-Agent": UA,
-            Referer: url + '/',
-        },
-    });
-    const lines = resm3U8.data.split('\n')
-    let best = {
-        height: 0,
-        url: ''
-    };
-    
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+    if (!playUrl) {
+        return { parse: 0, url: '', header: { 'User-Agent': UA, Referer: url } };
+    }
 
-        if (line.includes('#EXT-X-STREAM-INF')) {
-            const m = line.match(/RESOLUTION=\d+x(\d+)/);
-            if (m) {
-                const height = parseInt(m[1]);
-                const url = lines[i + 1]?.trim();
+    const domain = 'https://' + new URL(url).hostname;
+    let m3u8 = playUrl.startsWith('http') ? playUrl : domain + playUrl;
 
-                if (url && height > best.height) {
-                    best.height = height;
-                    best.url = url;
+    let newUrl = m3u8;
+    try {
+        const resm3U8 = await axios.get(m3u8, {
+            headers: {
+                'User-Agent': UA,
+                Referer: url,
+            },
+            validateStatus: () => true,
+        });
+        const text = String(resm3U8.data || '');
+        if (text.includes('#EXT-X-STREAM-INF')) {
+            const lines = text.split('\n');
+            let best = { height: 0, url: '' };
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('#EXT-X-STREAM-INF')) {
+                    const m = line.match(/RESOLUTION=\d+x(\d+)/);
+                    if (m) {
+                        const height = parseInt(m[1], 10);
+                        const streamUrl = lines[i + 1]?.trim();
+                        if (streamUrl && height > best.height) {
+                            best.height = height;
+                            best.url = streamUrl;
+                        }
+                    }
                 }
             }
+            if (best.url) {
+                newUrl = best.url.startsWith('http')
+                    ? best.url
+                    : m3u8.replace(/[^/?#]+\.m3u8(\?.*)?$/, best.url);
+            }
         }
+    } catch (e) {
+        console.log('[popjav] master parse fail:', e.message);
     }
-
-    const newUrl = m3u8.replace("master.m3u8", best.url);
      return {
         parse: 0,
         url: newUrl,
