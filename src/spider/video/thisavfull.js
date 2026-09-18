@@ -1,4 +1,5 @@
 import req from '../../util/req.js';
+import { load } from 'cheerio';
 
 /**
  * 蝴蝶·ThisAV 完整版
@@ -755,8 +756,9 @@ async function detail(inReq, _outResp) {
 
     const res = await fetchHtml(targetUrl, { db: inReq.server?.db });
     const html = res.text || '';
+    const $ = load(html);
     if (!html) return { list: [] };
-
+    const des = $('meta[property="og:description"]').attr('content') || '';
     const titleM = html.match(/<title>(.*?)<\/title>/i);
     const rawTitle = titleM ? titleM[1].trim() : '精彩视频';
     const vodName = htmlUnescape(rawTitle.split(' - ')[0].split(' | ')[0].trim());
@@ -772,23 +774,15 @@ async function detail(inReq, _outResp) {
         fromList.push('官方原线');
         urlList.push(`正片$${targetUrl}`);
     }
-
-    const introDesc = [
-        `【官方交流群: ${TG_GROUP}】`,
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-        `【当前接入节点】: ${baseHost} (动态自愈引擎已就绪)`,
-        `影片标题：${vodName}`,
-    ].join('\n');
-
     return {
         list: [{
             vod_id: targetUrl,
             vod_name: vodName,
-            vod_pic: wrapPic(vodPic, inReq),
+            vod_pic: vodPic,
             vod_actor: BRAND_ACTOR,
             vod_director: BRAND_DIRECTOR,
             vod_remarks: '蝴蝶影视',
-            vod_content: introDesc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+            vod_content: des,
             vod_play_from: fromList.join('$$$'),
             vod_play_url: urlList.join('$$$'),
         }],

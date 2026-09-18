@@ -1,22 +1,131 @@
+import axios from 'axios';
 import { load } from 'cheerio';
 import req from '../../util/req.js';
+import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
 const SITE = 'https://www.uaa.com';
+const SERVER_API = config.SERVER_API;
+
+const REQ_HEADERS = {
+    'User-Agent': UA,
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    Origin: SITE,
+};
+
+const CATEGORY_CFG = {
+    国产片: { exclude: '' },
+    日韩片: { exclude: '' },
+    无码流出: { exclude: 'H动漫,国产片' },
+    H动漫: { exclude: '' },
+    欧美片: { exclude: '' },
+};
+
+const ORDER_FILTERS = {
+    key: 'orderType',
+    name: '排序',
+    init: '2',
+    value: [
+        { n: '最新', v: '2' },
+        { n: '最热', v: '1' },
+    ],
+};
+
+function buildLoadUrl({ page, size, includeCategories, excludeCategories = '', orderType = '2', ids = '' }) {
+    const qs = new URLSearchParams();
+    qs.set('page', String(page));
+    qs.set('size', String(size));
+    if (ids) qs.set('ids', ids);
+    else if (includeCategories) qs.set('includeCategories', includeCategories);
+    if (excludeCategories) qs.set('excludeCategories', excludeCategories);
+    qs.set('orderType', String(orderType));
+    qs.set('_', String(Date.now()));
+    return `${SITE}/video/load?${qs.toString()}`;
+}
+
+function parseExtend(raw) {
+    if (!raw) return {};
+    if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        const out = {};
+        for (const part of raw.split('&')) {
+            const [k, v] = part.split('=');
+            if (k) out[k] = v ?? '';
+        }
+        return out;
+    }
+    return {};
+}
+
+function parseJson(raw) {
+    if (typeof raw === 'object' && raw !== null) return raw;
+    try {
+        return JSON.parse(String(raw || '{}'));
+    } catch {
+        return {};
+    }
+}
+
+async function request(url, referer = `${SITE}/`) {
+    try {
+        const resp = await axios.post(SERVER_API, {
+            url,
+            referer,
+            key: 'mira123',
+        }, {
+            timeout: 60000,
+            headers: { 'Content-Type': 'application/json' },
+            validateStatus: () => true,
+        });
+        if (resp.status >= 400) {
+            throw new Error(`proxy HTTP ${resp.status}`);
+        }
+        return resp.data;
+    } catch (e) {
+        console.log('[uua] proxy fail, fallback direct:', e.message);
+        const resp = await req.get(url, {
+            headers: {
+                ...REQ_HEADERS,
+                Referer: referer,
+                Accept: 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            timeout: 20000,
+            validateStatus: () => true,
+        });
+        return resp.data;
+    }
+}
 
 async function fetchPage(url, referer = '') {
-    const resp = await req.get(url, {
-        headers: {
-            'User-Agent': UA,
-            Referer: referer || `${SITE}/`,
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            Origin: SITE,
-        },
-        timeout: 15000,
-        validateStatus: () => true,
-    });
-    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+    const raw = await request(url, referer || `${SITE}/`);
+    return typeof raw === 'string' ? raw : String(raw || '');
+}
+
+async function fetchJson(url, referer = '') {
+    const raw = await request(url, referer || `${SITE}/video/list/`);
+    return parseJson(raw);
+}
+
+function parseVodId(raw) {
+    const s = String(raw || '');
+    if (s.includes('@')) {
+        const idx = s.indexOf('@');
+        return { id: s.slice(0, idx), url: s.slice(idx + 1) };
+    }
+    if (s.includes('.m3u8')) return { id: s, url: s };
+    return { id: s, url: '' };
+}
+
+function mapVideoItem(item) {
+    const id = String(item.id || '');
+    const playUrl = item.url || '';
+    return {
+        vod_id: playUrl ? `${id}@${playUrl}` : id,
+        vod_name: item.title || '',
+        vod_pic: item.coverUrl || item.cover || '',
+        vod_remarks: item.durationFormat || item.onlineTimeFormat || '',
+    };
 }
 
 function parseVods($) {
@@ -42,57 +151,81 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     const classes = [
-        { type_id: '&origin=1', type_name: '国产视频' },
-        { type_id: '&origin=2', type_name: '日本AV' },
-        { type_id: '&category=无码流出&origin=2', type_name: '无码流出' },
-        { type_id: '&origin=3', type_name: 'H动漫' },
-        { type_id: '&origin=5', type_name: '欧美' },
-        { type_id: '&origin=4', type_name: '正规' },
-        { type_id: '&category=主播福利&origin=', type_name: '主播福利' },
-        { type_id: '&category=自拍&origin=', type_name: '自拍' },
-        { type_id: '&category=高清AV&origin=2', type_name: '高清AV' },
-        { type_id: '&category=里番&origin=', type_name: '里番' },
-        { type_id: '&category=泡面番&origin=', type_name: '泡面番' },
-        { type_id: '&category=短剧&origin=', type_name: '短剧' },
-        { type_id: '&category=偷拍&origin=', type_name: '偷拍' },
+        { type_id: '国产片',     type_name: '国产片' },
+        { type_id: '日韩片',     type_name: '日韩片' },
+        { type_id: '无码流出',   type_name: '无码流出' },
+        { type_id: 'H动漫',      type_name: 'H动漫' },
+        { type_id: '欧美片',     type_name: '欧美片' },
     ];
-    return { class: classes, filters: {} };
+    const filters = {};
+    for (const item of classes) {
+        filters[item.type_id] = [ORDER_FILTERS];
+    }
+    return { class: classes, filters };
 }
 
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page, 10) || 1;
-    const url = `${SITE}/video/list?keyword=&searchType=1${tid}&tag=&sort=1&page=${page}`;
-    const html = await fetchPage(url);
-    const $ = load(html);
-    const list = parseVods($);
-
-    return { page, pagecount: list.length > 0 ? page + 1 : page, list };
+    const size = 48;
+    const cfg = CATEGORY_CFG[tid] || {};
+    const extend = parseExtend(inReq.body.filters || inReq.body.filter);
+    const url = buildLoadUrl({
+        page,
+        size,
+        includeCategories: tid,
+        excludeCategories: cfg.exclude || '',
+        orderType: extend.orderType || ORDER_FILTERS.init,
+    });
+    try {
+        const data = await fetchJson(url);
+        if (data?.result !== 'success' && data?.code !== 0) {
+            console.log('[uua] category api:', data?.msg || data?.code || 'unknown');
+        }
+        const model = data?.model || {};
+        const rows = model.data;
+        const list = Array.isArray(rows)
+            ? rows.map(mapVideoItem).filter((v) => v.vod_id && v.vod_name)
+            : [];
+        return {
+            page: model.currentPage || page,
+            pagecount: model.totalPage || page,
+            limit: model.pageSize || size,
+            total: model.totalCount || list.length,
+            list,
+        };
+    } catch (e) {
+        console.log('[uua] category error:', e.message);
+        return { page, pagecount: page, limit: size, total: 0, list: [] };
+    }
 }
 
 async function detail(inReq, _outResp) {
-    const id = inReq.body.id;
-    const url = id.startsWith('http') ? id : `${SITE}${id}`;
-    const html = await fetchPage(url);
-    const $ = load(html);
-
-    const videoUrl = $('#mui-player').attr('src') || '';
-
+    const { id, url } = parseVodId(inReq.body.id);
+    let item = null;
+    if (!url && id) {
+        const data = await fetchJson(buildLoadUrl({ page: 1, size: 1, ids: id, orderType: '2' }));
+        item = data?.model?.data?.[0] || null;
+    }
+    const playUrl = url || item?.url || '';
     return {
         list: [{
-            vod_id: id,
-            vod_name: '',
-            vod_pic: '',
+            vod_id: inReq.body.id,
+            vod_name: item?.title || '',
+            vod_pic: item?.coverUrl || '',
+            vod_content: item?.tags || item?.description || '',
+            vod_remarks: item?.durationFormat || item?.onlineTimeFormat || '',
             vod_play_from: '有爱爱',
-            vod_play_url: `播放$${videoUrl}`,
+            vod_play_url: playUrl ? `播放$${playUrl}` : '',
         }],
     };
 }
 
 async function play(inReq, _outResp) {
+    const { url } = parseVodId(inReq.body.id);
     return {
         parse: 0,
-        url: inReq.body.id,
+        url,
         header: {
             'User-Agent': UA,
             Referer: `${SITE}/`,
