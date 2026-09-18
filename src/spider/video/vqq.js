@@ -40,13 +40,55 @@ const DBODY = {
     },
 };
 
+const UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5410.0 Safari/537.36';
+const MOBILE_UA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
+
 const HEADERS = {
-    'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.5410.0 Safari/537.36',
+    'User-Agent': UA,
     Origin: HOST,
     Referer: `${HOST}/`,
     Accept: 'application/json',
 };
+
+function playHeaders(referer = `${HOST}/`) {
+    return {
+        'User-Agent': MOBILE_UA,
+        Referer: referer,
+        Origin: HOST,
+    };
+}
+
+function isVideoFormat(url) {
+    if (!url || !String(url).startsWith('http')) return false;
+    const u = String(url).toLowerCase();
+    return ['.mp4', '.m3u8', '.ts', '.mkv', '.flv', '.webm'].some((fmt) => u.includes(fmt));
+}
+
+function normalizePageUrl(url) {
+    let u = String(url || '').trim().replace(/^http:\/\//i, 'https://');
+    u = u.replace('https://www.v.qq.com/', `${HOST}/`).replace('https://m.v.qq.com/', `${HOST}/`);
+    return u;
+}
+
+function parsePlayId(id) {
+    const raw = String(id || '').trim();
+    if (!raw) return { pageUrl: '', vid: '' };
+
+    if (raw.startsWith('http')) {
+        const pageUrl = normalizePageUrl(raw);
+        const m = pageUrl.match(/\/x\/cover\/([^/]+)\/([^/.]+)\.html/i);
+        return { pageUrl, cid: m?.[1] || '', vid: m?.[2] || '' };
+    }
+
+    const at = raw.lastIndexOf('@');
+    if (at < 0) return { pageUrl: '', vid: '' };
+    const left = raw.slice(0, at);
+    const vid = raw.slice(at + 1);
+    const cid = left.includes('$') ? left.split('$').pop() : left;
+    return { pageUrl: `${HOST}/x/cover/${cid}/${vid}.html`, cid, vid };
+}
 
 const http = axios.create({
     timeout: 15000,
@@ -235,6 +277,42 @@ function processPdata(pdata, cid) {
     return { plist, ylist };
 }
 
+function parseQzJson(text) {
+    const raw = String(text || '').trim().replace(/^QZOutputJson=/, '').replace(/;\s*$/, '');
+    return JSON.parse(raw);
+}
+
+function isPreviewStream(data, vi) {
+    const previewSec = Number(data?.preview);
+    if (previewSec > 0) return true;
+    const viPreview = Number(vi?.preview);
+    const totalSec = parseFloat(vi?.td || '0');
+    if (viPreview > 0 && totalSec > 0 && viPreview < totalSec) return true;
+    return false;
+}
+
+async function resolveDirectUrl(vid, { allowPreview = false } = {}) {
+    const defns = ['fhd', 'shd', 'hd', 'mp4'];
+    for (const defn of defns) {
+        try {
+            const api =
+                `https://vv.video.qq.com/getinfo?otype=json&platform=101001&charge=0&vid=${encodeURIComponent(vid)}&defn=${defn}&defaultfmt=auto`;
+            const resp = await http.get(api);
+            if (resp.status !== 200) continue;
+            const data = parseQzJson(resp.data);
+            if (!data || data.em !== 0) continue;
+            const vi = data.vl?.vi?.[0];
+            const ui = vi?.ul?.ui?.[0];
+            if (!vi?.fn || !vi?.fvkey || !ui?.url) continue;
+            if (!allowPreview && isPreviewStream(data, vi)) continue;
+            return `${ui.url}${vi.fn}?vkey=${vi.fvkey}`;
+        } catch {
+            /* try next quality */
+        }
+    }
+    return '';
+}
+
 function buildVod(vdata, actors, plist, ylist) {
     const d =
         safeGet(vdata, 'data', 'module_list_datas', 0, 'module_datas', 0, 'item_data_lists', 0, 'item_datas', 0, 'item_params') || {};
@@ -382,14 +460,33 @@ async function detail(inReq, _outResp) {
 }
 
 async function play(inReq, _outResp) {
-    const id = String(inReq.body.id || '');
-    const [left, vid] = id.split('@');
-    const cid = left.includes('$') ? left.split('$').pop() : left;
-    const pageUrl = `${HOST}/x/cover/${cid}/${vid}.html`;
+    const { pageUrl, vid } = parsePlayId(inReq.body.id || '');
+    if (!pageUrl) {
+        return { parse: 0, jx: 0, url: '', header: playHeaders() };
+    }
+
+    if (isVideoFormat(pageUrl)) {
+        return { parse: 0, jx: 0, url: pageUrl, header: playHeaders(pageUrl) };
+    }
+
+    let direct = vid ? await resolveDirectUrl(vid, { allowPreview: false }) : '';
+    if (!direct && vid) {
+        direct = await resolveDirectUrl(vid, { allowPreview: true });
+    }
+    if (direct) {
+        return {
+            parse: 0,
+            jx: 0,
+            url: direct,
+            header: playHeaders(pageUrl),
+        };
+    }
+
     return {
         parse: 1,
+        jx: 0,
         url: `https://jx.xmflv.com/?url=${encodeURIComponent(pageUrl)}`,
-        header: HEADERS,
+        header: playHeaders(pageUrl),
     };
 }
 
