@@ -2,10 +2,11 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import req from '../../util/req.js';
 import { config } from './config.js';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
-const SITE = 'https://www.uaa.com';
-const SERVER_API = config.SERVER_API;
+const SITE = 'https://www.uaa001.com';
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const REQ_HEADERS = {
     'User-Agent': UA,
@@ -36,11 +37,10 @@ function buildLoadUrl({ page, size, includeCategories, excludeCategories = '', o
     qs.set('page', String(page));
     qs.set('size', String(size));
     if (ids) qs.set('ids', ids);
-    else if (includeCategories) qs.set('includeCategories', includeCategories);
-    if (excludeCategories) qs.set('excludeCategories', excludeCategories);
+    else if (includeCategories) qs.set('category', includeCategories);
     qs.set('orderType', String(orderType));
     qs.set('_', String(Date.now()));
-    return `${SITE}/video/load?${qs.toString()}`;
+    return `${SITE}/api/video/app/video/search?${qs.toString()}`;
 }
 
 function parseExtend(raw) {
@@ -67,39 +67,17 @@ function parseJson(raw) {
 }
 
 async function request(url, referer = `${SITE}/`) {
-    try {
-        const resp = await axios.post(SERVER_API, {
-            url,
-            referer,
-            key: 'mira123',
-        }, {
-            timeout: 60000,
-            headers: { 'Content-Type': 'application/json' },
-            validateStatus: () => true,
-        });
-        if (resp.status >= 400) {
-            throw new Error(`proxy HTTP ${resp.status}`);
-        }
-        return resp.data;
-    } catch (e) {
-        console.log('[uua] proxy fail, fallback direct:', e.message);
-        const resp = await req.get(url, {
-            headers: {
-                ...REQ_HEADERS,
-                Referer: referer,
-                Accept: 'application/json, text/plain, */*',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            timeout: 20000,
-            validateStatus: () => true,
-        });
-        return resp.data;
-    }
-}
-
-async function fetchPage(url, referer = '') {
-    const raw = await request(url, referer || `${SITE}/`);
-    return typeof raw === 'string' ? raw : String(raw || '');
+    const resp = await req.get(url, {
+        headers: {
+            ...REQ_HEADERS,
+            Referer: referer,
+            Accept: 'application/json, text/plain, */*',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        timeout: 20000,
+        validateStatus: () => true,
+    });
+    return resp.data;
 }
 
 async function fetchJson(url, referer = '') {
@@ -179,9 +157,6 @@ async function category(inReq, _outResp) {
     });
     try {
         const data = await fetchJson(url);
-        if (data?.result !== 'success' && data?.code !== 0) {
-            console.log('[uua] category api:', data?.msg || data?.code || 'unknown');
-        }
         const model = data?.model || {};
         const rows = model.data;
         const list = Array.isArray(rows)
@@ -239,10 +214,10 @@ async function search(inReq, _outResp) {
     const text = encodeURIComponent(inReq.body.wd);
 
     const url = page > 1
-        ? `${SITE}/video/list?keyword=${text}&category=&origin=&tag=&sort=0&page=${page}`
-        : `${SITE}/video/list?searchType=1&keyword=${text}`;
+        ? `${SITE}/api/video/app/video/search?keyword=${text}&category=&origin=&tag=&sort=0&page=${page}`
+        : `${SITE}/api/video/app/video/search?searchType=1&keyword=${text}`;
 
-    const html = await fetchPage(url);
+    const html = await fetchJson(url);
     const $ = load(html);
     const list = parseVods($);
 
