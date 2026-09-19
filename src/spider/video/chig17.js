@@ -85,7 +85,7 @@ function parseVods($) {
     items.push({
       vod_id: id,
       vod_name: name,
-      vod_pic: rawPic ? proxyImgUrl(rawPic) : '',
+      vod_pic: proxyImgUrl(rawPic),
       vod_remarks: date.replace(/\s*年\s*|\s*月\s*/g, '-').replace(/\s*日/, ''),
     });
   });
@@ -198,7 +198,6 @@ async function imgProxy(inReq, reply) {
         Referer: `${SITE}/`,
         Origin: SITE,
       },
-      httpsAgent: agent,
       responseType: 'arraybuffer',
       timeout: 10000,
     });
