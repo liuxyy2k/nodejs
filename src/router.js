@@ -160,6 +160,7 @@ import tube from "./spider/video/tube.js";
 import ds51 from "./spider/video/51ds.js";
 import oxax from "./spider/video/oxax.js";
 import ppporn from "./spider/video/ppporn.js";
+import av591 from "./spider/video/av591.js";
 import bilibili from "./spider/video/bilibili.js";
 import jav36 from "./spider/video/jav36.js";
 import xcpd from "./spider/video/xcpd.js";
@@ -264,7 +265,7 @@ export const getSpiders = async (server) => {
         mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luanlunba,  masexTv, luoli,
         j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav,  uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
         wnacg, motv, march, pmvhaven, aqx, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, txcy, yese, paradisehill, yemahl, miyun, pektino, maomi66, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
-        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn,
+        wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn, av591,
         missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, ndmt, javxx, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
     ];
