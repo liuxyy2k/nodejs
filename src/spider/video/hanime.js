@@ -97,7 +97,7 @@ async function category(inReq) {
       let cover = $(element).find('img').attr('src');
       if (cover?.includes('background')) cover = $(element).find('img').eq(1).attr('src');
 
-      videos.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: '' });
+      videos.push({ vod_id: href, vod_name: title, vod_pic: cover, vod_remarks: remarks });
     }
   });
 
