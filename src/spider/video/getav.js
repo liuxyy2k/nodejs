@@ -8,8 +8,8 @@ const BRAND_ACTOR = '🦋 TG群: @tvshare23';
 const BRAND_DIRECTOR = '🦋 蝴蝶影视';
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
-const IMG_HEADER_TAIL =
-    '@Referer=https://getav.me/&User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+const PORT = process.env.DEV_HTTP_PORT || 9988;
+const IMG_REFERER = `${BASE_HOST}/zh`;
 
 let options = {};
 
@@ -148,15 +148,63 @@ async function fetchApi(apiPath, timeout = 20000) {
     return {};
 }
 
-function formatPoster(rawUrl) {
-    if (!rawUrl) return '';
-    let pic = String(rawUrl).trim();
-    if (pic.startsWith('//')) pic = `https:${pic}`;
-    else if (pic.startsWith('/')) pic = `${STATIC_HOST}${pic}`;
-    return pic + IMG_HEADER_TAIL;
+function imgReferer() {
+    return String(options.imgReferer || IMG_REFERER);
 }
 
-function formatMovieItem(m) {
+function absUrl(url) {
+    if (!url) return '';
+    let pic = String(url).trim();
+    if (pic.startsWith('http')) return pic;
+    if (pic.startsWith('//')) return `https:${pic}`;
+    if (pic.startsWith('/')) return `${STATIC_HOST}${pic}`;
+    return pic;
+}
+
+function getProxyBase(inReq) {
+    const prefix = inReq?.server?.prefix || '/spider/getav/3';
+    const hostHeader = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host;
+    if (hostHeader) {
+        const proto = inReq?.headers?.['x-forwarded-proto'] || 'http';
+        return `${proto}://${hostHeader}${prefix}`;
+    }
+    return `http://127.0.0.1:${PORT}${prefix}`;
+}
+
+function imageMime(buf) {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+    if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+    if (buf.length >= 4 && buf.subarray(0, 4).toString() === 'GIF8') return 'image/gif';
+    if (buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP') {
+        return 'image/webp';
+    }
+    return 'image/jpeg';
+}
+
+function fetchImgHeaders() {
+    return {
+        'User-Agent': UA,
+        Referer: imgReferer(),
+        Origin: BASE_HOST,
+        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    };
+}
+
+function wrapPic(rawUrl, inReq) {
+    if (!rawUrl) return '';
+    const pic = absUrl(rawUrl);
+    if (pic.includes('/img?url=') || pic.includes('@Referer=')) return pic;
+
+    if (inReq && pic.startsWith('http')) {
+        const b64 = Buffer.from(pic, 'utf8').toString('base64');
+        return `${getProxyBase(inReq)}/img?url=${encodeURIComponent(b64)}`;
+    }
+
+    return `${pic}@Referer=${encodeURIComponent(imgReferer())}@User-Agent=${encodeURIComponent(UA)}`;
+}
+
+function formatMovieItem(m, inReq) {
     const cid = String(m?.id || '')
         .trim()
         .toLowerCase();
@@ -165,7 +213,7 @@ function formatMovieItem(m) {
     return {
         vod_id: cid,
         vod_name: m?.title || cid.toUpperCase(),
-        vod_pic: formatPoster(m?.localImg || m?.img),
+        vod_pic: wrapPic(m?.localImg || m?.img, inReq),
         vod_remarks: dur ? `蝴蝶影视 | ${dur}` : '蝴蝶影视',
         style: { type: 'rect', ratio: 1.42 },
     };
@@ -287,7 +335,7 @@ const FOLDER_SORT_FILTERS = [
     },
 ];
 
-async function categoryContent(tid, pg, extend) {
+async function categoryContent(tid, pg, extend, inReq) {
     const page = Number.isFinite(pg) && pg > 0 ? pg : 1;
     extend = extend || {};
 
@@ -311,7 +359,7 @@ async function categoryContent(tid, pg, extend) {
                 const displayName = count ? `${baseName} (${count}部)` : baseName;
                 const remarks = count ? `蝴蝶影视 | ${count}部` : '蝴蝶影视';
                 const rawAvatar = s?.localAvatar || s?.avatar || s?.localImg || s?.img;
-                const avatar = rawAvatar ? formatPoster(rawAvatar) : generateColorCard(baseName);
+                const avatar = rawAvatar ? wrapPic(rawAvatar, inReq) : generateColorCard(baseName);
                 vList.push({
                     vod_id: buildSubfolderId('star', sId, {
                         sortBy: 'popular',
@@ -422,7 +470,7 @@ async function categoryContent(tid, pg, extend) {
         const movies = dataObj.movies || [];
         const vList = page === 1 ? buildCtrlCards(subType, targetId, pDict) : [];
         for (const m of movies) {
-            const item = formatMovieItem(m);
+            const item = formatMovieItem(m, inReq);
             if (item) vList.push(item);
         }
         const totalPages = dataObj.pagination?.totalPages || (movies.length >= 40 ? page + 1 : page);
@@ -439,7 +487,7 @@ async function categoryContent(tid, pg, extend) {
     const res = await fetchApi(`/api/movies?category=${cat}&${params.join('&')}`);
     const dataObj = res.data || {};
     const movies = dataObj.movies || [];
-    const vList = movies.map(formatMovieItem).filter(Boolean);
+    const vList = movies.map((m) => formatMovieItem(m, inReq)).filter(Boolean);
     const totalPages = dataObj.pagination?.totalPages || (vList.length >= 40 ? page + 1 : page);
     return { page, pagecount: totalPages, limit: vList.length, total: 9999, list: vList };
 }
@@ -449,7 +497,7 @@ async function init(inReq, _outResp) {
     return { ok: true };
 }
 
-async function home(_inReq, _outResp) {
+async function home(inReq, _outResp) {
     const classes = [
         { type_name: '🔥 最近更新', type_id: 'api@@latest' },
         { type_name: '📈 热门影片', type_id: 'api@@hot' },
@@ -499,7 +547,7 @@ async function home(_inReq, _outResp) {
 
     const res = await fetchApi('/api/movies?category=latest&sortBy=latest&limit=20&page=1&locale=zh');
     const movies = res.data?.movies || [];
-    const list = movies.map(formatMovieItem).filter(Boolean);
+    const list = movies.map((m) => formatMovieItem(m, inReq)).filter(Boolean);
 
     return { class: classes, filters, list };
 }
@@ -509,14 +557,14 @@ async function category(inReq, _outResp) {
     const tid = inReq.body.tid || inReq.body.id || '';
     const pg = parseInt(inReq.body.page, 10) || 1;
     const extend = parseExtend(inReq.body.filters || inReq.body.filter || inReq.body.extend || {});
-    return categoryContent(tid, pg, extend);
+    return categoryContent(tid, pg, extend, inReq);
 }
 
 async function detail(inReq, _outResp) {
     const rawId = Array.isArray(inReq.body.id) ? inReq.body.id[0] : inReq.body.id;
 
     if (String(rawId).startsWith('subfolder@@')) {
-        return categoryContent(rawId, 1, {});
+        return categoryContent(rawId, 1, {}, inReq);
     }
 
     const code = String(rawId || '')
@@ -526,7 +574,7 @@ async function detail(inReq, _outResp) {
     const data = res.data || {};
 
     const title = data.title || code.toUpperCase();
-    const poster = formatPoster(data.localImg || data.img);
+    const poster = wrapPic(data.localImg || data.img, inReq);
 
     const actorNames = (data.stars || []).map((a) => cleanHtmlText(a?.name)).filter(Boolean);
     const actorStr = actorNames.length ? actorNames.join(', ') : BRAND_ACTOR;
@@ -616,9 +664,38 @@ async function search(inReq, _outResp) {
     const res = await fetchApi(`/api/movies?q=${key}&sortBy=latest&limit=40&page=${page}&locale=zh`);
     const dataObj = res.data || {};
     const movies = dataObj.movies || [];
-    const list = movies.map(formatMovieItem).filter(Boolean);
+    const list = movies.map((m) => formatMovieItem(m, inReq)).filter(Boolean);
     const totalPages = dataObj.pagination?.totalPages || (list.length >= 40 ? page + 1 : page);
     return { page, pagecount: totalPages, limit: list.length, total: 9999, list };
+}
+
+async function imgProxy(inReq, reply) {
+    try {
+        let imgB64 = inReq.query.url || '';
+        try {
+            imgB64 = decodeURIComponent(imgB64);
+        } catch {
+            /* ignore */
+        }
+        const pad = (4 - (imgB64.length % 4)) % 4;
+        if (pad) imgB64 += '='.repeat(pad);
+        const imgUrl = Buffer.from(imgB64, 'base64').toString('utf8');
+        if (!imgUrl || !imgUrl.startsWith('http')) return reply.code(404).send('');
+
+        const resp = await req.get(imgUrl, {
+            headers: fetchImgHeaders(),
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        if (resp.status !== 200 || !resp.data) return reply.code(404).send('');
+
+        const body = Buffer.from(resp.data);
+        return reply.code(200).header('Content-Type', imageMime(body)).send(body);
+    } catch (e) {
+        console.warn('[getav] imgProxy err', e.message);
+        return reply.code(500).send('');
+    }
 }
 
 export default {
@@ -634,5 +711,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img', imgProxy);
     },
 };
