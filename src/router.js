@@ -184,7 +184,6 @@ import vqq from "./spider/video/vqq.js";
 import hld from "./spider/video/hld.js";
 import hl818 from "./spider/video/818hl.js";
 import redgif from "./spider/video/redgifs.js";
-import supjav1 from "./spider/video/supjav1.js";
 import supjavPy from "./spider/video/supjavPy.js";
 import stripol from "./spider/video/stripol.js";
 import fengye from "./spider/video/fengyeyy.js";
