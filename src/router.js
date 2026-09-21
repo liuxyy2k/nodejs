@@ -139,7 +139,6 @@ import rb91 from "./spider/video/91rb.js";
 import mrcx from "./spider/video/mrcx.js";
 import ds91 from "./spider/video/91ds.js";
 import kdw91 from "./spider/video/91kdw.js";
-import wukong from "./spider/video/wukong.js";
 import porncloud from "./spider/video/porncloud.js";
 import baokuanpk from "./spider/video/baokuanpk.js";
 import baoporn from "./spider/video/baoporn.js";
@@ -234,10 +233,7 @@ import lubosp from "./spider/video/lubosp.js";
 import owoav from "./spider/video/owoav.js";
 import youavhub from "./spider/video/youavhub.js";
 import bmm3 from "./spider/video/bmm3.js";
-import txcy from "./spider/video/txcy.js";
-import yese from "./spider/video/yese.js";
 import paradisehill from "./spider/video/paradisehill.js";
-import yemahl from "./spider/video/yemahl.js";
 import miyun from "./spider/video/miyun.js";
 import onlyfans18 from "./spider/video/onlyfans18.js";
 // import boyfriend from "./spider/video/boyfriend.js";
@@ -269,7 +265,7 @@ export const getSpiders = async (server) => {
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luanlunba,  masexTv, luoli,
         j18Tv, qstv, po85, tt, badNew, awxVideo, dnaav,  uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
-        wnacg, motv, march, pmvhaven, aqx, naughtymachinima, wukong, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, txcy, yese, paradisehill, yemahl, miyun, pektino, maomi66, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
+        wnacg, motv, march, pmvhaven, aqx, naughtymachinima, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01, suiruixhs, huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, paradisehill, miyun, pektino, maomi66, kbduanju, yasetube, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
         wanwu, madou, doll, avple, rou233, xm, cableav, porncvd, pronlulu, ppporn, av591, hayav, boxav,
         missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, ndmt, javxx, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
