@@ -9,8 +9,8 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 const app = express();
 app.use(express.json());
 
-const APP_KEY = '758530b02ae88f62';
-const APP_SECRET = 'NXEL5il0rnYYrAJP2kmGzdgR3LSMpCY8';
+const APP_KEY = '';
+const APP_SECRET = '';
 
 const PORT = 3001;
 //代理
