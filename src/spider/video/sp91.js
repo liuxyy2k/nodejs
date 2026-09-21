@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://jiuse.io';
+const site = 'https://91porny.com';
 
 const SERVER_API = config.SERVER_API;
 
