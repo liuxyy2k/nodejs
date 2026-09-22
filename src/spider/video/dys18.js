@@ -732,7 +732,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'dys18',
-        name: '🔥抖阴',
+        name: '🔥抖阴视频',
         type: 3,
     },
     api: async (fastify) => {
