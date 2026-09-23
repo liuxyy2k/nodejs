@@ -5,8 +5,6 @@ import { config } from './config.js';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://91porny.com';
 
-const SERVER_API = config.SERVER_API;
-
 
 // import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
@@ -23,18 +21,25 @@ async function request(reqUrl, headers = {}) {
 
 function parseVods($) {
     const videos = [];
-    $('article').each((_, element) => {
-        const pic = $(element).find('img').attr('src') || '';
+    $('.video-elem').each((_, element) => {
+        let pic = $(element).find('.img').attr('style') || '';
+        const match = pic.match(/background-image\s*:\s*url\(['"]?([^'")]+)['"]?\)/);
+        let imageUrl = ''
+        if (match) {
+            if (match[1].startsWith('//')) {
+              imageUrl = 'https:' + match[1];
+            }
+          }
         const url = $(element).find('a').attr('href') || '';
-        const name = $(element).find('h4').text().trim();
-        const time = $(element).find('time').text().trim();
-        if (pic.endsWith('.gif') || !name) return;
+        const name = $(element).find('.title').text().trim();
+        const time = $(element).find('.vip-layer').text().trim();
+        if(!name) return;
         const parts = url.split('/');
         const id = parts[3] || url;
         videos.push({
             vod_id: id,
             vod_name: name,
-            vod_pic: pic,
+            vod_pic: imageUrl,
             vod_remarks: time,
         });
     });
@@ -81,23 +86,9 @@ async function detail(inReq, _outResp) {
 
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic = $('meta[property="og:image"]').attr('content') || '';
+    const des = $('meta[property="og:description"]').attr('content') || '';
     const year = $('meta[property="video:release_date"]').attr('content') || '';
-
-    let playUrl = '';
-    const match = html.match(/window\.\$avdt\s*=\s*(\{.*?\})\s*<\/script>/s);
-    if (match) {
-        try {
-            const json = match[1].replace(/\\\//g, '/');
-            const avdt = JSON.parse(json);
-            const hls = avdt.hls || '';
-            const cdns = avdt.cdns || [];
-            if (cdns.length > 0) {
-                playUrl = `https://${cdns[0]}${hls}`;
-            }
-        } catch (e) {
-            console.error('解析 window.$avdt 失败', e);
-        }
-    }
+    const video = $('#video-play').attr('data-src') || '';
 
     return {
         list: [{
@@ -105,8 +96,9 @@ async function detail(inReq, _outResp) {
             vod_name: name,
             vod_pic: pic,
             vod_year: year,
-            vod_play_from: 'J91',
-            vod_play_url: '播放$' + playUrl,
+            vod_content: des,
+            vod_play_from: '91porny',
+            vod_play_url: '播放$' + video,
         }],
     };
 }
