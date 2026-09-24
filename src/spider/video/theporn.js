@@ -1,32 +1,20 @@
-import axios from 'axios';
-import { load } from 'cheerio';  // npm i cheerio
-
-import { config } from './config.js';
+import { load } from 'cheerio';
+import req from '../../util/req.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://theporn.cc';
 
-const FLARE_URL = config.FLARE_URL;
-
-async function request(url) {
-    const resp = await axios.post(FLARE_URL, {
-        cmd: 'request.get',
-        url: url,
-        maxTimeout: 60000,
-    });
-    return resp.data.solution.response;
-}
-
-// ─── HTTP Client ──────────────────────────────────────────────────────────────
-
-const http = axios.create({
-    timeout: 15_000,
-    headers: {
+async function fetchPage(url, referer = '') {
+    const headers = {
         'User-Agent': UA,
-        Referer:      site + '/',
-        Origin:       site,
-    },
-});
+        Referer: referer || `${site}/`,
+        Origin: site,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    };
+    const resp = await req.get(url, { headers, timeout: 15000, responseType: 'text' });
+    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,7 +59,7 @@ async function home(_inReq, _outResp) {
     let classes = [...MANUAL_CLASSES];
 
     try {
-        const data = await request(`${site}/categories`);
+        const data = await fetchPage(`${site}/categories`);
         const $    = load(data);
         const seen = new Set(classes.map((c) => c.type_id));
 
@@ -96,7 +84,7 @@ async function category(inReq, _outResp) {
     const pg   = parseInt(inReq.body.page) || 1;
     const url  = pg === 1 ? `${site}/${tid}` : `${site}/${tid}/${pg}`;
 
-    const data = await request(url);
+    const data = await fetchPage(url);
     const $    = load(data);
 
     let list = [];
@@ -125,7 +113,7 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const tid = inReq.body.id;
-    const data = await request(`${site}/video/${tid}`);
+    const data = await fetchPage(`${site}/video/${tid}`);
     const $    = load(data);
 
     let title = $('title').text().replace(' - ThePorn', '').trim()
@@ -157,7 +145,7 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     const id = inReq.body.id;
-    const data = await request(`${site}/video/${id}`);
+    const data = await fetchPage(`${site}/video/${id}`);
     const $    = load(data);
 
     let src = '';
@@ -189,7 +177,7 @@ async function search(inReq, _outResp) {
     const pg  = parseInt(inReq.body.pg) || 1;
     const url = pg === 1 ? `${site}/search/${key}` : `${site}/search/${key}/${pg}`;
 
-    const data = await request(url);
+    const data = await fetchPage(url);
     const $    = load(data);
 
     for (const selector of ['.search-results .video-item', '.video-list .avdata-outer', '.avdata-outer']) {
