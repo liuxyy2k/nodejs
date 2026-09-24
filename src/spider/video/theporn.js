@@ -4,6 +4,7 @@ import req from '../../util/req.js';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://theporn.cc';
 
+
 async function fetchPage(url, referer = '') {
     const headers = {
         'User-Agent': UA,
@@ -18,33 +19,83 @@ async function fetchPage(url, referer = '') {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function parseVid(href, tid) {
+    if (tid) return String(tid);
+    const m = String(href || '').match(/\/video\/(\d+)/);
+    return m ? m[1] : '';
+}
+
 function parseVideoItem($, el) {
     try {
-        const item   = $(el);
-        const aTag   = item.find('a.av-link');
-        const href   = aTag.attr('href') || '';
-        if (!href) return null;
+        const item = $(el);
+        const href = item.find('a.v3-card-thumb').attr('href') || item.find('a[href*="/video/"]').first().attr('href') || '';
+        const vid = parseVid(href, item.attr('data-tid'));
+        if (!vid) return null;
 
-        const imgTag = item.find('img.cover-img');
-        let cover    = imgTag.attr('data-src') || imgTag.attr('src') || '';
-        if (cover && !cover.startsWith('http')) cover = site + cover;
+        const img = item.find('img.cover-img').first();
+        const title = item.find('.v3-card-title').first().text().trim()
+            || img.attr('alt')?.trim()
+            || '';
+        const pic = img.attr('src') || item.find('picture source[type="image/webp"]').attr('srcset')?.split(' ')[0] || '';
+
+        const duration = item.find('.v3-badge-duration').first().text().trim();
+        const resolution = item.find('.v3-badge-resolution').first().text().trim();
+        const rate = item.find('.v3-badge-like, .v3-card-rate').first().text().trim();
+        const remarks = [duration, resolution, rate].filter(Boolean).join(' · ');
 
         return {
-            vod_id:      href.split('/').pop(),
-            vod_name:    item.find('.av_data_title').text().trim(),
-            vod_pic:     cover,
-            vod_remarks: item.find('.duration').text().trim(),
+            vod_id: vid,
+            vod_name: title,
+            vod_pic: pic,
+            vod_remarks: remarks,
         };
     } catch {
         return null;
     }
 }
 
+function parseJsonLdList(html) {
+    const m = html.match(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+    if (!m) return [];
+    try {
+        const data = JSON.parse(m[1]);
+        const items = data?.itemListElement || [];
+        return items.map((it) => {
+            const url = it.url || '';
+            const vid = parseVid(url);
+            if (!vid) return null;
+            return {
+                vod_id: vid,
+                vod_name: it.name || vid,
+                vod_pic: it.image || '',
+                vod_remarks: '',
+            };
+        }).filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+function extractList(html) {
+    const $ = load(html);
+    const cards = $('.v3-video-card').toArray();
+    if (cards.length) {
+        return cards.map((el) => parseVideoItem($, el)).filter(Boolean);
+    }
+    return parseJsonLdList(html);
+}
+
+function buildListUrl(tid, pg, sort = 'popular') {
+    const id = String(tid || 'videos').replace(/^\/+|\/+$/g, '');
+    const page = parseInt(pg, 10) || 1;
+    const qs = sort ? `?sort=${encodeURIComponent(sort)}` : '';
+    return `${site}/${id}/${page}${qs}`;
+}
 const MANUAL_CLASSES = [
-    { type_id: 'categories/all',    type_name: '影片'     },
+    { type_id: 'videos',            type_name: '视频'     },
     { type_id: 'jav',               type_name: '日本AV'   },
-    { type_id: 'eu',                type_name: '欧美'     },
-    { type_id: 'vr',                type_name: 'VR'       },
+    { type_id: 'west',              type_name: '欧美'     },
+    { type_id: 'vr',                type_name: 'VR'      },
     { type_id: 'video/best',        type_name: '最佳影片' },
     { type_id: 'jav/uncensored',    type_name: '日本无码' },
 ];
@@ -57,60 +108,26 @@ async function init(_inReq, _outResp) {
 
 async function home(_inReq, _outResp) {
     let classes = [...MANUAL_CLASSES];
-
-    try {
-        const data = await fetchPage(`${site}/categories`);
-        const $    = load(data);
-        const seen = new Set(classes.map((c) => c.type_id));
-
-        $('.categories_list .categorie_item').each((_, el) => {
-            const aTag = $(el).find('a');
-            const name = aTag.text().trim();
-            const href = aTag.attr('href') || '';
-            if (!name || !href) return;
-            const typeId = `categories/${href.split('/').pop()}`;
-            if (seen.has(typeId)) return;
-            seen.add(typeId);
-            classes.push({ type_id: typeId, type_name: name });
-        });
-    } catch {
-        // 抓取失败，使用手动分类
-    }
     return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
-    const tid  = inReq.body.id;
-    const pg   = parseInt(inReq.body.page) || 1;
-    const url  = pg === 1 ? `${site}/${tid}` : `${site}/${tid}/${pg}`;
+    const tid = inReq.body.id || 'videos';
+    const pg = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
+    const sort = String(inReq.body.sort || inReq.body.extend?.sort || 'popular');
+    const url = buildListUrl(tid, pg, sort);
 
     const data = await fetchPage(url);
-    const $    = load(data);
+    const list = extractList(data);
 
-    let list = [];
-    for (const selector of ['.video-list .avdata-outer', '.avdata-outer', '.video-list .card']) {
-        const els = $(selector).toArray();
-        if (els.length > 0) {
-            list = els.map((el) => parseVideoItem($, el)).filter(Boolean);
-            break;
-        }
-    }
+    let pagecount = pg + 1;
+    const maxPg = data.match(/href="[^"]*\/(?:videos|jav|west)\/(\d+)\?[^"]*"/i)?.[1]
+        || data.match(/class="v3-pg-btn"[^>]*>(\d+)<\/a>/g)?.pop()?.match(/>(\d+)</)?.[1];
+    if (maxPg) pagecount = parseInt(maxPg, 10) || pagecount;
+    if (!list.length) pagecount = pg;
 
-    // 解析总页数
-    let pagecount = 9999;
-    try {
-        let lastPage = 1;
-        $('.pagination a').each((_, el) => {
-            const href  = $(el).attr('href') || '';
-            const match = href.match(/\/(\d+)$/);
-            if (match) lastPage = Math.max(lastPage, parseInt(match[1]));
-        });
-        pagecount = lastPage;
-    } catch { /* ignore */ }
-
-    return { page: pg, pagecount, limit: 90, total: 999999, list };
+    return { page: pg, pagecount, limit: list.length || 30, total: 999999, list };
 }
-
 async function detail(inReq, _outResp) {
     const tid = inReq.body.id;
     const data = await fetchPage(`${site}/video/${tid}`);
@@ -143,53 +160,48 @@ async function detail(inReq, _outResp) {
     };
 }
 
+function parseCdnHash(html) {
+    const m = html.match(/"space_cdn_hash"\s*:\s*"([^"]+)"/);
+    return m?.[1] || '3121efe8979c635';
+}
+
 async function play(inReq, _outResp) {
     const id = inReq.body.id;
     const data = await fetchPage(`${site}/video/${id}`);
-    const $    = load(data);
+    const $ = load(data);
 
-    let src = '';
+    let hash = $('[data-hash-id]').first().attr('data-hash-id') || '';
+    if (!hash) {
+        const m = data.match(/"hash_id"\s*:\s*"([a-f0-9]+)"/i)
+            || data.match(/data-hash-id="([a-f0-9]+)"/i);
+        hash = m?.[1] || '';
+    }
 
-    // 优先从 script 中提取 hash_id
-    $('script').each((_, el) => {
-        if (src) return;
-        const text  = $(el).html() || '';
-        const match = text.match(/"hash_id":\s*"([a-f0-9]+)"/);
-        if (match) {
-            src = `https://b2.bttss.cc/videos/${match[1]}/g.m3u8?h=3121efe8979c635`;
-        }
-    });
-
-    // 降级：直接取 video src
+    const cdnHash = parseCdnHash(data);
+    let src = hash ? `https://b2.bttss.cc/videos/${hash}/g.m3u8?h=${cdnHash}` : '';
     if (!src) {
-        src = $('video#video-player_html5_api').attr('src') || '';
+        src = $('video#video-player_html5_api').attr('src')
+            || data.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/i)?.[1]
+            || '';
     }
 
     return {
-        parse:  0,
-        url:    src,
+        parse: 0,
+        url: src,
         header: { 'User-Agent': UA, Referer: `${site}/`, Origin: site },
     };
 }
-
 async function search(inReq, _outResp) {
-    const key = encodeURIComponent(inReq.body.wd || '');
-    const pg  = parseInt(inReq.body.pg) || 1;
-    const url = pg === 1 ? `${site}/search/${key}` : `${site}/search/${key}/${pg}`;
+    const key = encodeURIComponent(String(inReq.body.wd || '').trim());
+    const pg = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
+    if (!key) return { list: [], page: pg };
 
+    let url = `${site}/search?q=${key}`;
+    if (pg > 1) url += `&page=${pg}`;
     const data = await fetchPage(url);
-    const $    = load(data);
-
-    for (const selector of ['.search-results .video-item', '.video-list .avdata-outer', '.avdata-outer']) {
-        const els = $(selector).toArray();
-        if (els.length > 0) {
-            return { list: els.map((el) => parseVideoItem($, el)).filter(Boolean) };
-        }
-    }
-
-    return { list: [] };
+    const list = extractList(data);
+    return { list, page: pg, pagecount: list.length ? pg + 1 : pg };
 }
-
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
