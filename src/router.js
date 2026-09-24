@@ -246,6 +246,8 @@ import leijing from "./spider/video/leijing.js";
 import panta from "./spider/video/panta.js";
 import wogg from "./spider/video/wogg.js";
 import zhizhen from "./spider/video/zhizhen.js";
+import alist from "./spider/pan/alist.js";
+import copymanga from "./spider/book/copymanga.js";
 // import tgsou from "./spider/video/tgsou.js";
 // import tgchannel from "./spider/video/tgchannel.js";
 import douban from "./spider/video/douban.js";
@@ -261,7 +263,7 @@ import CMSFactory from "./spider/video/cms.js";
 
 export const getSpiders = async (server) => {
     const spiders = [
-        baseset, push, liveSource, douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, 
+        baseset, push, alist, copymanga, liveSource, douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, 
         miss, missav, thisavfull, getav, ayyc, qingju, bestjavporn, hudie, yiguoduan, dsys, supjav, supjavPy, jable, jableNew, av123, javsb, memojav, popjav, javdirect, x3china, javxxx, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, vlxxsex, njavtv, jav36, avtoday, taiav, twoJav, javgg, javhd, 
         cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, duanju57, cg91, cg911, dsj911, cg007, chig17,  xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porna91, jav91,  pinse,  kb911, rb91, ds91, kdw91, crdj91, dys18, 
         onlyfans18, huangguo, huangdou, jinguo, haose, tt, badNew, suiruixhs, theporny, rou, avple, ai, animei, hanime, hanime1, hanime2, hdm18, redgif, stripol, 
