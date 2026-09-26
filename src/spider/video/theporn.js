@@ -1,20 +1,22 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://theporn.cc';
 
 
-async function fetchPage(url, referer = '') {
+async function fetchPage(targetUrl, referer = '') {
     const headers = {
         'User-Agent': UA,
         Referer: referer || `${site}/`,
-        Origin: site,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
     };
-    const resp = await req.get(url, { headers, timeout: 15000, responseType: 'text' });
-    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(targetUrl, { headers });
+    return resp.data;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,9 +97,6 @@ const MANUAL_CLASSES = [
     { type_id: 'videos',            type_name: '视频'     },
     { type_id: 'jav',               type_name: '日本AV'   },
     { type_id: 'west',              type_name: '欧美'     },
-    { type_id: 'vr',                type_name: 'VR'      },
-    { type_id: 'video/best',        type_name: '最佳影片' },
-    { type_id: 'jav/uncensored',    type_name: '日本无码' },
 ];
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────

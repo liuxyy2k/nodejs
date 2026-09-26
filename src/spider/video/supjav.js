@@ -3,6 +3,7 @@ import req from '../../util/req.js';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://supjav.com/zh';
+const LK_BASE = 'https://lk1.supremejav.com/supjav.php';
 
 async function request(targetUrl, referer = '') {
     const headers = {
@@ -18,18 +19,60 @@ async function request(targetUrl, referer = '') {
     return resp.data;
 }
 
+async function fetchText(url, referer = `${site}/`) {
+    const resp = await req.get(url, {
+        headers: { 'User-Agent': UA, Referer: referer },
+        timeout: 30000,
+        validateStatus: () => true,
+    });
+    return String(resp.data || '');
+}
+
+function absUrl(url, base) {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    try { return new URL(url, base).href; } catch { return url; }
+}
+
+function pickBestM3u8(text, base) {
+    const lines = String(text || '').split('\n');
+    let best = '';
+    let bestH = 0;
+    for (let i = 0; i < lines.length; i++) {
+        if (!lines[i].includes('#EXT-X-STREAM-INF')) continue;
+        const m = lines[i].match(/RESOLUTION=\d+x(\d+)/);
+        const h = m ? parseInt(m[1], 10) : 0;
+        const url = absUrl(lines[i + 1]?.trim(), base);
+        if (url && h >= bestH) { bestH = h; best = url; }
+    }
+    if (best) return best;
+    const direct = lines.find((l) => l.trim() && !l.startsWith('#'));
+    return absUrl(direct?.trim(), base);
+}
+
+async function extractStream(html, ref) {
+    let hits = [...String(html || '').matchAll(/https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/g)].map((x) => x[0]);
+    if (hits.length) return hits[0].replace(/\\\//g, '/').replace(/&amp;/g, '&');
+
+    const hash = load(html)('#video_player').attr('data-hash');
+    if (hash) {
+        const referer = /turbovidhls|turbosplayer|turboviplay/i.test(hash)
+            ? `${new URL(hash).origin}/`
+            : 'https://turbovidhls.com/';
+        const master = await fetchText(hash, referer);
+        return pickBestM3u8(master, hash);
+    }
+    return '';
+}
+
 function parseVods($) {
     const cards = [];
     $('.clearfix .post').each((_, e) => {
-        const href    = $(e).find('a').attr('href') || '';
-        const title   = $(e).find('a').attr('title') || '';
-        const cover   = ($(e).find('.thumb').attr('data-original') || '').replace('!320x216.jpg', '');
-        const remarks = $(e).find('.con .meta .date').text().trim();
         cards.push({
-            vod_id:      href,
-            vod_name:    title,
-            vod_pic:     cover,
-            vod_remarks: remarks,
+            vod_id: $(e).find('a').attr('href') || '',
+            vod_name: $(e).find('a').attr('title') || '',
+            vod_pic: ($(e).find('.thumb').attr('data-original') || '').replace('!320x216.jpg', ''),
+            vod_remarks: $(e).find('.con .meta .date').text().trim(),
         });
     });
     return cards;
@@ -40,153 +83,111 @@ async function init(_inReq, _outResp) {
 }
 
 async function home(_inReq, _outResp) {
-    const classes = [
-        { type_id: 'popular',                     type_name: '热门'     },
-        { type_id: 'category/censored-jav',       type_name: '有码'     },
-        { type_id: 'category/uncensored-jav',     type_name: '无码'     },
-        { type_id: 'category/amateur',            type_name: '素人'     },
-        { type_id: 'category/chinese-subtitles',  type_name: '中文字幕' },
-        { type_id: 'tag/4k',                      type_name: '4K'     },
-        { type_id: 'tag/bareback',                type_name: '无套'     },
-        { type_id: 'tag/acmeorgasm',              type_name: '高潮'     },
-        { type_id: 'tag/creampie',                type_name: '中出' },
-        { type_id: 'tag/huge-cock',               type_name: '巨根' },
-        { type_id: 'category/reducing-mosaic',    type_name: '无码破解' },
-    ];
-    return { class: classes, filters: {} };
+    return {
+        class: [
+            { type_id: 'popular', type_name: '热门' },
+            { type_id: 'category/censored-jav', type_name: '有码' },
+            { type_id: 'category/uncensored-jav', type_name: '无码' },
+            { type_id: 'category/amateur', type_name: '素人' },
+            { type_id: 'category/chinese-subtitles', type_name: '中文字幕' },
+            { type_id: 'tag/4k', type_name: '4K' },
+            { type_id: 'tag/bareback', type_name: '无套' },
+            { type_id: 'tag/acmeorgasm', type_name: '高潮' },
+            { type_id: 'tag/creampie', type_name: '中出' },
+            { type_id: 'tag/huge-cock', type_name: '巨根' },
+            { type_id: 'category/reducing-mosaic', type_name: '无码破解' },
+        ],
+        filters: {},
+    };
 }
 
 async function category(inReq, _outResp) {
-    const tid  = inReq.body.id;
-    const page = parseInt(inReq.body.page) || 1;
-    let url = `${site}/${tid}/page/${page}`
-    const html = await request(url);
-    const $    = load(html);
-    const list = parseVods($);
-    return { page, pagecount: page + 1, list };
+    const tid = inReq.body.id;
+    const page = parseInt(inReq.body.page, 10) || 1;
+    const $ = load(await request(`${site}/${tid}/page/${page}`));
+    return { page, pagecount: page + 1, list: parseVods($) };
 }
 
 async function detail(inReq, _outResp) {
-    const id   = inReq.body.id;
+    const id = inReq.body.id;
     const html = await request(id);
-    const $    = load(html);
-
+    const $ = load(html);
     const name = $('meta[name="description"]').attr('content') || '';
-    const des  = $('meta[name="description"]').attr('content') || '';
+    const vid = String(id).match(/(\d+)\.html/)?.[1] || '';
 
-    const tracks = [];
+    const pairs = [];
     $('a.btn-server').each((_, e) => {
         const trackName = $(e).text().trim();
-        const dataLink  = $(e).attr('data-link') || '';
-        if(trackName !== 'TV') return
-        tracks.push(`${trackName}$${dataLink}`);
+        const dataLink = $(e).attr('data-link') || '';
+        if (!dataLink) return;
+        pairs.push([trackName, `正片$${vid}|${dataLink}`]);
     });
-    
-     let data = tracks[0].split('$')[1]
-     const param = data.split('').reverse().join('');
-     const url   = `https://lk1.supremejav.com/supjav.php?c=${param}`;
+    pairs.sort((a, b) => (a[0] === 'TV' ? 0 : 1) - (b[0] === 'TV' ? 0 : 1));
 
-     const res = await req.get(url, {
-        headers: {
-            'User-Agent': UA,
-            Referer: `https://lk1.supremejav.com/supjav.php?l=${data}&bg=undefined`,
-        },
-    });
-    const el = load(res.data);
-    let playUrl = el('#video_player').attr('data-hash')
-    const resm3U8 = await req.get(playUrl, {
-        headers: {
-            "User-Agent": UA,
-            Referer: `https://turbovidhls.com/`,
-        },
-    });
-    const lines = resm3U8.data.split('\n')
-    let bestUrl = []
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (line.includes('#EXT-X-STREAM-INF')) {
-            const m = line.match(/RESOLUTION=\d+x(\d+)/)
-            if (m) {
-                const height = parseInt(m[1])
-                const url = lines[i + 1]?.trim()
-                bestUrl.push(`${height}$${url}`)
-            }
-        }
-    }
-    // 按分辨率从大到小排序
-    bestUrl.sort((a, b) => {
-        const h1 = parseInt(a.split('$')[0])
-        const h2 = parseInt(b.split('$')[0])
-        return h2 - h1
-    })
-    
     return {
         list: [{
-            vod_id:        id,
-            vod_name:      name,
-            vod_pic:       '',
-            vod_play_from: 'SupJav',
-            vod_play_url:  bestUrl.join('#'),
-            vod_content: des
+            vod_id: id,
+            vod_name: name,
+            vod_pic: '',
+            vod_content: name,
+            vod_play_from: pairs.length ? pairs.map((p) => p[0]).join('$$$') : 'SupJav',
+            vod_play_url: pairs.length ? pairs.map((p) => p[1]).join('$$$') : '',
         }],
     };
 }
 
-function getBestM3U8(text) {
-    const lines = text.split('\n')
-    let bestUrl = ''
-    let bestHeight = 0
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (line.includes('#EXT-X-STREAM-INF')) {
-            const m = line.match(/RESOLUTION=\d+x(\d+)/)
-            if (m) {
-                const height = parseInt(m[1])
-                const url = lines[i + 1]?.trim()
-                if (height > bestHeight) {
-                    bestHeight = height
-                    bestUrl = url
-                }
-            }
-        }
+async function play(inReq, _outResp) {
+    const fail = { parse: 0, url: '', header: { 'User-Agent': UA } };
+    let raw = String(inReq.body.id || inReq.body.url || '').trim();
+    if (raw.includes('$')) raw = raw.split('$').pop().trim();
+    if (/^https?:\/\/.+\.m3u8/i.test(raw)) {
+        return {
+            parse: 0,
+            url: raw,
+            header: { 'User-Agent': UA, Referer: 'https://turbovidhls.com/' },
+        };
     }
 
-    return bestUrl
-}
+    const pipe = raw.indexOf('|');
+    const vid = pipe >= 0 ? raw.slice(0, pipe) : '';
+    const lk = pipe >= 0 ? raw.slice(pipe + 1) : raw;
+    if (!lk) return fail;
 
-async function play(inReq, _outResp) {
-     return {
-        url: inReq.body.id,
-        header: {
-            'User-Agent': UA,
-            'Referer': 'https://turbovidhls.com/'
-        },
-    };
+    const detailUrl = vid ? `https://supjav.com/zh/${vid}.html` : `${site}/`;
+    const s1Url = `${LK_BASE}?l=${lk}`;
+    const s1 = await fetchText(s1Url, detailUrl);
+    const om = s1.match(/var\s+OLID\s*=\s*'([0-9a-f]{40,})'/i);
+    const olid = om ? om[1].split('').reverse().join('') : lk.split('').reverse().join('');
+
+    const s2Url = `${LK_BASE}?c=${olid}`;
+    const s2 = await fetchText(s2Url, s1Url);
+    let playUrl = await extractStream(s2, s2Url);
+    if (!playUrl) return fail;
+
+    playUrl = playUrl.replace(/\\\//g, '/').replace(/&amp;/g, '&');
+    let referer = s2Url;
+    if (/turbovidhls|turbosplayer|turboviplay/i.test(playUrl)) {
+        try { referer = `${new URL(playUrl).origin}/`; } catch { referer = 'https://turbovidhls.com/'; }
+    }
+
+    return { parse: 0, url: playUrl, header: { 'User-Agent': UA, Referer: referer } };
 }
 
 async function search(inReq, _outResp) {
     const text = encodeURIComponent(inReq.body.wd);
-    const page = parseInt(inReq.body.page) || 1;
-
-    const html = await request(`${site}/page/${page}?s=${text}`);
-    const $    = load(html);
-    const list = parseVods($);
-
-    return { list };
+    const page = parseInt(inReq.body.page, 10) || 1;
+    const $ = load(await request(`${site}/page/${page}?s=${text}`));
+    return { list: parseVods($) };
 }
 
 export default {
-    meta: {
-        key:  'supjav',
-        name: '🔥SupjAv',
-        type: 3,
-    },
+    meta: { key: 'supjav', name: '🔥SupjAv', type: 3 },
     api: async (fastify) => {
-        fastify.post('/init',     init);
-        fastify.post('/home',     home);
+        fastify.post('/init', init);
+        fastify.post('/home', home);
         fastify.post('/category', category);
-        fastify.post('/detail',   detail);
-        fastify.post('/play',     play);
-        fastify.post('/search',   search);
+        fastify.post('/detail', detail);
+        fastify.post('/play', play);
+        fastify.post('/search', search);
     },
 };
