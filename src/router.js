@@ -153,6 +153,7 @@ import xx01 from "./spider/video/xx01.js";
 import suiruixhs from "./spider/video/suiruixhs.js";
 import x3av from "./spider/video/x3av.js";
 import dottaia from "./spider/video/dottaia.js";
+import av01 from "./spider/video/av01.js";
 import zsrenqi from "./spider/video/zsrenqi.js";
 import hscka from "./spider/video/hscka.js";
 import lyt from "./spider/video/luyitian.js";
@@ -273,7 +274,7 @@ export const getSpiders = async (server) => {
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
         mtw, ncxxx, jptt, xjsp, jiujiu, adtv, luanlunba,  masexTv, luoli,
         j18Tv, po85, awxVideo, dnaav, uua, uaaudio, xqxq, t66yy, x887717, xyjc, ssp, movie, mrcx, lyt, xcpd, pigav, uumb, ovo, mitaoshipin, gg51, hstream, lxtv5, 
-        wnacg, motv, march, pmvhaven, aqx, naughtymachinima, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01,  huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, paradisehill, miyun, pektino, maomi66, kbduanju, yasetube, avporn, isese, x3av, dottaia, zsrenqi, hscka, hjsqn, 
+        wnacg, motv, march, pmvhaven, aqx, naughtymachinima, porncloud, baokuanpk, baoporn, kissjav, quanse, hentaiasmr, bh5873, r3e2o, shunvh, xx01,  huoporn, javbunny, javfree, javfreest, av3698, avgood, zcxh, lubosp, owoav, youavhub, bmm3, paradisehill, miyun, pektino, maomi66, kbduanju, yasetube, avporn, isese, x3av, dottaia, av01, zsrenqi, hscka, hjsqn, 
         wanwu, madou, doll, rou233, xm, cableav, porncvd, pronlulu, ppporn, av591, hayav, boxav,
         missav02, missavt, msavx, hubff, oneapi, xingba, mitaoyuan, mitaofc2, goodav, ndmt, javxx, javday, javmenu, dogav,
         fullhd, kore, beeg, kbjfan, pornhub, tube, ppphub, theporn, xvideos, xhams, xxxFollow
