@@ -1,13 +1,15 @@
 import req from '../../util/req.js';
 import { config } from './config.js';
+import { apiOriginFromReq } from '../../util/m3u8Gateway.js';
 
 const site = 'https://www.av01.media';
+const cdnHost = 'https://customers.iw01.xyz';
 const lang = 'cn';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const GEO_URL = 'https://files.iw01.xyz/edge/geo.js?json';
-const SERVER_API = config.SERVER_API;
-const PROXY_KEY = 'mira123';
-const PORT = process.env.DEV_HTTP_PORT || 9988;
+const CF_API = config.CF_API;
+const CF_KEY = 'mira123';
+const MAX_HEIGHT = 720;
 
 let geoCache = null;
 let geoTime = 0;
@@ -25,7 +27,8 @@ function parseJson(data) {
 
 function getProxyBase(inReq) {
     const prefix = inReq?.server?.prefix || '/spider/av01/3';
-    return `http://127.0.0.1:${PORT}${prefix}`;
+    const origin = inReq ? apiOriginFromReq(inReq) : `http://127.0.0.1:${process.env.DEV_HTTP_PORT || 9988}`;
+    return `${origin}${prefix}`;
 }
 
 function proxyPlayUrl(target, referer, inReq) {
@@ -36,47 +39,58 @@ function proxySegUrl(target, referer, inReq) {
     return `${getProxyBase(inReq)}/proxy.seg?url=${encodeURIComponent(target)}&referer=${encodeURIComponent(referer)}`;
 }
 
-async function serverFetch(url, referer = site, binary = false) {
+function fetchHeaders(url, referer = site) {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer,
+        Origin: site,
+        Accept: '*/*',
+    };
+    if (String(url).includes('customers.iw01.xyz') || String(url).includes('files.iw01.xyz')) {
+        headers.Referer = referer;
+        headers.Origin = site;
+    }
+    return headers;
+}
+
+async function cfFetch(url, referer = site) {
     try {
-        const resp = await req.post(SERVER_API, {
-            url,
-            referer,
-            key: PROXY_KEY,
-            binary,
-        }, {
+        const resp = await req.post(CF_API, { url, referer, key: CF_KEY }, {
             timeout: 90000,
             validateStatus: () => true,
-            responseType: binary ? 'arraybuffer' : 'text',
-            headers: { 'Content-Type': 'application/json' },
         });
         if (resp.status !== 200 || resp.data == null) return null;
-        return resp.data;
+        const data = resp.data;
+        if (typeof data === 'string') return data;
+        return data.html || data.body || data.content || null;
     } catch {
-        return null;
+        /* ignore */
     }
+    return null;
 }
 
 async function fetchText(url, referer = site) {
     try {
         const resp = await req.get(url, {
-            headers: { 'User-Agent': UA, Referer: referer, Origin: site, Accept: '*/*' },
+            headers: fetchHeaders(url, referer),
             timeout: 45000,
             responseType: 'text',
             validateStatus: () => true,
         });
         const text = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
-        if (resp.status === 200 && text && !text.startsWith('{')) return text;
+        if (resp.status === 200 && text.includes('#EXTM3U')) return text;
     } catch {
         /* ignore */
     }
-    const data = await serverFetch(url, referer, false);
-    return typeof data === 'string' ? data : '';
+    const data = await cfFetch(url, referer);
+    const text = typeof data === 'string' ? data : '';
+    return text.includes('#EXTM3U') ? text : '';
 }
 
 async function fetchBytes(url, referer = site) {
     try {
         const resp = await req.get(url, {
-            headers: { 'User-Agent': UA, Referer: referer, Origin: site, Accept: '*/*' },
+            headers: fetchHeaders(url, referer),
             timeout: 60000,
             responseType: 'arraybuffer',
             validateStatus: () => true,
@@ -85,14 +99,13 @@ async function fetchBytes(url, referer = site) {
     } catch {
         /* ignore */
     }
-    const data = await serverFetch(url, referer, true);
-    return data ? Buffer.from(data) : Buffer.alloc(0);
+    return Buffer.alloc(0);
 }
 
-async function httpGet(url) {
+async function httpGet(url, referer = site) {
     try {
         const resp = await req.get(url, {
-            headers: { 'User-Agent': UA, Accept: 'application/json,text/plain,*/*' },
+            headers: { ...fetchHeaders(url, referer), Accept: 'application/json,text/plain,*/*' },
             timeout: 45000,
             validateStatus: () => true,
         });
@@ -100,8 +113,7 @@ async function httpGet(url) {
     } catch {
         /* ignore */
     }
-    const data = await serverFetch(url, site, false);
-    return parseJson(data);
+    return parseJson(await cfFetch(url, referer));
 }
 
 async function httpPost(url, body) {
@@ -122,8 +134,8 @@ async function httpPost(url, body) {
     return null;
 }
 
-async function apiGet(path) {
-    return httpGet(`${site}/api/v1/${path.replace(/^\//, '')}`);
+async function apiGet(path, referer = site) {
+    return httpGet(`${site}/api/v1/${path.replace(/^\//, '')}`, referer);
 }
 
 async function apiPost(path, body) {
@@ -143,12 +155,16 @@ async function getGeo(force = false) {
     } catch {
         /* ignore */
     }
-    if (!data?.token_v2) data = parseJson(await serverFetch(GEO_URL, site, false));
+    if (!data?.token_v2) data = parseJson(await cfFetch(GEO_URL, site));
     if (data?.token_v2) {
         geoCache = data;
         geoTime = Date.now();
     }
     return data;
+}
+
+function geoQuery(geo) {
+    return `expires=${geo.expires}&ip=${encodeURIComponent(geo.ip)}&token_v2=${encodeURIComponent(geo.token_v2)}`;
 }
 
 function tName(item, field = 'title') {
@@ -159,8 +175,7 @@ function tName(item, field = 'title') {
 function buildCover(v, geo) {
     if (!v?.id) return '';
     if (geo?.token_v2 && (v.r2_status === 'COMPLETE' || v.r2_status === 'COVER_ONLY' || geo.r2_cover)) {
-        const q = `token_v2=${encodeURIComponent(geo.token_v2)}&expires=${geo.expires}&ip=${encodeURIComponent(geo.ip)}`;
-        return `https://files.iw01.xyz/covers/${v.id}/640.jpg?${q}`;
+        return `https://files.iw01.xyz/covers/${v.id}/640.jpg?${geoQuery(geo)}`;
     }
     if (v.storage_base) {
         return `https://static.av01.tv/v2${v.storage_base}/800.webp`;
@@ -208,25 +223,11 @@ function decodePlaylist(data) {
     }
 }
 
-function toManifestRel(rawUrl) {
-    try {
-        const u = new URL(rawUrl);
-        return `${u.pathname.replace(/^\//, '')}${u.search}`;
-    } catch {
-        return String(rawUrl || '').replace(/^https?:\/\/[^/]+\//, '');
-    }
-}
-
-function buildManifestUrl(vid, cdnUrl, accessToken) {
-    const rel = toManifestRel(cdnUrl);
-    const sep = rel.includes('?') ? '&' : '?';
-    return `${site}/api/v1/videos/${vid}/manifest/${rel}${sep}access_token=${encodeURIComponent(accessToken)}`;
-}
-
 function pickStreamUrl(m3u8) {
     const lines = String(m3u8 || '').split('\n');
     let best = '';
     let pick720 = '';
+    let pick360 = '';
     let bestH = 0;
     for (let i = 0; i < lines.length; i++) {
         const m = lines[i].match(/RESOLUTION=\d+x(\d+)/);
@@ -239,8 +240,97 @@ function pickStreamUrl(m3u8) {
             best = url;
         }
         if (!pick720 && h >= 480 && h <= 810) pick720 = url;
+        if (!pick360 && h <= 400) pick360 = url;
     }
-    return pick720 || best || lines.find((l) => l.startsWith('http')) || '';
+    return pick360 || pick720 || best || lines.find((l) => l.startsWith('http')) || '';
+}
+
+function buildManifestUrl(vid, rawLine, accessToken) {
+    const line = String(rawLine || '').trim();
+    const sep = line.includes('?') ? '&' : '?';
+    return `${cdnHost}/api/v1/videos/${vid}/manifest/${line}${sep}access_token=${encodeURIComponent(accessToken)}`;
+}
+
+function rewriteMasterLikeSite(vid, masterText, accessToken) {
+    const lines = String(masterText || '').replace(/\r/g, '').split('\n');
+    const out = [];
+    let skipNext = false;
+    let lowest = Infinity;
+    let fallbackInf = '';
+    let fallbackUrl = '';
+    let iframeInf = '';
+
+    for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i];
+        const line = raw.trim();
+        if (!line) continue;
+        if (skipNext) {
+            skipNext = false;
+            continue;
+        }
+        const hm = line.match(/RESOLUTION=\d+x(\d+)/);
+        const height = hm ? parseInt(hm[1], 10) : 0;
+        if (height > 0 && height < lowest && line.includes('#EXT-X-STREAM-INF')) {
+            lowest = height;
+            fallbackInf = line;
+            fallbackUrl = (lines[i + 1] || '').trim();
+        }
+        if (height === lowest && line.includes('#EXT-X-I-FRAME-STREAM-INF')) {
+            iframeInf = line;
+        }
+        if (height > MAX_HEIGHT) {
+            if (line.includes('#EXT-X-STREAM-INF')) skipNext = true;
+            continue;
+        }
+        if (line.includes('#EXT-X-I-FRAME-STREAM-INF')) {
+            out.push(line.replace(/URI="([^"]+)"/, (_, uri) => {
+                const url = buildManifestUrl(vid, uri, accessToken);
+                return `URI="${url}"`;
+            }));
+            continue;
+        }
+        if (!line.startsWith('#')) {
+            out.push(buildManifestUrl(vid, line, accessToken));
+            continue;
+        }
+        out.push(raw.trimEnd());
+    }
+
+    if (!out.some((l) => l.includes('#EXT-X-STREAM-INF')) && fallbackInf && fallbackUrl) {
+        out.push(fallbackInf);
+        out.push(buildManifestUrl(vid, fallbackUrl, accessToken));
+        if (iframeInf) {
+            out.push(iframeInf.replace(/URI="([^"]+)"/, (_, uri) => {
+                const url = buildManifestUrl(vid, uri, accessToken);
+                return `URI="${url}"`;
+            }));
+        }
+    }
+    return `${out.join('\n')}\n`;
+}
+
+function wrapRemoteUrls(text, referer, inReq) {
+    const out = [];
+    for (const raw of String(text || '').replace(/\r/g, '').split('\n')) {
+        const line = raw.trim();
+        if (!line) {
+            continue;
+        }
+        if (line.startsWith('#')) {
+            if (line.includes('URI="http')) {
+                out.push(line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxyPlayUrl(uri, referer, inReq)}"`));
+            } else {
+                out.push(raw.trimEnd());
+            }
+            continue;
+        }
+        if (/^https?:\/\//i.test(line)) {
+            out.push(proxyPlayUrl(line, referer, inReq));
+        } else {
+            out.push(line);
+        }
+    }
+    return `${out.join('\n')}\n`;
 }
 
 function rewriteM3u8(text, baseUrl, referer, inReq) {
@@ -250,7 +340,17 @@ function rewriteM3u8(text, baseUrl, referer, inReq) {
         const line = raw.trim();
         if (!line) continue;
         if (line.startsWith('#')) {
-            out.push(raw.trimEnd());
+            if (line.includes('URI="') && !line.includes('URI="http')) {
+                out.push(line.replace(/URI="([^"]+)"/g, (_, uri) => {
+                    let abs = uri;
+                    try { abs = new URL(uri, baseUrl).href; } catch { /* keep */ }
+                    return `URI="${proxyPlayUrl(abs, referer, inReq)}"`;
+                }));
+            } else if (line.includes('URI="http')) {
+                out.push(line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxyPlayUrl(uri, referer, inReq)}"`));
+            } else {
+                out.push(raw.trimEnd());
+            }
             afterStreamInf = line.startsWith('#EXT-X-STREAM-INF');
             continue;
         }
@@ -270,17 +370,32 @@ function rewriteM3u8(text, baseUrl, referer, inReq) {
     return `${out.join('\n')}\n`;
 }
 
-async function resolvePlayUrl(vid, inReq) {
-    const referer = `${site}/${lang}/video/${vid}`;
+async function getAccessToken(vid, geo, referer) {
+    const data = await httpGet(`videos/${vid}/cdn-access?${geoQuery(geo)}`, referer);
+    return data?.access_token || geo.access_token || '';
+}
+
+async function buildMasterPlaylist(vid, referer) {
     const geo = await getGeo(true);
-    if (!geo?.token_v2 || !geo?.access_token) return '';
-    const q = `expires=${geo.expires}&ip=${encodeURIComponent(geo.ip)}&token_v2=${encodeURIComponent(geo.token_v2)}`;
-    const playlist = await httpGet(`${site}/api/v1/videos/${vid}/playlist?${q}`);
+    if (!geo?.token_v2) return '';
+    const accessToken = await getAccessToken(vid, geo, referer);
+    if (!accessToken) return '';
+    const playlist = await httpGet(`${site}/api/v1/videos/${vid}/playlist?${geoQuery(geo)}`, referer);
     const master = decodePlaylist(playlist);
-    const cdnUrl = pickStreamUrl(master);
-    if (!cdnUrl) return '';
-    const manifestUrl = buildManifestUrl(vid, cdnUrl, geo.access_token);
-    return proxyPlayUrl(manifestUrl, referer, inReq);
+    if (!master) return '';
+    return rewriteMasterLikeSite(vid, master, accessToken);
+}
+
+async function masterHandler(inReq, reply) {
+    const vid = String(inReq.query.vid || '').replace(/\D/g, '');
+    const referer = `${site}/${lang}/video/${vid}`;
+    if (!vid) return reply.code(404).send('no vid');
+    const master = await buildMasterPlaylist(vid, referer);
+    if (!master.includes('#EXTM3U')) return reply.code(502).send('bad master');
+    return reply
+        .type('application/vnd.apple.mpegurl')
+        .header('Access-Control-Allow-Origin', '*')
+        .send(wrapRemoteUrls(master, referer, inReq));
 }
 
 async function proxyM3u8Handler(inReq, reply) {
@@ -377,15 +492,32 @@ async function detail(inReq) {
     }
 }
 
+async function resolvePlayUrl(vid) {
+    const referer = `${site}/${lang}/video/${vid}`;
+    const geo = await getGeo(true);
+    if (!geo?.token_v2) return '';
+    const playlist = await httpGet(`${site}/api/v1/videos/${vid}/playlist?${geoQuery(geo)}`, referer);
+    const master = decodePlaylist(playlist);
+    return pickStreamUrl(master);
+}
+
 async function play(inReq) {
     const vid = String(inReq.body.id || inReq.body.flag || '').split('$').pop().replace(/\D/g, '');
     const referer = `${site}/${lang}/video/${vid}`;
     const header = { 'User-Agent': UA, Referer: referer, Origin: site };
     if (!vid) return { parse: 1, url: referer, header };
     try {
-        const playUrl = await resolvePlayUrl(vid, inReq);
+        const playUrl = await resolvePlayUrl(vid);
         if (playUrl) {
-            return { parse: 0, url: playUrl, header };
+            return {
+                parse: 0,
+                url: playUrl,
+                header: {
+                    ...header,
+                    Referer: referer,
+                    Origin: site,
+                },
+            };
         }
     } catch {
         /* fallthrough */
@@ -418,6 +550,7 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/master.m3u8', masterHandler);
         fastify.get('/proxy.m3u8', proxyM3u8Handler);
         fastify.get('/proxy.seg', proxySegHandler);
     },
