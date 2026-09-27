@@ -35,6 +35,53 @@
       "hostOnly": true,
       "creation": "2026-09-17T08:04:34.290Z",
       "lastAccessed": "2026-09-17T08:04:34.293Z"
+    },
+    {
+      "key": "PHPSESSID",
+      "value": "3mb53g8o7i3e0jcn2j0fe0ktn3",
+      "domain": "turbovidhls.com",
+      "path": "/",
+      "hostOnly": true,
+      "creation": "2026-09-27T10:36:47.208Z",
+      "lastAccessed": "2026-09-27T10:43:24.006Z"
+    },
+    {
+      "key": "XSRF-TOKEN",
+      "value": "eyJpdiI6ImM4RXpGMitiQTZ1UDJPNjFIVTROV3c9PSIsInZhbHVlIjoiUDdVVXNiWC9xZDdxQ1d2ZjVXaEoyUkNLcmIyaVVnM2JqWFdvWjd5ejUvN1RlcnlJMGVSR0grdVMraWh6aTBnb3lhNUMveGg1T3ZITlRxc1BzUGxpbVNSV2hGSE83dXRyTGxkaTc0ZHc2dU9TSFRJS1VxL3Fhb1hoc05DKzU3bHUiLCJtYWMiOiIyMDcyOTM4ODYzZTZiN2MwMTc2ODczMTU5MTI0YTdjY2U0YWI5MDFkOGIxMjA0YzQzYzRlZDYxNWZjNzIxN2RiIn0%3D",
+      "expires": "2026-09-27T14:43:27.000Z",
+      "maxAge": 14400,
+      "domain": "turbovidhls.com",
+      "path": "/",
+      "hostOnly": true,
+      "creation": "2026-09-27T10:36:47.209Z",
+      "lastAccessed": "2026-09-27T10:43:24.834Z",
+      "sameSite": "lax"
+    },
+    {
+      "key": "laravel_session",
+      "value": "eyJpdiI6ImJYN1Y0dGdqZmxUU1JaRkdZZjh3V1E9PSIsInZhbHVlIjoiRThFNVhOMUpyckZaWEZFd2pvaTNjLzQvUmRSQkE2a1FJYXpXejRRVjVoN0pibEYxMnNhZnUyRnh6N0lJeDNMSVdTTDNlVVAyRFNKT21aVWt5RzdDRkN6cU12cVpSSkdEbUlYRzRSS3cyd1lmVkFxNUdUTEJoSkZlSWlPOXFneU8iLCJtYWMiOiJlMGU4NGJjYzBlNDM4MzU4YTEyMGE0YzQzMDhiMTQ3NzlkOTM3YWJiNmY1YWIyYjhmNGYxY2ZlNmY5NzA0Yzc2In0%3D",
+      "expires": "2026-09-27T14:43:27.000Z",
+      "maxAge": 14400,
+      "domain": "turbovidhls.com",
+      "path": "/",
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-09-27T10:36:47.209Z",
+      "lastAccessed": "2026-09-27T10:43:24.835Z",
+      "sameSite": "lax"
+    },
+    {
+      "key": "u18ps",
+      "value": "s%3DK6PVOZout0JIwOGd5bfeFt3E%26x%3D1790512739%26d%3Dchromium%26i%3D120.192.15.0%252F24%26v%3Dmrss-072%26k%3D2mCAa_S81Hy13lH1fsLVDszAYJf3rY8EDjBd6C6_g0E",
+      "expires": "2026-09-27T12:38:59.000Z",
+      "domain": "upload18.org",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "hostOnly": false,
+      "creation": "2026-09-27T10:36:48.310Z",
+      "lastAccessed": "2026-09-27T10:38:57.747Z",
+      "sameSite": "lax"
     }
   ]
 }

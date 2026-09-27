@@ -13,6 +13,7 @@ import mitaoyuan from "./spider/video/mitaoyuan.js";
 import mitaofc2 from "./spider/video/mitaofc2.js";
 import goodav from "./spider/video/goodav.js";
 import javgg from "./spider/video/javgg.js";
+import javdino from "./spider/video/javdino.js";
 import javhd from "./spider/video/javhd.js";
 import ndmt from "./spider/video/ndmt.js";
 import xigua51 from "./spider/video/xigua51.js";
@@ -269,7 +270,7 @@ import CMSFactory from "./spider/video/cms.js";
 export const getSpiders = async (server) => {
     const spiders = [
         baseset, push, alist, copymanga, liveSource, douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, 
-        miss, missav, thisavfull, getav, ayyc, qingju, bestjavporn, airav, seqinghub, ipornbase, hudie, yiguoduan, dsys, supjav, supjavPy, jable, jableNew, av123, javsb, memojav, popjav, javdirect, x3china, javxxx, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, vlxxsex, njavtv, jav36, avtoday, taiav, twoJav, javgg, javhd, 
+        miss, missav, thisavfull, getav, ayyc, qingju, bestjavporn, airav, seqinghub, ipornbase, hudie, yiguoduan, dsys, supjav, supjavPy, jable, jableNew, av123, javsb, memojav, popjav, javdirect, x3china, javxxx, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, vlxxsex, njavtv, jav36, avtoday, taiav, twoJav, javgg, javdino, javhd, 
         cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, duanju57, cg91, cg911, dsj911, cg007, chig17,  xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porna91, jav91,  pinse,  kb911, rb91, ds91, kdw91, crdj91, dys18, 
         onlyfans18, huangguo, huangdou, jinguo, haose, tt, badNew, suiruixhs, theporny, rou, avple, ai, animei, hanime, hanime1, hanime2, hdm18, redgif, stripol, 
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
