@@ -21,7 +21,7 @@ const STRIP_HEADERS = {
   'Sec-Fetch-Site': null,
   'Sec-Fetch-User': null,
 };
-const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate', 'vlxxsex', 'popJav', 'javdirect', 'x3china', 'av591']);
+const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate', 'vlxxsex', 'popJav', 'javdirect', 'x3china', 'av591', 'av01']);
 
 const PAN_HOSTS = [
   'aliyundrive.com', 'alipan.com', 'alihub.net', 'quark.cn', 'pan.quark.cn',
@@ -351,7 +351,7 @@ function rewritePlayUrl(raw, origin, headers) {
   if (hashIndex >= 0) url = url.slice(0, hashIndex);
   url = url.trim();
   if (!url || isLocalGateway(url) || !isHttpUrl(url) || isPanHost(url)) return raw;
-  if (/\/spider\/[^/]+\/\d+\/proxy\//i.test(url)) return raw;
+  if (/\/spider\/[^/]+\/\d+\/(?:proxy(?:\.m3u8|\.seg|\/)|master\.m3u8)\b/i.test(url)) return raw;
   if (!(isM3u8(url) || /\.m3u8($|[?#&])/i.test(url))) return raw;
   let host = '';
   try { host = new URL(url).hostname.toLowerCase(); } catch { return raw; }
