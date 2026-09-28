@@ -326,7 +326,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'baogua',
-        name: '🔥爆瓜网',
+        name: '🍉爆瓜网',
         type: 3,
     },
     api: async (fastify) => {
