@@ -5,11 +5,22 @@ import crypto from 'crypto';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 const site = 'https://case.yfiyell.com';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
+
+const headers = {
+    'User-Agent': UA,
+    Referer: `${site}/`,
+    Origin: site,
+};
 
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA },
+        headers,
+        // httpsAgent: agent,
     });
     return resp.data;
 }
@@ -30,7 +41,7 @@ function aesDecrypt(buf) {
 }
 
 function proxyImgUrl(raw) {
-    return `http://127.0.0.1:${PORT}/spider/cg51/3/img?url=${encodeURIComponent(e64(raw))}`;
+    return `http://127.0.0.1:${PORT}/spider/cgw/3/img?url=${encodeURIComponent(e64(raw))}`;
 }
 
 async function parseVods($) {
@@ -108,7 +119,6 @@ async function detail(inReq, _outResp) {
     $('div.dplayer').each((_, element) => {
         try {
             const config = JSON.parse($(element).attr('data-config') || '{}');
-            console.log(config)
             const videoUrl = config?.video?.url || '';
             if (videoUrl) {
                 playParts.push(`第${index}集$${videoUrl}`);
@@ -133,7 +143,7 @@ async function play(inReq, _outResp) {
     return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        header: headers,
     };
 }
 
@@ -159,6 +169,7 @@ async function imgProxy(inReq, reply) {
                 'Referer':    `${site}/`,
                 'Origin':     site,
             },
+            // httpsAgent: agent,
             responseType: 'arraybuffer',
             timeout:      10000,
         });

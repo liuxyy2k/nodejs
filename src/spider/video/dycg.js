@@ -2,20 +2,64 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://dycgweb.com';
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
-async function request(reqUrl, headers = {}) {
+const headers = {
+    'User-Agent': UA,
+    Referer: `${site}/`,
+    Origin: site,
+};
+
+async function request(reqUrl, extraHeaders = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers }
+        headers: { ...headers, ...extraHeaders },
+        httpsAgent: agent,
+        timeout: 20000,
     });
     return resp.data;
+}
+
+function extractPlayUrlFromUnpacked(unpacked) {
+    const text = String(unpacked || '');
+    const b64 = text.match(/data-config=['"]([^'"]+)['"]/)?.[1];
+    if (b64) {
+        try {
+            const url = JSON.parse(Buffer.from(b64, 'base64').toString())?.video?.url;
+            if (url) return url;
+        } catch {}
+    }
+    return text.match(/https?:\/\/[^"'\\\s]+\.m3u8[^"'\\\s]*/)?.[0] || '';
+}
+
+async function resolveDetailPlay(html) {
+    const $ = load(html);
+    for (const el of $('div.dplayer').toArray()) {
+        try {
+            const url = JSON.parse($(el).attr('data-config') || '{}')?.video?.url;
+            if (url) return url;
+        } catch {}
+    }
+
+    const evalStr = String(html).match(/eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\([\s\S]*?\)\)/)?.[0];
+    if (!evalStr) return '';
+
+    const kStr = evalStr.match(/'([^']+)'\.split/)?.[1];
+    if (!kStr) return '';
+    const arr = kStr.split('|');
+    const hash = arr[13];
+    const idss = arr[4];
+    if (!hash || !idss) return '';
+
+    const t = Math.floor(Date.now() / 1000 / 2000);
+    const js = await request(`${site}/player/${hash}/${idss}/${t}.js`);
+    const unpacked = eval(String(js).replace(/^eval/, ''));
+    return extractPlayUrlFromUnpacked(unpacked);
 }
 
 function e64(s) {
@@ -114,22 +158,8 @@ async function detail(inReq, _outResp) {
     const pic = $('meta[property="og:image"]').attr('content') || '';
     const des = $('meta[name="description"]').attr('content') || '';
 
-    const evalStr = html.match(/eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\([\s\S]*?\)\)/)[0];
-    // 拿 split 里的字符串
-    const kStr = evalStr.match(/'([^']+)'\.split/)[1];
-    const arr = kStr.split('|');
-    // 关键索引（固定的）
-    const hash = arr[13];   // d
-    const idss = arr[4];      // 6bb61e3b
-    const t = Math.floor(Date.now() / 1000 / 2000);
-    const url = `/player/${hash}/${idss}/${t}.js`;
-    const js = await request(site + url);
-    const unpacked = eval(js.replace('eval', ''))
-    const playUrl = unpacked.match(
-        /https?:\/\/[^"'\\\s]+\.m3u8[^"'\\\s]*/
-    )?.[0] || '';
+    const playUrl = await resolveDetailPlay(html);
 
-    console.log(playUrl);
     return {
         list: [{
             vod_id: id,
@@ -146,7 +176,7 @@ async function play(inReq, _outResp) {
     return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        header: headers,
     };
 }
 

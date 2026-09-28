@@ -59,8 +59,8 @@ function extractStreamUrl(unpacked) {
   return '';
 }
 
-function hglinkId(url) {
-  const m = String(url || '').match(/hglink\.to\/e\/([^/?#]+)/i);
+function embedId(url) {
+  const m = String(url || '').match(/(?:hglink|hgcloud)\.to\/e\/([^/?#]+)/i);
   return m?.[1] || '';
 }
 
@@ -107,11 +107,11 @@ async function pickBestM3u8(m3u8, referer) {
   return best;
 }
 
-async function resolveHglink(embedUrl) {
-  const id = hglinkId(embedUrl);
+async function resolveHgEmbed(embedUrl) {
+  const id = embedId(embedUrl);
   if (!id) return '';
   const player = `https://iplayerhls.com/e/${id}`;
-  const html = await request(player, player);
+  const html = await request(player, embedUrl || player);
   const match = html.match(PACKED_EVAL_RE);
   if (!match) return '';
   let playUrl = extractStreamUrl(unpackPacker(match[0]));
@@ -228,6 +228,10 @@ async function detail(inReq, _outResp) {
   const name = pickTitle($('h1').text().trim() || $('meta[property="og:title"]').attr('content'));
   const pic = $('meta[property="og:image"]').attr('content') || '';
   const embed = extractEmbedUrl(html);
+  let playUrl = '';
+  if (/hglink\.to|hgcloud\.to/i.test(embed)) {
+    playUrl = await resolveHgEmbed(embed);
+  }
 
   return {
     list: [{
@@ -235,7 +239,7 @@ async function detail(inReq, _outResp) {
       vod_name: name,
       vod_pic: pic,
       vod_play_from: '3xChina',
-      vod_play_url: embed ? `播放$${embed}` : '',
+      vod_play_url: playUrl ? `播放$${playUrl}` : (embed ? `播放$${embed}` : ''),
     }],
   };
 }
@@ -257,9 +261,9 @@ async function play(inReq, _outResp) {
   let playUrl = '';
   let referer = `${SITE}/`;
 
-  if (/hglink\.to/i.test(url)) {
-    playUrl = await resolveHglink(url);
-    if (playUrl) referer = `https://iplayerhls.com/e/${hglinkId(url)}`;
+  if (/hglink\.to|hgcloud\.to/i.test(url)) {
+    playUrl = await resolveHgEmbed(url);
+    if (playUrl) referer = `https://iplayerhls.com/e/${embedId(url)}`;
   } else if (/iplayerhls\.com/i.test(url)) {
     const html = await request(url, url);
     const match = html.match(PACKED_EVAL_RE);

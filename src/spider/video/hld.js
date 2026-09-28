@@ -2,18 +2,25 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://heiliaodi.com';
 
-async function request(reqUrl, headers = {}) {
+const headers = {
+    'User-Agent': UA,
+    Referer: `${site}/`,
+    Origin: site,
+};
+
+async function request(reqUrl, extraHeaders = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
-        // httpsAgent: agent
+        headers: { ...headers, ...extraHeaders },
+        // httpsAgent: agent,
+        timeout: 20000,
     });
     return resp.data;
 }
@@ -40,13 +47,12 @@ function isImgMagic(buf) {
     );
 }
 
-function xorDescramble(buf) {
+function imgDecrypt(buf) {
     const out = Buffer.from(buf);
-
+    const key = Buffer.from('2019ysapp7527');
     for (let i = 0; i < 100 && i < out.length; i++) {
-        out[i] ^= XOR_KEY[i % XOR_KEY.length];
+        out[i] ^= key[i % key.length];
     }
-
     return out;
 }
 
@@ -79,7 +85,7 @@ function decodeImg(buf) {
                 return aes;
             }
 
-            const aesXor = xorDescramble(aes);
+            const aesXor = imgDecrypt(aes);
 
             if (isImgMagic(aesXor)) {
                 return aesXor;
@@ -87,7 +93,22 @@ function decodeImg(buf) {
         } catch (e) {}
     }
 
-    return xorDescramble(buf);
+    const plainXor = imgDecrypt(buf);
+    if (isImgMagic(plainXor)) return plainXor;
+    return buf;
+}
+
+function normalizePlayUrl(url, fallbackHost) {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    if (u.startsWith('http')) return u;
+    if (u.startsWith('//')) return `https:${u}`;
+    const base = fallbackHost.replace(/\/$/, '');
+    return `${base}${u.startsWith('/') ? u : `/${u}`}`;
+}
+
+function extractCdnHost(html) {
+    return String(html).match(/https?:\/\/[^/"'\s]+\.tjacq\.com/i)?.[0] || 'https://3grr4rd.tjacq.com';
 }
 
 function proxyImgUrl(raw) {
@@ -160,11 +181,26 @@ async function detail(inReq, _outResp) {
     const $ = load(html);
 
     const name = $('meta[property="og:title"]').attr('content') || '';
-    const pic = $('meta[property="og:image"]').attr('content') || '';
+    let pic = $('meta[property="og:image"]').attr('content') || '';
+    if (!pic || /logo\.png/i.test(pic)) {
+        const banner = $('.post-card').attr('data-banner') || $('[data-banner]').first().attr('data-banner') || '';
+        pic = banner ? proxyImgUrl(banner) : pic;
+    } else if (pic.startsWith('http')) {
+        pic = proxyImgUrl(pic);
+    }
     const des = $('meta[property="og:description"]').attr('content') || '';
-    const playUrls = $('#article-videos').attr('data-url');
-    let host = 'https://tr4bd4.tjacq.com'
-    const vodPlayUrl = JSON.parse(playUrls).map((url, index) => `线路${index + 1}$${host}${url}`).join('#');
+    const playRaw = $('#article-videos').attr('data-url') || '';
+    const host = extractCdnHost(html);
+    let vodPlayUrl = '';
+    if (playRaw) {
+        try {
+            const urls = JSON.parse(playRaw);
+            vodPlayUrl = urls
+                .map((url, index) => `线路${index + 1}$${normalizePlayUrl(url, host)}`)
+                .filter((item) => /\$https?:\/\//.test(item))
+                .join('#');
+        } catch (e) {}
+    }
     return {
         list: [{
             vod_id: id,
@@ -178,10 +214,15 @@ async function detail(inReq, _outResp) {
 }
 
 async function play(inReq, _outResp) {
+    const url = inReq.body.id || '';
+    let referer = `${site}/`;
+    try {
+        if (/tjacq\.com/i.test(url)) referer = new URL(url).origin + '/';
+    } catch {}
     return {
         parse: 0,
-        url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        url,
+        header: { ...headers, Referer: referer },
     };
 }
 
@@ -203,10 +244,10 @@ async function imgProxy(inReq, reply) {
 
         const resp = await axios.get(raw, {
             headers: {
-                'User-Agent': UA,
-                'Referer':    `${site}/`,
-                'Origin':     site,
+                ...headers,
+                Referer: `${site}/`,
             },
+            httpsAgent: agent,
             responseType: 'arraybuffer',
             timeout:      10000,
         });

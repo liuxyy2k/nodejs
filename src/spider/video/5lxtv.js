@@ -1,5 +1,5 @@
 import axios from 'axios';
-import https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const host = 'https://5lxtv.com';
 const UA =
@@ -11,11 +11,8 @@ const baseHeaders = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
 };
 
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 const http = axios.create({
-    timeout: 15000,
-    httpsAgent,
+    timeout: 20000,
     validateStatus: () => true,
     headers: baseHeaders,
 });
@@ -145,7 +142,18 @@ function parseCats(html) {
     return arr;
 }
 
+function parsePlayApi(html) {
+    const slug = html.match(/var\s+slug\s*=\s*"([^"]+)"/)?.[1];
+    const t = html.match(/var\s+t\s*=\s*(\d+)/)?.[1];
+    const n = html.match(/var\s+n\s*=\s*"([^"]+)"/)?.[1];
+    if (!slug || !t || !n) return '';
+    return `${host}/api/play/${encodeURIComponent(slug)}?t=${t}&n=${encodeURIComponent(n)}`;
+}
+
 function realPlay(html) {
+    const api = parsePlayApi(html);
+    if (api) return api;
+
     const ps = [
         /var\s+src\s*=\s*["']([^"']+playlist\.m3u8[^"']*)["']/,
         /var\s+src\s*=\s*["']([^"']+)["']/,
@@ -248,16 +256,17 @@ async function search(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     const url = inReq.body.id || '';
-    const html = await get(url, host);
+    const pageUrl = url.startsWith('http') ? url : fix(url);
+    const html = await get(pageUrl, host);
     const playUrl = realPlay(html);
     if (!playUrl) {
-        return { parse: 1, playUrl: '', url };
+        return { parse: 1, playUrl: '', url: pageUrl };
     }
     return {
         parse: 0,
         playUrl: '',
         url: playUrl,
-        header: h(url, true),
+        header: h(pageUrl, true),
     };
 }
 

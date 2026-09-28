@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import os from 'os';
 import req from './req.js';
+import { normalizePlaylistText } from './playlistUnwrap.js';
 import {
   loadSettings,
   noteFetchError,
@@ -21,7 +22,7 @@ const STRIP_HEADERS = {
   'Sec-Fetch-Site': null,
   'Sec-Fetch-User': null,
 };
-const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate']);
+const SKIP_SPIDERS = new Set(['liveSource', 'qrcode', 'dsav', 'javrate' ,'chig91']);
 
 const PAN_HOSTS = [
   'aliyundrive.com', 'alipan.com', 'alihub.net', 'quark.cn', 'pan.quark.cn',
@@ -315,7 +316,7 @@ async function cleanPlaylist(url, sid, origin, depth, db) {
     err.status = fetched.status;
     throw err;
   }
-  const text = fetched.text;
+  const text = normalizePlaylistText(fetched.text);
   if (!text || !text.includes('#EXTM3U')) {
     const err = new Error('upstream is not a playlist');
     err.status = 502;

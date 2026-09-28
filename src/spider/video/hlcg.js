@@ -7,11 +7,88 @@ const PORT   = process.env.DEV_HTTP_PORT || 9988;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://annual.nqrcgia.com';
 
-async function request(reqUrl, headers = {}) {
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
+const headers = {
+    'User-Agent': UA,
+    Referer: `${site}/`,
+    Origin: site,
+};
+
+async function request(reqUrl, extraHeaders = {}) {
     const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers },
+        headers: { ...headers, ...extraHeaders },
+        // httpsAgent: agent,
+        timeout: 20000,
     });
     return resp.data;
+}
+
+function extractPlayUrlFromUnpacked(unpacked) {
+    const text = String(unpacked || '');
+    const b64 = text.match(/data-config=['"]([^'"]+)['"]/)?.[1];
+    if (b64) {
+        try {
+            const url = JSON.parse(Buffer.from(b64, 'base64').toString())?.video?.url;
+            if (url) return url;
+        } catch {}
+    }
+    return text.match(/https?:\/\/[^"'\\\s]+\.m3u8[^"'\\\s]*/)?.[0] || '';
+}
+
+async function resolveDetailPlay(html, referer = `${site}/`) {
+    const $ = load(html);
+
+    for (const el of $('.dplayer').toArray()) {
+        const raw = $(el).attr('data-config') || '';
+        if (!raw) continue;
+        try {
+            const json = JSON.parse(Buffer.from(raw, 'base64').toString());
+            if (json?.video?.url) return json.video.url;
+        } catch {
+            try {
+                const json = JSON.parse(raw);
+                if (json?.video?.url) return json.video.url;
+            } catch {}
+        }
+    }
+
+    const evalStr = String(html).match(/eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\([\s\S]*?\)\)/)?.[0];
+    if (!evalStr) return '';
+
+    const kStr = evalStr.match(/'([^']+)'\.split/)?.[1];
+    if (!kStr) return '';
+    const arr = kStr.split('|');
+    const t = Math.floor(Date.now() / 1000 / 2000);
+    const reqHeaders = { Referer: referer };
+
+    const enc = arr[14];
+    const anchorId = arr[2] || String(html).match(/player-box-([a-f0-9]+)/i)?.[1];
+    if (enc && enc.length > 40 && anchorId) {
+        for (const url of [
+            `${site}/player.php?enc=${enc}&anchor_id=${anchorId}&_=${t}`,
+            `${site}/player/${enc}/player/${t}.js`,
+        ]) {
+            try {
+                const js = await request(url, reqHeaders);
+                const playUrl = extractPlayUrlFromUnpacked(eval(String(js).replace(/^eval/, '')));
+                if (playUrl) return playUrl;
+            } catch {}
+        }
+    }
+
+    const hash = arr[13];
+    const idss = arr[4];
+    if (hash && idss && hash !== 'enc') {
+        try {
+            const js = await request(`${site}/player/${hash}/${idss}/${t}.js`, reqHeaders);
+            return extractPlayUrlFromUnpacked(eval(String(js).replace(/^eval/, '')));
+        } catch {}
+    }
+
+    return '';
 }
 
 function e64(s) {
@@ -38,7 +115,7 @@ async function parseVods($) {
     const items = [];
 
     $('article').each((_, element) => {
-        const rawPic = $(element).find('script').text().trim();
+        const rawPic = $(element).find('img').attr('z-image-loader-url');
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.post-card-title').text().trim();
         const date  = $(element).find('span').eq(2).text().trim();
@@ -136,23 +213,8 @@ async function detail(inReq, _outResp) {
     const pic = $('meta[property="og:image"]').attr('content') || '';
     const des = $('meta[property="og:description"]').attr('content') || '';
 
-    const evalStr = html.match(/eval\(function\(p,a,c,k,e,d\)\{[\s\S]*?\}\([\s\S]*?\)\)/)[0];
-    // 拿 split 里的字符串
-    const kStr = evalStr.match(/'([^']+)'\.split/)[1];
-    const arr = kStr.split('|');
-    // 关键索引（固定的）
-    const hash = arr[13];   // d
-    const idss = arr[4];      // 6bb61e3b
-    const t = Math.floor(Date.now() / 1000 / 2000);
-    const url = `/player/${hash}/${idss}/${t}.js`;
-    const js = await request(site + url);
-    const unpacked = eval(js.replace('eval', ''))
-    const base64 = unpacked.match(/data-config=['"]([^'"]+)['"]/)?.[1];
-    let playUrl = ''
-    if (base64) {
-        playUrl = JSON.parse(Buffer.from(base64, 'base64').toString()).video.url;
-        console.log(playUrl)
-    }
+    const playUrl = await resolveDetailPlay(html, `${site}/archives/${id}/`);
+
     return {
         list: [{
             vod_id: id,
@@ -169,7 +231,7 @@ async function play(inReq, _outResp) {
     return {
         parse: 0,
         url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        header: headers,
     };
 }
 
