@@ -127,6 +127,7 @@ import av123 from "./spider/video/123av1.js";
 import njavtv from "./spider/video/njavtv.js";
 import javsb from "./spider/video/javsb.js";
 import fcjav from "./spider/video/fcjav.js";
+import lissav from "./spider/video/lissav.js";
 import memojav from "./spider/video/memoJav.js";
 import vlxxsex from "./spider/video/vlxxsex.js";
 import pinse from "./spider/video/91pinse.js";
@@ -271,7 +272,7 @@ import CMSFactory from "./spider/video/cms.js";
 export const getSpiders = async (server) => {
     const spiders = [
         baseset, push, alist, copymanga, liveSource, douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye,  duboku, a123tv, wwgz, jianpian, duoduo, mogg, sefun, dy, hanxiaoquan, dszby, xmlive, pandaLive, sinparty, 
-        miss, missav, thisavfull, getav, ayyc, qingju, bestjavporn, airav, seqinghub, ipornbase, hudie, yiguoduan, dsys, supjav, supjavPy, jable, jableNew, av123, javsb, memojav, popjav, javdirect, x3china, javxxx, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, vlxxsex, njavtv, jav36, avtoday, avbebe, taiav, twoJav, javgg, javdino, javhd, 
+        miss, missav, thisavfull, getav, ayyc, qingju, bestjavporn, airav, seqinghub, ipornbase, hudie, yiguoduan, dsys, supjav, supjavPy, jable, jableNew, av123, javsb, memojav, popjav, javdirect, x3china, javxxx, hohoj, kanav, avdb, av77, javrate, av18, xojav, fcjav, lissav, vlxxsex, njavtv, jav36, avtoday, avbebe, taiav, twoJav, javgg, javdino, javhd, 
         cg51, xigua51, aw51, bl51, sp51, ds51, duanju51, duanju57, cg91, cg911, dsj911, cg007, chig17,  xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, hld, cgbk, video91, sp91, pron91, porna91, jav91,  pinse,  kb911, rb91, ds91, kdw91, crdj91, dys18, 
         onlyfans18, huangguo, huangdou, jinguo, haose, tt, badNew, suiruixhs, theporny, rou, avple, ai, animei, hanime, hanime1, hanime2, hdm18, redgif, stripol, 
         livescj, sbjh, chatur, myfreecams, cms4, xnxxLive, oxax, vlives, vVideos, cj, bilibili, av123dsp, jamtt,  papashipin, auditporn, 
