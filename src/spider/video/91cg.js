@@ -2,6 +2,10 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 const site = 'https://www.91cg1.com';
 
@@ -10,6 +14,7 @@ const PORT   = process.env.DEV_HTTP_PORT || 9988;
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA },
+        httpsAgent: agent,
     });
     return resp.data;
 }
@@ -41,12 +46,10 @@ async function parseVods($) {
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.post-card-title').text().trim();
         const date  = $(element).find('span[itemprop="datePublished"]').text().trim();
-        const parts = url.split('/');
-        const id = parts[2] || '';
         if (name && url) {
             items.push(
                 { 
-                    vod_id: id, 
+                    vod_id: url, 
                     vod_name: name, 
                     vod_pic: rawPic ? proxyImgUrl(rawPic) : '',
                     vod_remarks: date.replace(/\s*年\s*|\s*月\s*/g, '-').replace(/\s*日/, '')
@@ -92,7 +95,7 @@ async function category(inReq, _outResp) {
 
 async function detail(inReq, _outResp) {
     const id = inReq.body.id;
-    const html = await request(`${site}/archives/${id}`);
+    const html = await request(`${id}`);
     const $ = load(html);
 
     const name = $('meta[property="og:title"]').attr('content') || '';
