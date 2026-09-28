@@ -535,7 +535,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'suirui',
-        name: '🔥推特APP',
+        name: '💙推特APP',
         type: 3,
     },
     api: async (fastify) => {

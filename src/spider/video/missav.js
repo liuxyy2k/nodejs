@@ -428,7 +428,7 @@ async function proxySeg(inReq, reply) {
 export default {
   meta: {
     key: 'miss',
-    name: '🔥Miss',
+    name: '🌸Miss🌸',
     type: 3,
   },
   api: async (fastify) => {
