@@ -87,7 +87,7 @@ import jkly from "./spider/video/jkly.js";
 import xjsp from "./spider/video/xjsp.js";
 import missavt from "./spider/video/missAvt.js";
 import msavx from "./spider/video/msavx.js";
-import cj from "./spider/video/cj.js";
+import jhpt0 from "./spider/video/jhpt0.js";
 import a123tv from "./spider/video/a123tv.js";
 import tt from "./spider/video/tt.js";
 import bgcg from "./spider/video/bagecg.js";
@@ -280,7 +280,7 @@ export const getSpiders = async (server) => {
         baseset, push,
         // ── 正规影视 ──
         douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan,
-        ayyc, hudie, yiguoduan, bh5873, baokuanpk, motv, oneapi, papashipin, adtv, cj,
+        ayyc, hudie, yiguoduan, bh5873, baokuanpk, motv, oneapi, papashipin, adtv, jhpt0,
         // ── 短剧 ──
         qingju, duanju51, duanju57, huangguo, huangdou, jinguo, kbduanju, crdj91,
         // ── 直播 ──
