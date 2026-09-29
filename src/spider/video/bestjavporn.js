@@ -478,7 +478,7 @@ async function imgProxy(inReq, reply) {
 export default {
     meta: {
         key: 'bestjavporn',
-        name: '🔥BestJavPorn',
+        name: '🌸BestJavPorn',
         type: 3,
     },
     api: async (fastify) => {
