@@ -294,7 +294,7 @@ export const getSpiders = async (server) => {
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, jptt, theporny, theporn, fullhd, owoav, masexTv,
         youavhub, paradisehill, yasetube, avporn, isese, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, lyt, t66yy, hscka, cableav, porncvd, pronlulu,
-        ppporn, pigav, dnaav, xm, march, ssp, hstream, lxtv5, ncxxx, mrcx, shunvh, zsrenqi, zcxh, bmm3, huoporn,
+        ppporn, pigav, dnaav, xm, march, ssp, hstream, lxtv5, mrcx, shunvh, zsrenqi, zcxh, bmm3, huoporn,
         hdm18, avple, rou, rou233, av591,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
@@ -312,7 +312,7 @@ export const getSpiders = async (server) => {
         seqinghub, haose, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
         wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
         awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
-        jamtt,
+        jamtt, ncxxx, 
         // ── 欧美 / 国际 ──
         onlyfans18, beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
