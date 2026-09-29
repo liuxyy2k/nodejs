@@ -280,7 +280,7 @@ export const getSpiders = async (server) => {
         baseset, push,
         // ── 正规影视 ──
         douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan,
-        hudie, adtv, jhpt0,
+        hudie, jhpt0,
         // ── 短剧 ──
         qingju, duanju51, duanju57, huangguo, huangdou, jinguo, kbduanju, crdj91,
         // ── 直播 ──
@@ -311,7 +311,7 @@ export const getSpiders = async (server) => {
         // ── 国产 / 中文 ──
         seqinghub, haose, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
         wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
-        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk,
+        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
         // ── 欧美 / 国际 ──
         onlyfans18, beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
