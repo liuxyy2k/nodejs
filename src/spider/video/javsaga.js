@@ -3,7 +3,8 @@ import req from '../../util/req.js';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://javsaga.ninja';
-const LK_BASE = 'https://lk1.supremejav.com/supjav.php';
+const LK_BASE = 'https://lk1.supremejav.com/saga.php';
+const LINE_ORDER = { ST: 0, FST: 1, VOE: 2, TV: 3 };
 
 function buildListUrl(tid, page) {
     const path = String(tid || '').replace(/^\/|\/$/g, '');
@@ -102,7 +103,33 @@ function int2base(num, radix) {
     return res.length ? res.reverse().join('') : '0';
 }
 
+function extractStreamtape(html) {
+    const m = String(html || '').match(/getElementById\('botlink'\)\.innerHTML\s*=\s*'([^']*)'\s*\+\s*\('([^']+)'\)\.substring\((\d+)\)/);
+    if (!m) return '';
+    let link = m[1] + m[2].slice(parseInt(m[3], 10));
+    if (link.startsWith('//')) link = `https:${link}`;
+    if (!/^https?:/i.test(link)) return '';
+    if (!link.includes('stream=1')) link += `${link.includes('?') ? '&' : '?'}stream=1`;
+    return link;
+}
+
+async function resolveFinalUrl(url, referer) {
+    const resp = await req.get(url, {
+        headers: { 'User-Agent': UA, Referer: referer, Range: 'bytes=0-1' },
+        timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: () => true,
+        responseType: 'stream',
+    });
+    const finalUrl = resp.request?.res?.responseUrl || url;
+    resp.data?.destroy?.();
+    return finalUrl || url;
+}
+
 async function extractStream(html, ref) {
+    const tape = extractStreamtape(html);
+    if (tape) return resolveFinalUrl(tape, 'https://streamtape.com/');
+
     let hits = [...String(html || '').matchAll(/https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/g)].map((x) => x[0]);
     if (hits.length) return hits[0].replace(/\\\//g, '/').replace(/&amp;/g, '&');
 
@@ -221,7 +248,7 @@ async function detail(inReq) {
             pairs.push([names[i] || `线路${i + 1}`, `正片$${detailUrl}|${dataLink}`]);
         });
     }
-    pairs.sort((a, b) => (a[0] === 'TV' ? 0 : 1) - (b[0] === 'TV' ? 0 : 1));
+    pairs.sort((a, b) => (LINE_ORDER[a[0]] ?? 9) - (LINE_ORDER[b[0]] ?? 9));
 
     return {
         list: [{
@@ -270,7 +297,8 @@ async function play(inReq) {
 
     playUrl = playUrl.replace(/\\\//g, '/').replace(/&amp;/g, '&');
     let referer = s2Url;
-    if (/turbovidhls|turbosplayer|turboviplay/i.test(playUrl)) {
+    if (/streamtape\.com|tapecontent\.net/i.test(playUrl)) referer = 'https://streamtape.com/';
+    else if (/turbovidhls|turbosplayer|turboviplay/i.test(playUrl)) {
         try { referer = `${new URL(playUrl).origin}/`; } catch { referer = 'https://turbovidhls.com/'; }
     }
 

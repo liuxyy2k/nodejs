@@ -159,12 +159,16 @@ function buildCategoryUrl(tid, page) {
     return { url, id };
 }
 
+function rewriteCdn(url) {
+    return String(url || '').replace(/\.vcsocdp\.(?:net|com)/gi, '.vckeepw.top');
+}
+
 function extractPlays(html) {
     const plays = [];
     const seen = new Set();
 
     for (const m of String(html || '').matchAll(/<source[^>]+src=["']([^"']+)["']/gi)) {
-        let u = m[1];
+        let u = rewriteCdn(m[1]);
         if (!u.startsWith('http') || seen.has(u)) continue;
         seen.add(u);
         let label = 'MP4';
@@ -174,7 +178,7 @@ function extractPlays(html) {
     }
 
     for (const m of String(html || '').matchAll(/(https?:\/\/[^"'\s<>]+\.(?:mp4|m3u8)[^"'\s<>]*)/gi)) {
-        const u = m[1];
+        const u = rewriteCdn(m[1]);
         if (seen.has(u)) continue;
         seen.add(u);
         plays.push(['直链', u]);
@@ -258,33 +262,96 @@ async function detail(inReq, _outResp) {
     };
 }
 
+function requestOrigin(inReq) {
+    const proto = String(inReq.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+    const reqHost = inReq.headers['x-forwarded-host'] || inReq.headers.host;
+    return `${proto}://${reqHost}`;
+}
+
+function proxyPlay(inReq, mediaUrl) {
+    const target = rewriteCdn(mediaUrl);
+    return {
+        parse: 0,
+        jx: 0,
+        url: `${requestOrigin(inReq)}/spider/avjoy/3/file?u=${encodeURIComponent(target)}`,
+        header: { 'User-Agent': UA },
+    };
+}
+
 async function play(inReq, _outResp) {
     let url = String(inReq.body.id || '').trim();
     if (url.includes('$') && !url.startsWith('http')) url = url.split('$').pop().trim();
+    const header = { 'User-Agent': UA };
 
-    const header = {
-        'User-Agent': UA,
-        Referer: `${host}/`,
-    };
-
-    if (/\.(m3u8|mp4)(\?|$)/i.test(url)) {
-        return { parse: 0, jx: 0, url, header };
+    if (/\.mp4(\?|$)/i.test(url)) return proxyPlay(inReq, url);
+    if (/\.m3u8(\?|$)/i.test(url)) {
+        return { parse: 0, jx: 0, url: rewriteCdn(url), header: { ...header, Referer: `${host}/` } };
     }
 
-    if (url.includes('/video/')) {
+    if (url.includes('/video/') || /^\d+$/.test(url)) {
         const d = await detail({ body: { id: url } });
         const pu = d.list?.[0]?.vod_play_url || '';
         for (const part of pu.split('$$$')) {
-            if (part.includes('$')) {
-                const u = part.split('$').slice(1).join('$');
-                if (/\.(m3u8|mp4)/i.test(u)) {
-                    return { parse: 0, jx: 0, url: u, header };
-                }
+            if (!part.includes('$')) continue;
+            const u = part.split('$').slice(1).join('$');
+            if (/\.mp4(\?|$)/i.test(u)) return proxyPlay(inReq, u);
+            if (/\.m3u8(\?|$)/i.test(u)) {
+                return { parse: 0, jx: 0, url: rewriteCdn(u), header: { ...header, Referer: `${host}/` } };
             }
         }
     }
 
     return { parse: 0, jx: 0, url: '', header };
+}
+
+async function file(inReq, reply) {
+    const target = rewriteCdn(String(inReq.query.u || '').trim());
+    if (!/^https?:\/\//i.test(target)) {
+        reply.code(400);
+        return 'bad url';
+    }
+    const headers = {
+        'User-Agent': UA,
+        Referer: `${host}/`,
+        Origin: host,
+        Accept: '*/*',
+    };
+    if (inReq.headers.range) headers.Range = String(inReq.headers.range);
+
+    let upstream;
+    try {
+        upstream = await req.get(target, {
+            headers,
+            responseType: 'stream',
+            timeout: 20000,
+            validateStatus: () => true,
+        });
+    } catch (err) {
+        reply.code(502);
+        return `upstream fetch failed: ${err.message}`;
+    }
+
+    const ctype = String(upstream.headers['content-type'] || '');
+    if (upstream.status >= 400 || /mpegurl|text\/html/i.test(ctype)) {
+        try { upstream.data.destroy(); } catch { /* ignore */ }
+        reply.code(502);
+        return 'upstream blocked';
+    }
+
+    reply.code(upstream.status);
+    for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+        if (upstream.headers[key] !== undefined) reply.header(key, upstream.headers[key]);
+    }
+    if (!upstream.headers['content-type']) reply.header('Content-Type', 'video/mp4');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Cache-Control', 'no-store');
+
+    const close = () => {
+        try { upstream.data.destroy(); } catch { /* ignore */ }
+    };
+    inReq.raw.once('aborted', close);
+    reply.raw.once('close', close);
+    return reply.send(upstream.data);
 }
 
 async function search(inReq, _outResp) {
@@ -319,6 +386,7 @@ export default {
         fastify.post('/category', category);
         fastify.post('/detail', detail);
         fastify.post('/play', play);
+        fastify.get('/file', file);
         fastify.post('/search', search);
     },
 };

@@ -224,6 +224,58 @@ function decodePlayerUrl(raw) {
     return '';
 }
 
+function mediaHeaders() {
+    return {
+        'User-Agent': UA,
+        Referer: `${host}/`,
+        Origin: host,
+        Accept: '*/*',
+    };
+}
+
+function isRealPlaylist(text) {
+    const body = String(text || '');
+    if (!body.includes('#EXTM3U')) return false;
+    if (/tip\.ts/i.test(body) && !/#EXT-X-STREAM-INF/i.test(body)) return false;
+    return true;
+}
+
+async function fetchPlaylist(url) {
+    try {
+        const resp = await req.get(url, {
+            headers: mediaHeaders(),
+            timeout: 20000,
+            responseType: 'text',
+            validateStatus: () => true,
+        });
+        const text = typeof resp.data === 'string' ? resp.data : String(resp.data ?? '');
+        if (resp.status >= 400 || !isRealPlaylist(text)) return '';
+        return text.replace(/\r\n/g, '\n');
+    } catch {
+        return '';
+    }
+}
+
+function rewritePlaylist(text, playlistUrl, origin) {
+    return String(text)
+        .split('\n')
+        .map((line) => {
+            const trimmed = line.trim();
+            if (/^#EXT-X-TOKEN/i.test(trimmed)) return null;
+            if (!trimmed || trimmed.startsWith('#')) return line;
+            let abs = '';
+            try {
+                abs = new URL(trimmed, playlistUrl).href;
+            } catch {
+                return line;
+            }
+            const route = /\.m3u8(\?|$)/i.test(abs) ? 'm3u8' : 'seg';
+            return `${origin}/spider/av321/3/${route}?u=${encodeURIComponent(abs)}`;
+        })
+        .filter((line) => line !== null)
+        .join('\n');
+}
+
 async function playFromCode(code) {
     const plays = [];
     if (!code) return plays;
@@ -245,19 +297,31 @@ async function playFromCode(code) {
     if (!Array.isArray(playlist)) return plays;
 
     const seen = new Set();
+    let index = 0;
     for (const item of playlist) {
         if (!item || typeof item !== 'object') continue;
         const u = item.url || '';
         if (!u.startsWith('http') || seen.has(u)) continue;
         if (!/\.(m3u8|mp4)(\?|$)/i.test(u)) continue;
         seen.add(u);
-        let name = /\.m3u8/i.test(u) ? 'HLS' : 'MP4';
+        if (/\.m3u8(\?|$)/i.test(u)) {
+            const text = await fetchPlaylist(u);
+            if (!text) continue;
+        }
+        index += 1;
+        let name = /\.m3u8/i.test(u) ? `线路${index}` : 'MP4';
         const qm = u.match(/(\d{3,4})p/i);
         if (qm) name = `${qm[1]}P`;
         if (item.playMode === 'streampipe') name = '自适应';
         plays.push([name, u]);
     }
     return plays;
+}
+
+function requestOrigin(inReq) {
+    const proto = String(inReq.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+    const reqHost = inReq.headers['x-forwarded-host'] || inReq.headers.host;
+    return `${proto}://${reqHost}`;
 }
 
 async function init(inReq, _outResp) {
@@ -368,14 +432,22 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     let url = String(inReq.body.id || '').trim();
-    const header = {
-        'User-Agent': UA,
-        Referer: `${host}/`,
-        Origin: host,
-    };
+    if (url.includes('$')) url = url.split('$').pop().trim();
+    const header = { 'User-Agent': UA };
 
-    if (/\.(m3u8|mp4)(\?|$)/i.test(url)) {
-        return { parse: 0, jx: 0, url, header };
+    const proxied = (mediaUrl) => ({
+        parse: 0,
+        jx: 0,
+        url: `${requestOrigin(inReq)}/spider/av321/3/m3u8?u=${encodeURIComponent(mediaUrl)}`,
+        header,
+    });
+
+    if (/\.m3u8(\?|$)/i.test(url)) {
+        const text = await fetchPlaylist(url);
+        if (text) return proxied(url);
+    }
+    if (/\.mp4(\?|$)/i.test(url)) {
+        return { parse: 0, jx: 0, url, header: { ...header, Referer: `${host}/`, Origin: host } };
     }
 
     let vid = '';
@@ -387,16 +459,63 @@ async function play(inReq, _outResp) {
         const d = await detail({ body: { id: vid } });
         const pu = d.list?.[0]?.vod_play_url || '';
         for (const part of pu.split('$$$')) {
-            if (part.includes('$')) {
-                const u = part.split('$').slice(1).join('$');
-                if (/\.(m3u8|mp4)/i.test(u)) {
-                    return { parse: 0, jx: 0, url: u, header };
-                }
+            if (!part.includes('$')) continue;
+            const u = part.split('$').slice(1).join('$');
+            if (/\.m3u8(\?|$)/i.test(u) && (await fetchPlaylist(u))) return proxied(u);
+            if (/\.mp4(\?|$)/i.test(u)) {
+                return { parse: 0, jx: 0, url: u, header: { ...header, Referer: `${host}/`, Origin: host } };
             }
         }
     }
 
     return { parse: 0, jx: 0, url: '', header };
+}
+
+async function m3u8(inReq, reply) {
+    const target = String(inReq.query.u || '').trim();
+    if (!/^https?:\/\//i.test(target)) {
+        reply.code(400);
+        return 'bad url';
+    }
+    const text = await fetchPlaylist(target);
+    if (!text) {
+        reply.code(502);
+        return 'playlist failed';
+    }
+    const body = rewritePlaylist(text, target, requestOrigin(inReq));
+    reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Cache-Control', 'no-store');
+    return reply.send(body);
+}
+
+async function seg(inReq, reply) {
+    const target = String(inReq.query.u || '').trim();
+    if (!/^https?:\/\//i.test(target)) {
+        reply.code(400);
+        return 'bad url';
+    }
+    let resp;
+    try {
+        resp = await req.get(target, {
+            headers: mediaHeaders(),
+            responseType: 'arraybuffer',
+            timeout: 20000,
+            validateStatus: () => true,
+        });
+    } catch {
+        reply.code(502);
+        return 'segment failed';
+    }
+    const buf = Buffer.isBuffer(resp.data) ? resp.data : Buffer.from(resp.data ?? '');
+    if (resp.status >= 400 || buf.length < 188 || buf[0] !== 0x47) {
+        reply.code(502);
+        return 'segment failed';
+    }
+    reply.header('Content-Type', 'video/mp2t');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Cache-Control', 'no-store');
+    return reply.send(buf);
 }
 
 async function search(inReq, _outResp) {
@@ -436,6 +555,8 @@ export default {
         fastify.post('/category', category);
         fastify.post('/detail', detail);
         fastify.post('/play', play);
+        fastify.get('/m3u8', m3u8);
+        fastify.get('/seg', seg);
         fastify.post('/search', search);
     },
 };
