@@ -257,91 +257,115 @@ async function search(inReq, _outResp) {
     return { list: extractVideos(html), page: pg, pagecount: 999 };
 }
 
+const SERVER_ORDER = ['ServerST', 'ServerTV', 'ServerHD', 'ServerVX'];
+
+function serverOrder(movie, flag) {
+    const entries = Object.entries(movie.svMap).filter(
+        ([sid, name]) => movie.epiMap[sid] && name !== 'DOWNLOAD',
+    );
+    const ordered = [];
+    const push = (sid) => {
+        if (sid && !ordered.includes(sid)) ordered.push(sid);
+    };
+    if (flag) push(entries.find(([, name]) => name === flag)?.[0]);
+    for (const name of SERVER_ORDER) push(entries.find(([, n]) => n === name)?.[0]);
+    for (const [sid] of entries) push(sid);
+    return ordered;
+}
+
+function extractStreamtape(html) {
+    const m = String(html || '').match(
+        /getElementById\('botlink'\)\.innerHTML\s*=\s*'([^']*)'\s*\+\s*\('([^']+)'\)\.substring\((\d+)\)/,
+    );
+    if (!m) return '';
+    let link = m[1] + m[2].slice(parseInt(m[3], 10));
+    if (link.startsWith('//')) link = `https:${link}`;
+    if (!/^https?:/i.test(link)) return '';
+    if (!link.includes('stream=1')) link += `${link.includes('?') ? '&' : '?'}stream=1`;
+    return link;
+}
+
+async function resolveEmbed(embedUrl) {
+    if (embedUrl.startsWith('//')) embedUrl = `https:${embedUrl}`;
+    if (/streamtape\.com/i.test(embedUrl)) {
+        const page = await http.get(embedUrl, {
+            headers: { 'User-Agent': UA, Referer: `${siteUrl}/` },
+            timeout: 20000,
+        });
+        const html = typeof page.data === 'string' ? page.data : String(page.data || '');
+        const link = extractStreamtape(html);
+        if (!link) return null;
+        const resp = await http.get(link, {
+            headers: { 'User-Agent': UA, Referer: 'https://streamtape.com/', Range: 'bytes=0-1' },
+            timeout: 20000,
+            maxRedirects: 5,
+            responseType: 'stream',
+            validateStatus: () => true,
+        });
+        const finalUrl = resp.request?.res?.responseUrl || link;
+        resp.data?.destroy?.();
+        if (resp.status >= 400 || !finalUrl) return null;
+        return { url: finalUrl, referer: 'https://streamtape.com/' };
+    }
+    if (/turbovidhls|turboviplay/i.test(embedUrl)) {
+        const embedResp = await http.get(embedUrl, {
+            headers: { 'User-Agent': UA, Referer: `${siteUrl}/` },
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        const embedHtml = typeof embedResp.data === 'string' ? embedResp.data : String(embedResp.data || '');
+        const m3u8Match = embedHtml.match(/(https?:\/\/[^\s"'<>]+\.m3u8)/);
+        if (m3u8Match) return { url: m3u8Match[1], referer: new URL(embedUrl).origin + '/' };
+    }
+    return null;
+}
+
 async function play(inReq, _outResp) {
     const flag = inReq.body.flag || '';
-    let id = String(inReq.body.id || '');
+    const id = String(inReq.body.id || '');
+    const fail = { parse: 0, url: '', header: { 'User-Agent': UA } };
 
     if (/k2s\.cc|rapidgator/i.test(id)) {
         return { parse: 0, url: id, header: { 'User-Agent': UA } };
     }
+    if (!id.startsWith('http')) return fail;
 
-    const detailUrl = id.startsWith('http') ? id : id;
-    if (!detailUrl.startsWith('http')) {
-        return { parse: 0, url: id, header: { 'User-Agent': UA } };
-    }
+    const html = await fetchHtml(id);
+    const movie = html && parseMovie(html);
+    if (!movie?.movieId) return fail;
 
-    const html = await fetchHtml(detailUrl);
-    if (!html) return { parse: 0, url: id, header: { 'User-Agent': UA } };
-
-    const movie = parseMovie(html);
-    if (!movie?.movieId) return { parse: 0, url: id, header: { 'User-Agent': UA } };
-
-    let selectedSid = null;
-    for (const [sid, name] of Object.entries(movie.svMap)) {
-        if (name === flag && movie.epiMap[sid]) {
-            selectedSid = sid;
-            break;
-        }
-    }
-    if (!selectedSid) {
-        for (const [sid, name] of Object.entries(movie.svMap)) {
-            if (movie.epiMap[sid] && name !== 'DOWNLOAD') {
-                selectedSid = sid;
-                break;
-            }
-        }
-    }
-    if (!selectedSid) return { parse: 0, url: id, header: { 'User-Agent': UA } };
-
-    const hashB64 = movie.epiMap[selectedSid];
-    try {
-        const r = await http.post(
-            `${siteUrl}/api/watch`,
-            new URLSearchParams({ id: movie.movieId, hash: hashB64 }).toString(),
-            {
-                headers: {
-                    'User-Agent': UA,
-                    Accept: 'application/json, text/javascript, */*; q=0.01',
-                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                    Referer: detailUrl,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Origin: siteUrl,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                timeout: 15000,
-            },
-        );
-        const result = typeof r.data === 'object' ? r.data : JSON.parse(r.data);
-        if (result.status === 1 && result.embed) {
-            let embedUrl = result.embed;
-            if (embedUrl.startsWith('//')) embedUrl = `https:${embedUrl}`;
-
-            if (/turbovidhls|turboviplay/i.test(embedUrl)) {
-                const embedResp = await http.get(embedUrl, {
-                    headers: { 'User-Agent': UA, Referer: `${siteUrl}/` },
+    for (const sid of serverOrder(movie, flag)) {
+        try {
+            const r = await http.post(
+                `${siteUrl}/api/watch`,
+                new URLSearchParams({ id: movie.movieId, hash: movie.epiMap[sid] }).toString(),
+                {
+                    headers: {
+                        'User-Agent': UA,
+                        Accept: 'application/json, text/javascript, */*; q=0.01',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        Referer: id,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        Origin: siteUrl,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
                     timeout: 15000,
-                });
-                const embedHtml = typeof embedResp.data === 'string' ? embedResp.data : String(embedResp.data || '');
-                const m3u8Match = embedHtml.match(/(https?:\/\/[^\s"'<>]+\.m3u8)/);
-                if (m3u8Match) {
-                    return {
-                        parse: 0,
-                        url: m3u8Match[1],
-                        header: {
-                            'User-Agent': UA,
-                            Referer: embedUrl,
-                        },
-                    };
-                }
-                return { parse: 1, url: embedUrl, header: { 'User-Agent': UA } };
-            }
-            return { parse: 1, url: embedUrl, header: { 'User-Agent': UA } };
+                },
+            );
+            const result = typeof r.data === 'object' ? r.data : JSON.parse(r.data);
+            if (result.status !== 1 || !result.embed) continue;
+            const media = await resolveEmbed(result.embed);
+            if (!media?.url) continue;
+            return {
+                parse: 0,
+                url: media.url,
+                header: { 'User-Agent': UA, Referer: media.referer },
+            };
+        } catch (e) {
+            console.log(`[javfree] playerContent: ${e.message}`);
         }
-    } catch (e) {
-        console.log(`[javfree] playerContent: ${e.message}`);
     }
-
-    return { parse: 0, url: id, header: { 'User-Agent': UA } };
+    return fail;
 }
 
 export default {

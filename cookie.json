@@ -91,6 +91,19 @@
       "hostOnly": true,
       "creation": "2026-09-29T00:12:46.124Z",
       "lastAccessed": "2026-09-29T00:12:46.126Z"
+    },
+    {
+      "key": "rawx_search_stats_dedupe",
+      "value": "eyJiYTliYjNlZWYxMzI4Mjk4ZDc4MDM5MWVmNWJhNDIzMyI6MTc5MDY4MDk1MX0%3D",
+      "expires": "2026-09-30T11:22:31.000Z",
+      "maxAge": 86400,
+      "domain": "javmit.com",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-09-29T11:22:31.770Z",
+      "lastAccessed": "2026-09-29T11:22:31.770Z"
     }
   ]
 }
