@@ -261,7 +261,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'oxax',
-        name: '🔥OXAX直播',
+        name: '🔴OXAX直播',
         type: 3,
     },
     api: async (fastify) => {

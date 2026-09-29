@@ -280,7 +280,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'live2vod', name: '🔥直播合集', type: 3 },
+    meta: { key: 'live2vod', name: '📺直播合集', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

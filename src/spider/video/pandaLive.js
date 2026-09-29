@@ -192,7 +192,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'pandalive2',
-        name: '🔥熊猫直播',
+        name: '🔴熊猫直播',
         type: 3,
     },
     api: async (fastify) => {

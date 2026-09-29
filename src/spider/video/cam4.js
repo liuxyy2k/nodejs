@@ -134,7 +134,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'cms4',
-        name: '🔥Cms4Live',
+        name: '🔴Cms4Live',
         type: 3,
     },
     api: async (fastify) => {

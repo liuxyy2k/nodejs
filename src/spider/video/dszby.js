@@ -111,7 +111,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'dszby',
-        name: '🔥电视直播',
+        name: '📺电视直播',
         type: 3,
     },
     api: async (fastify) => {

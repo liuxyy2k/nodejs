@@ -145,7 +145,7 @@ async function search(_inReq, _outResp) {
 export default {
     meta: {
         key:  'stripol',
-        name: '🔥Stripol直播',
+        name: '🔴Stripol直播',
         type: 3,
     },
     api: async (fastify) => {

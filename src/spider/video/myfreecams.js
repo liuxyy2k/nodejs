@@ -305,7 +305,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'myfreecams',
-        name: '🔥MyFreeCams',
+        name: '🔴MyFreeCams',
         type: 3,
     },
     api: async (fastify) => {

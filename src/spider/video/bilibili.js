@@ -144,7 +144,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'bililive2',
-        name: '🔥哔哩直播',
+        name: '📺哔哩直播',
         type: 3,
     },
     api: async (fastify) => {

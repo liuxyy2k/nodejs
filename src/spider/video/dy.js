@@ -371,7 +371,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key:  'douyin_live',
-        name: '🔥抖音直播',
+        name: '🎵抖音直播',
         type: 3,
     },
     api: async (fastify) => {
