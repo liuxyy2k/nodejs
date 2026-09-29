@@ -181,7 +181,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'javhd',
-        name: '🔥JAVHD',
+        name: '🌸JAVHD',
         type: 3,
     },
     api: async (fastify) => {

@@ -295,7 +295,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'javmenu',
-        name: '🔥JAV目录',
+        name: '🌸JAV目录',
         type: 3,
     },
     api: async (fastify) => {

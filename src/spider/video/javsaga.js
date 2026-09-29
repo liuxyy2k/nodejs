@@ -216,7 +216,7 @@ async function search(inReq) {
 }
 
 export default {
-    meta: { key: 'javsaga', name: 'JavSaga', type: 3 },
+    meta: { key: 'javsaga', name: '🌸JavSaga', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);
