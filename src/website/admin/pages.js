@@ -50,10 +50,10 @@ export function injectBack(name, html) {
 }
 
 export function loadPage(name) {
-  if (cache.has(name)) return cache.get(name);
+  if (process.env.NODE_ENV === 'production' && cache.has(name)) return cache.get(name);
   const file = path.join(__dirname, 'pages', `${name}.html`);
   const html = injectBack(name, fs.readFileSync(file, 'utf8'));
-  cache.set(name, html);
+  if (process.env.NODE_ENV === 'production') cache.set(name, html);
   return html;
 }
 

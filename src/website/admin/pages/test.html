@@ -98,6 +98,8 @@
             background: white;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
             flex-shrink: 0;
             min-width: 180px;
             max-width: 500px;
@@ -112,8 +114,17 @@
         .sidebar-top {
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
-            height: 180px;
+            flex: 1;
+            min-height: 220px;
+            height: auto;
+        }
+
+        .spider-filter {
+            margin: 8px 8px 0;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
         }
 
         .spider-list {
@@ -124,7 +135,8 @@
         }
 
         .sidebar-middle {
-            flex: 1;
+            flex: 0 1 auto;
+            max-height: 46%;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
@@ -288,8 +300,10 @@
         /* 中间内容区 */
         .main-content {
             flex: 1;
+            min-width: 0;
+            min-height: 0;
             padding: 14px;
-            overflow-y: auto;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -358,7 +372,10 @@
         /* 响应数据卡片 */
         .response-card {
             flex: 1;
-            min-height: 200px;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .response-area {
@@ -542,7 +559,9 @@
             border-radius: 8px;
             padding: 12px;
             overflow: auto;
-            max-height: calc(100vh - 200px);
+            flex: 1;
+            min-height: 0;
+            max-height: none;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 12px;
             line-height: 1.5;
@@ -1138,6 +1157,7 @@
                 </button>
             </div>
             <div class="sidebar-top">
+                <input class="spider-filter" id="spiderFilter" placeholder="筛选爬虫名称 / key" oninput="filterSpiders()">
                 <div class="spider-list" id="spiderList">
                     <div style="text-align: center; color: #888; padding: 14px; font-size: 11px;">
                         点击"刷新列表"加载爬虫
@@ -1374,9 +1394,11 @@
                 logCard.style.height = logHeight + 'px';
                 rawCard.style.height = `calc(100% - ${logHeight}px - 6px)`;
             }
-            if (spiderListHeight) {
+            const savedListHeight = parseInt(spiderListHeight, 10);
+            if (savedListHeight >= 180) {
                 const sidebarTop = document.querySelector('.sidebar-top');
-                sidebarTop.style.height = spiderListHeight + 'px';
+                sidebarTop.style.height = savedListHeight + 'px';
+                sidebarTop.style.flex = '0 0 auto';
             }
         }
 
@@ -1590,6 +1612,72 @@
 
         const API_BASE = '';
 
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+            }[c]));
+        }
+
+        function enc(s) {
+            return encodeURIComponent(String(s ?? ''));
+        }
+
+        function pickList(data) {
+            if (Array.isArray(data?.list)) return data.list;
+            if (Array.isArray(data?.data?.list)) return data.data.list;
+            if (Array.isArray(data?.data)) return data.data;
+            return [];
+        }
+
+        function spiderUrl(action) {
+            const type = currentSpider?.type || 3;
+            return `/spider/${currentSpider.key}/${type}/${action}`;
+        }
+
+        function videoFields(video) {
+            return {
+                id: video.vod_id || video.vodId || video.id || '',
+                name: video.vod_name || video.vodName || video.name || '未命名',
+                remarks: video.vod_remarks || video.vodRemarks || video.remarks || '',
+                pic: video.vod_pic || video.vodPic || video.pic || '',
+            };
+        }
+
+        function videoItemHtml(video) {
+            const { id, name, remarks, pic } = videoFields(video);
+            const picHtml = pic
+                ? `<img src="${esc(pic)}" alt="" referrerpolicy="no-referrer" style="width:48px;height:64px;object-fit:cover;border-radius:4px;flex-shrink:0;background:#111">`
+                : '';
+            return `
+                <div class="list-item" data-vod-id="${enc(id)}" data-vod-name="${enc(name)}" onclick="selectVideoFrom(this)">
+                    <div class="list-item-header" style="gap:8px;align-items:flex-start;">
+                        ${picHtml}
+                        <div style="min-width:0;flex:1;">
+                            <div class="list-item-title">${esc(name)}</div>
+                            <div class="list-item-info">${esc(remarks || '无备注')}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectVideoFrom(el) {
+            selectVideo(decodeURIComponent(el.dataset.vodId || ''), decodeURIComponent(el.dataset.vodName || ''));
+        }
+
+        function selectCategoryFrom(el) {
+            selectCategory(decodeURIComponent(el.dataset.catId || ''), decodeURIComponent(el.dataset.catName || ''));
+        }
+
+        function filterSpiders() {
+            const q = (document.getElementById('spiderFilter')?.value || '').trim().toLowerCase();
+            document.querySelectorAll('#spiderList .spider-item').forEach((el) => {
+                const text = (el.textContent || '').toLowerCase();
+                const key = (el.dataset.key || '').toLowerCase();
+                el.style.display = !q || text.includes(q) || key.includes(q) ? '' : 'none';
+            });
+        }
+
         // 工具函数
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
@@ -1765,9 +1853,10 @@
 
             try {
                 addLog(`搜索: ${keyword}`, 'pending');
-                const result = await apiCall(`/spider/${currentSpider.key}/3/search`, {
+                const result = await apiCall(spiderUrl('search'), {
                     wd: keyword,
-                    page: 1
+                    page: 1,
+                    pg: 1
                 });
                 renderSearchResults(result, keyword);
                 addLog('搜索成功', 'success', result);
@@ -1783,7 +1872,7 @@
             lastRawData = data;
             lastRenderFunction = (d) => renderSearchResults(d, keyword);
 
-            const videos = data.list || [];
+            const videos = pickList(data);
 
             if (videos.length === 0) {
                 showContent('<div class="empty-state"><p>未找到相关结果</p></div>');
@@ -1792,24 +1881,13 @@
 
             let html = `
                 <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
-                    搜索"${keyword}" - 共 ${videos.length} 个结果
+                    搜索"${esc(keyword)}" - 共 ${videos.length} 个结果
                 </div>
                 <div class="interactive-list">
             `;
 
             videos.forEach(video => {
-                const id = video.vod_id || video.vodId || video.id || '';
-                const name = video.vod_name || video.vodName || video.name || '未命名';
-                const remarks = video.vod_remarks || video.vodRemarks || video.remarks || '';
-
-                html += `
-                    <div class="list-item" onclick="selectVideo('${id}', '${name.replace(/'/g, "\\\\'")}')">
-                        <div class="list-item-header">
-                            <span class="list-item-title">${name}</span>
-                        </div>
-                        <div class="list-item-info">${remarks || '无备注'}</div>
-                    </div>
-                `;
+                html += videoItemHtml(video);
             });
 
             html += '</div>';
@@ -1857,7 +1935,7 @@
             if (!currentSpider) return;
             try {
                 addLog('HOME 请求发送...', 'pending');
-                const result = await apiCall(`/spider/${currentSpider.key}/3/home`);
+                const result = await apiCall(spiderUrl('home'));
                 renderHome(result);
                 saveState('home', result, 'Home');
                 addLog('HOME 请求成功', 'success', result);
@@ -1872,34 +1950,46 @@
             lastRawData = data;
             lastRenderFunction = renderHome;
 
-            const categories = data.class || [];
+            const categories = data.class || data.classes || [];
+            const videos = pickList(data);
 
-            if (categories.length === 0) {
-                showContent('<div class="empty-state"><p>暂无分类数据</p></div>');
+            if (categories.length === 0 && videos.length === 0) {
+                showContent('<div class="empty-state"><p>暂无分类或列表数据</p></div>');
                 return;
             }
 
-            let html = `
-                <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
-                    共 ${categories.length} 个分类 - 点击分类查看视频列表
-                </div>
-                <div class="interactive-list">
-            `;
-
-            categories.forEach(cat => {
-                const id = cat.type_id || cat.typeId || cat.id || '';
-                const name = cat.type_name || cat.typeName || cat.name || '未命名';
+            let html = '';
+            if (categories.length) {
                 html += `
-                    <div class="list-item" onclick="selectCategory('${id}', '${name.replace(/'/g, "\\\\'")}')">
-                        <div class="list-item-header">
-                            <span class="list-item-title">${name}</span>
-                        </div>
-                        <div class="list-item-info">点击查看此分类的视频</div>
+                    <div style="color: #888; font-size: 11px; margin-bottom: 10px;">
+                        共 ${categories.length} 个分类 - 点击分类查看视频列表
                     </div>
+                    <div class="interactive-list">
                 `;
-            });
-
-            html += '</div>';
+                categories.forEach(cat => {
+                    const id = cat.type_id ?? cat.typeId ?? cat.id ?? '';
+                    const name = cat.type_name || cat.typeName || cat.name || '未命名';
+                    html += `
+                        <div class="list-item" data-cat-id="${enc(id)}" data-cat-name="${enc(name)}" onclick="selectCategoryFrom(this)">
+                            <div class="list-item-header">
+                                <span class="list-item-title">${esc(name)}</span>
+                            </div>
+                            <div class="list-item-info">点击查看此分类的视频</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            if (videos.length) {
+                html += `
+                    <div style="color: #888; font-size: 11px; margin: 12px 0 10px;">
+                        首页列表 ${videos.length} 条
+                    </div>
+                    <div class="interactive-list">
+                `;
+                videos.forEach(video => { html += videoItemHtml(video); });
+                html += '</div>';
+            }
             showContent(html);
 
             updateStep('步骤 2: 选择分类', '点击上方分类查看视频列表');
@@ -1913,6 +2003,7 @@
             contentDisplay.innerHTML = html;
             contentDisplay.style.display = 'block';
             responseArea.style.display = 'none';
+            contentDisplay.scrollTop = 0;
         }
 
         // 选择分类
@@ -1925,12 +2016,15 @@
 
         // 加载分类视频
         async function loadCategory() {
-            if (!currentSpider || !currentState.categoryId) return;
+            if (!currentSpider || currentState.categoryId == null) return;
             try {
                 addLog(`CATEGORY 请求: ${currentState.categoryName}`, 'pending');
-                const result = await apiCall(`/spider/${currentSpider.key}/3/category`, {
+                const result = await apiCall(spiderUrl('category'), {
                     id: currentState.categoryId,
-                    page: currentState.page
+                    tid: currentState.categoryId,
+                    page: currentState.page,
+                    pg: currentState.page,
+                    filters: {}
                 });
                 renderCategory(result);
                 saveState('category', result, currentState.categoryName || 'Category');
@@ -1946,12 +2040,12 @@
             lastRawData = data;
             lastRenderFunction = renderCategory;
 
-            const videos = data.list || [];
+            const videos = pickList(data);
             const page = data.page || 1;
             const pagecount = data.pagecount || 1;
 
             if (videos.length === 0) {
-                showContent('<div class="empty-state"><p>暂无视频数据</p></div>');
+                showContent('<div class="empty-state"><p>暂无视频数据</p><p style="margin-top:8px;font-size:11px;">原始返回里没有 list。可看右侧原始返回值确认接口内容。</p></div>');
                 return;
             }
 
@@ -1963,18 +2057,7 @@
             `;
 
             videos.forEach(video => {
-                const id = video.vod_id || video.vodId || video.id || '';
-                const name = video.vod_name || video.vodName || video.name || '未命名';
-                const remarks = video.vod_remarks || video.vodRemarks || video.remarks || '';
-
-                html += `
-                    <div class="list-item" onclick="selectVideo('${id}', '${name.replace(/'/g, "\\\\'")}')">
-                        <div class="list-item-header">
-                            <span class="list-item-title">${name}</span>
-                        </div>
-                        <div class="list-item-info">${remarks || '无备注'}</div>
-                    </div>
-                `;
+                html += videoItemHtml(video);
             });
 
             html += '</div>';
@@ -2020,7 +2103,7 @@
             if (!currentSpider || !currentState.videoId) return;
             try {
                 addLog(`DETAIL 请求: ${currentState.videoName}`, 'pending');
-                const result = await apiCall(`/spider/${currentSpider.key}/3/detail`, {
+                const result = await apiCall(spiderUrl('detail'), {
                     id: currentState.videoId
                 });
                 renderDetail(result);
@@ -2047,26 +2130,29 @@
             let html = '<div class="play-links">';
 
             playList.forEach((play, index) => {
-                const from = play.vod_play_from || play.vodPlayFrom || `播放源${index + 1}`;
-                const url = play.vod_play_url || play.vodPlayUrl || '';
-                const links = parsePlayUrl(url);
-
-                html += `
-                    <div class="play-from">
-                        <div class="play-from-title">播放源: ${from} (共 ${links.length} 集)</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                `;
-
-                links.forEach((link, i) => {
+                const fromRaw = play.vod_play_from || play.vodPlayFrom || `播放源${index + 1}`;
+                const urlRaw = play.vod_play_url || play.vodPlayUrl || '';
+                const froms = String(fromRaw).split('$$$');
+                const urls = String(urlRaw).split('$$$');
+                const count = Math.max(froms.length, urls.length, 1);
+                for (let i = 0; i < count; i++) {
+                    const from = (froms[i] || froms[0] || `播放源${i + 1}`).trim();
+                    const links = parsePlayUrl(urls[i] || '');
                     html += `
-                        <div class="play-link-item">
-                            <span class="play-link-name">${link.name}</span>
-                            <button class="play-link-btn" onclick="playVideo('${from.replace(/'/g, "\\\\'")}', '${link.id}')">播放</button>
-                        </div>
+                        <div class="play-from">
+                            <div class="play-from-title">${esc(from)} (共 ${links.length} 集)</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
                     `;
-                });
-
-                html += '</div></div>';
+                    links.forEach((link) => {
+                        html += `
+                            <div class="play-link-item">
+                                <span class="play-link-name">${esc(link.name)}</span>
+                                <button class="play-link-btn" data-flag="${enc(from)}" data-play-id="${enc(link.id)}" onclick="playVideoFrom(this)">播放</button>
+                            </div>
+                        `;
+                    });
+                    html += '</div></div>';
+                }
             });
 
             html += '</div>';
@@ -2091,6 +2177,10 @@
             return links;
         }
 
+        function playVideoFrom(el) {
+            playVideo(decodeURIComponent(el.dataset.flag || ''), decodeURIComponent(el.dataset.playId || ''));
+        }
+
         // 播放视频
         async function playVideo(from, id) {
             if (!currentSpider) return;
@@ -2098,7 +2188,7 @@
             currentState.playId = id;
             try {
                 addLog('PLAY 请求发送...', 'pending');
-                const result = await apiCall(`/spider/${currentSpider.key}/3/play`, {
+                const result = await apiCall(spiderUrl('play'), {
                     flag: from,
                     id: id
                 });
@@ -2233,7 +2323,7 @@
             // 测试 Home
             try {
                 addLog('一键测试: 测试 Home 接口...', 'pending');
-                const homeResult = await apiCall(`/spider/${currentSpider.key}/3/home`);
+                const homeResult = await apiCall(spiderUrl('home'));
                 results.push({ name: 'Home', status: 'success', data: homeResult });
                 addLog('Home 接口测试通过', 'success', homeResult);
                 showToast('Home 接口测试通过', 'success');
@@ -2250,7 +2340,7 @@
                 const categoryId = firstCategory.type_id || firstCategory.typeId || firstCategory.id;
                 try {
                     addLog('一键测试: 测试 Category 接口...', 'pending');
-                    const categoryResult = await apiCall(`/spider/${currentSpider.key}/3/category`, { id: categoryId, page: 1 });
+                    const categoryResult = await apiCall(spiderUrl('category'), { id: categoryId, tid: categoryId, page: 1, pg: 1 });
                     results.push({ name: 'Category', status: 'success', data: categoryResult });
                     addLog('Category 接口测试通过', 'success', categoryResult);
                     showToast('Category 接口测试通过', 'success');
@@ -2268,7 +2358,7 @@
                 const videoId = firstVideo.vod_id || firstVideo.vodId || firstVideo.id;
                 try {
                     addLog('一键测试: 测试 Detail 接口...', 'pending');
-                    const detailResult = await apiCall(`/spider/${currentSpider.key}/3/detail`, { id: videoId });
+                    const detailResult = await apiCall(spiderUrl('detail'), { id: videoId });
                     results.push({ name: 'Detail', status: 'success', data: detailResult });
                     addLog('Detail 接口测试通过', 'success', detailResult);
                     showToast('Detail 接口测试通过', 'success');
@@ -2282,7 +2372,7 @@
 
                         try {
                             addLog('一键测试: 测试 Play 接口...', 'pending');
-                            const playResult = await apiCall(`/spider/${currentSpider.key}/3/play`, { flag: playFrom, id: playId });
+                            const playResult = await apiCall(spiderUrl('play'), { flag: playFrom, id: playId });
                             results.push({ name: 'Play', status: 'success', data: playResult });
                             addLog('Play 接口测试通过', 'success', playResult);
                             showToast('Play 接口测试通过', 'success');
@@ -2596,7 +2686,7 @@
             // 请求头
             if (rec.requestHeaders && Object.keys(rec.requestHeaders).length > 0) {
                 html += '<div class="rec-section" style="margin-top:6px;">';
-                html += '<div class="rec-section-title" onclick="this.nextElementSibling.classList.toggle(\\'collapsed\\')" style="cursor:pointer;user-select:none;">';
+                html += '<div class="rec-section-title" onclick="this.nextElementSibling.classList.toggle(\'collapsed\')" style="cursor:pointer;user-select:none;">';
                 html += '  📋 请求头 <span style="color:#666;font-size:9px;">▼</span>';
                 html += '</div>';
                 html += '<div class="rec-section-body collapsed" style="background:#1e1e1e;border-radius:4px;padding:6px;margin-top:4px;font-size:10px;font-family:monospace;color:#888;max-height:300px;overflow-y:auto;">';
