@@ -490,7 +490,7 @@ async function proxyHandler(inReq, reply) {
 export default {
     meta: {
         key: 'yiguoduan',
-        name: '🦋一锅端·12站实测',
+        name: '💋一锅端·12站',
         type: 3,
     },
     api: async (fastify) => {

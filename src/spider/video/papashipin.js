@@ -202,7 +202,7 @@ async function search(inReq, _outResp) {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
-    meta: { key: 'prshinezenx', name: '🎬怦然心动', type: 1 },
+    meta: { key: 'prshinezenx', name: '💋怦然心动', type: 1 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

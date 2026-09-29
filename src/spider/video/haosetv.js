@@ -145,7 +145,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: '好色Tv',
-        name: '🌸好色™Tv',
+        name: '💋好色™Tv',
         type: 3,
     },
     api: async (fastify) => {

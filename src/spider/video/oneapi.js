@@ -527,7 +527,7 @@ async function proxyHandler(inReq, reply) {
 export default {
     meta: {
         key: 'oneapi',
-        name: '🎬One视频',
+        name: '💋One视频',
         type: 3,
     },
     api: async (fastify) => {
