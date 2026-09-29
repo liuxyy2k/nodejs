@@ -33,6 +33,8 @@ async function request(url, referer = '') {
             Referer: referer || `${site}/`,
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            Connection: 'keep-alive',
         },
     });
     return resp.data;
@@ -69,9 +71,46 @@ function pickBestM3u8(text, base) {
     return absUrl(direct?.trim(), base);
 }
 
+function unpackPacker(text) {
+    const m = String(text || '').match(/}\('(.*?)',(\d+),(\d+),'(.*?)'\.split\('\|'\)/s);
+    if (!m) return '';
+    let payload = m[1];
+    const base = parseInt(m[2], 10);
+    const count = parseInt(m[3], 10);
+    const keys = m[4].split('|');
+    try {
+        payload = JSON.parse(`"${payload.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
+    } catch {
+        /* keep raw */
+    }
+    const table = {};
+    for (let i = 0; i < count; i++) {
+        if (i < keys.length && keys[i]) table[int2base(i, base)] = keys[i];
+    }
+    return payload.replace(/\b\w+\b/g, (w) => (table[w] !== undefined ? table[w] : w));
+}
+
+function int2base(num, radix) {
+    const digits = '0123456789abcdefghijklmnopqrstuvwxyz';
+    if (num < 0) return `-${int2base(-num, radix)}`;
+    const res = [];
+    let x = num;
+    while (x > 0) {
+        res.push(digits[x % radix]);
+        x = Math.floor(x / radix);
+    }
+    return res.length ? res.reverse().join('') : '0';
+}
+
 async function extractStream(html, ref) {
     let hits = [...String(html || '').matchAll(/https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/g)].map((x) => x[0]);
     if (hits.length) return hits[0].replace(/\\\//g, '/').replace(/&amp;/g, '&');
+
+    if (String(html).includes('eval(function(p,a,c,k,e')) {
+        const dec = unpackPacker(html);
+        hits = [...dec.matchAll(/https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/g)].map((x) => x[0]);
+        if (hits.length) return hits[0].replace(/\\\//g, '/').replace(/&amp;/g, '&');
+    }
 
     const hash = load(html)('#video_player').attr('data-hash');
     if (hash) {
@@ -81,7 +120,30 @@ async function extractStream(html, ref) {
         const master = await fetchText(hash, referer);
         return pickBestM3u8(master, hash);
     }
+
+    const redirect = String(html).match(/window\.location\.href\s*=\s*'([^']+)'/);
+    if (redirect?.[1]) {
+        const page = await fetchText(redirect[1], ref);
+        hits = [...String(page || '').matchAll(/https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/g)].map((x) => x[0]);
+        if (hits.length) return hits[0].replace(/\\\//g, '/').replace(/&amp;/g, '&');
+        const hash2 = load(page)('#video_player').attr('data-hash');
+        if (hash2) {
+            const referer = /turbovidhls|turbosplayer|turboviplay/i.test(hash2)
+                ? `${new URL(hash2).origin}/`
+                : 'https://turbovidhls.com/';
+            const master = await fetchText(hash2, referer);
+            return pickBestM3u8(master, hash2);
+        }
+    }
     return '';
+}
+
+function normalizeDetailUrl(id) {
+    const raw = String(id || '').trim();
+    if (!raw) return `${site}/`;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const slug = raw.replace(/^\//, '').replace(/\.html$/, '');
+    return `${site}/${slug}.html`;
 }
 
 function parseVods($) {
@@ -136,13 +198,12 @@ async function category(inReq) {
 
 async function detail(inReq) {
     const id = inReq.body.id;
-    const detailUrl = id.startsWith('http') ? id : `${site}/${String(id).replace(/^\//, '').replace(/\.html$/, '')}.html`;
+    const detailUrl = normalizeDetailUrl(id);
     const html = await request(detailUrl);
     const $ = load(html);
     const name = $('meta[name="description"]').attr('content')
         || $('h1').text().trim()
         || '';
-    const vid = String(detailUrl).match(/(\d+)\.html/)?.[1] || '';
     const pic = ($('div.player-wrap').attr('style') || '').match(/url\(([^)]+)\)/)?.[1]
         || ($('img[data-original*="supjav.com"]').first().attr('data-original') || '').replace('!320x216.jpg', '');
 
@@ -151,17 +212,24 @@ async function detail(inReq) {
         const trackName = $(el).text().trim();
         const dataLink = $(el).attr('data-link') || '';
         if (!dataLink) return;
-        pairs.push([trackName, `正片$${vid}|${dataLink}`]);
+        pairs.push([trackName, `正片$${detailUrl}|${dataLink}`]);
     });
+    if (!pairs.length) {
+        const links = [...String(html).matchAll(/data-link="([0-9a-f]{40,})"/gi)].map((m) => m[1]);
+        const names = [...String(html).matchAll(/data-link="[0-9a-f]{40,}"[^>]*>([^<]{1,12})</gi)].map((m) => m[1].trim());
+        links.forEach((dataLink, i) => {
+            pairs.push([names[i] || `线路${i + 1}`, `正片$${detailUrl}|${dataLink}`]);
+        });
+    }
     pairs.sort((a, b) => (a[0] === 'TV' ? 0 : 1) - (b[0] === 'TV' ? 0 : 1));
 
     return {
         list: [{
-            vod_id: id,
+            vod_id: detailUrl,
             vod_name: name,
             vod_pic: pic,
             vod_content: name,
-            vod_play_from: pairs.length ? pairs.map((p) => p[0]).join('$$$') : 'javsaga',
+            vod_play_from: pairs.length ? pairs.map((p) => p[0]).join('$$$') : 'JavSaga',
             vod_play_url: pairs.length ? pairs.map((p) => p[1]).join('$$$') : '',
         }],
     };
@@ -181,11 +249,15 @@ async function play(inReq) {
     }
 
     const pipe = raw.indexOf('|');
-    const vid = pipe >= 0 ? raw.slice(0, pipe) : '';
-    const lk = pipe >= 0 ? raw.slice(pipe + 1) : raw;
+    let detailUrl = pipe >= 0 ? raw.slice(0, pipe).trim() : '';
+    const lk = pipe >= 0 ? raw.slice(pipe + 1).trim() : raw;
     if (!lk) return fail;
 
-    const detailUrl = vid ? `${site}/${vid}.html` : `${site}/`;
+    if (!/^https?:\/\//i.test(detailUrl)) {
+        const vid = detailUrl.replace(/\D/g, '') || detailUrl;
+        detailUrl = vid ? `${site}/${vid}.html` : `${site}/`;
+    }
+
     const s1Url = `${LK_BASE}?l=${lk}`;
     const s1 = await fetchText(s1Url, detailUrl);
     const om = s1.match(/var\s+OLID\s*=\s*'([0-9a-f]{40,})'/i);
@@ -194,9 +266,7 @@ async function play(inReq) {
     const s2Url = `${LK_BASE}?c=${olid}`;
     const s2 = await fetchText(s2Url, s1Url);
     let playUrl = await extractStream(s2, s2Url);
-    if (!playUrl) {
-        return { parse: 1, url: s1Url, header: { 'User-Agent': UA, Referer: detailUrl } };
-    }
+    if (!playUrl) return fail;
 
     playUrl = playUrl.replace(/\\\//g, '/').replace(/&amp;/g, '&');
     let referer = s2Url;
