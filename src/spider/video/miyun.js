@@ -529,7 +529,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'miyun',
-        name: '🔥蜜云视频',
+        name: '💋蜜云视频',
         type: 3,
     },
     api: async (fastify) => {

@@ -322,7 +322,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'hudie',
-        name: '🔥可可影视',
+        name: '🎬可可影视',
         type: 3,
     },
     api: async (fastify) => {

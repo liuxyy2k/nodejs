@@ -361,7 +361,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'shunvh',
-        name: '🔥熟女汇',
+        name: '🌸熟女汇',
         type: 3,
     },
     api: async (fastify) => {

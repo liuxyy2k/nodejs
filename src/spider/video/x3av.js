@@ -406,7 +406,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'x3av',
-        name: '🔥樱花传媒',
+        name: '💋樱花传媒',
         type: 3,
     },
     api: async (fastify) => {

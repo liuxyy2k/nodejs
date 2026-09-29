@@ -537,7 +537,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'vqq',
-        name: '🔥腾讯视频',
+        name: '🎬腾讯视频',
         type: 3,
     },
     api: async (fastify) => {

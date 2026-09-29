@@ -784,7 +784,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'baokuanpk',
-        name: '🔥爆款片库',
+        name: '🎬爆款片库',
         type: 3,
     },
     api: async (fastify) => {

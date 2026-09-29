@@ -536,7 +536,7 @@ async function m3u8Proxy(inReq, reply) {
 export default {
     meta: {
         key: 'mitaofc2',
-        name: '🔥蜜桃FC2',
+        name: '🍑蜜桃FC2',
         type: 3,
     },
     api: async (fastify) => {

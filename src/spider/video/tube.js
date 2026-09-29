@@ -282,7 +282,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'tube8',
-        name: '🔥Tube8',
+        name: '🎥Tube8',
         type: 3,
     },
     api: async (fastify) => {

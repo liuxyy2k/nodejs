@@ -808,7 +808,7 @@ async function proxyHandler(inReq, reply) {
 export default {
     meta: {
         key: 'aqx',
-        name: '🔥UU视视',
+        name: '💋UU视视',
         type: 3,
     },
     api: async (fastify) => {

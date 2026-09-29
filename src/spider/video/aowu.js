@@ -196,7 +196,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'aowu',
-        name: '🔥嗷呜动漫',
+        name: '🎌嗷呜动漫',
         type: 3,
     },
     api: async (fastify) => {

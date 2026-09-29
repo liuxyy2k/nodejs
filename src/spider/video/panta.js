@@ -149,7 +149,7 @@ async function search(inReq, _outResp) {
 export default {
   meta: {
     key: 'panta',
-    name: '🔥盘Ta',
+    name: '🎬盘Ta',
     type: 3,
   },
   api: async (fastify) => {

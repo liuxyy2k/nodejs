@@ -675,7 +675,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'hanxiaoquan',
-        name: '🔥韩小圈',
+        name: '🎬韩小圈',
         type: 3,
     },
     api: async (fastify) => {

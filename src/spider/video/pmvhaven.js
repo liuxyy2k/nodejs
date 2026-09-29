@@ -333,7 +333,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'pmvhaven',
-        name: '🔥PMVHaven',
+        name: '🎥PMVHaven',
         type: 3,
     },
     api: async (fastify) => {

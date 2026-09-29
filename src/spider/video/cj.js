@@ -279,7 +279,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'cjjson',
-        name: '🔥采集聚合',
+        name: '⚡采集聚合',
         type: 3,
     },
     api: async (fastify) => {

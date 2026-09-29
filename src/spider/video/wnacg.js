@@ -236,7 +236,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'wnacg',
-        name: '🔥绅士漫画',
+        name: '🎌绅士漫画',
         type: 3,
     },
     api: async (fastify) => {

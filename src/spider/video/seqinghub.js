@@ -287,7 +287,7 @@ async function imgProxy(inReq, reply) {
 }
 
 export default {
-    meta: { key: 'seqinghub', name: '🔥好色TV', type: 3 },
+    meta: { key: 'seqinghub', name: '🌸好色TV', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);

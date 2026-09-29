@@ -180,7 +180,7 @@ async function icon(inReq, reply) {
 export default {
   meta: {
     key: 'leijing',
-    name: '🔥雷鲸',
+    name: '🎬雷鲸',
     type: 3,
   },
   api: async (fastify) => {

@@ -411,7 +411,7 @@ async function play(inReq, _outResp) {
 export default {
   meta: {
     key: 'nisp',
-    name: '🔥泥视频',
+    name: '🎬泥视频',
     type: 3,
   },
   api: async (fastify) => {

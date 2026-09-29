@@ -179,7 +179,7 @@ async function search(inReq, _outResp) {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
-    meta: { key: 'adultporna', name: '🔥AdultPorna', type: 3 },
+    meta: { key: 'adultporna', name: '🌸AdultPorna', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

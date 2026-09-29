@@ -173,7 +173,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'jiujiu',
-        name: '🔥久久网',
+        name: '💋久久网',
         type: 1,
     },
     api: async (fastify) => {

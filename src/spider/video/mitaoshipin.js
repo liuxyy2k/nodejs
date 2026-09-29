@@ -503,7 +503,7 @@ async function proxyHandler(inReq, outResp) {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 export default {
-    meta: { key: 'mitaosp', name: '🔥蜜桃视频', type: 3 },
+    meta: { key: 'mitaosp', name: '🍑蜜桃视频', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

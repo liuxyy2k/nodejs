@@ -445,7 +445,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'kbduanju',
-        name: '🔥狂飙短剧',
+        name: '📖狂飙短剧',
         type: 3,
     },
     api: async (fastify) => {

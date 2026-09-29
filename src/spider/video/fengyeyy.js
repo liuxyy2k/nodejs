@@ -348,7 +348,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'maihaolian',
-        name: '🔥枫叶影院',
+        name: '🎬枫叶影院',
         type: 1,
     },
     api: async (fastify) => {

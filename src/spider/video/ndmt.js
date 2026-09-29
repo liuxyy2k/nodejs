@@ -169,7 +169,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'ndmt',
-        name: '🔥Hqg',
+        name: '🌸Hqg',
         type: 3,
     },
     api: async (fastify) => {

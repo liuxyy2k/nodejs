@@ -438,7 +438,7 @@ async function imgHandler(inReq, reply) {
 export default {
     meta: {
         key: 'duanju51',
-        name: '🔥51短剧',
+        name: '📖51短剧',
         type: 3,
     },
     api: async (fastify) => {

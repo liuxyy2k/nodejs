@@ -188,7 +188,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'jsmtt',
-        name: '🔥就爱蜜桃臀',
+        name: '🍑就爱蜜桃臀',
         type: 3,
     },
     api: async (fastify) => {

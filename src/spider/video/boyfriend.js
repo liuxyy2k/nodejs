@@ -275,7 +275,7 @@ async function localProxy(inReq, reply) {
 }
 
 export default {
-    meta: { key: 'boyfriendshow', name: '🔥Boyfriend', type: 3 },
+    meta: { key: 'boyfriendshow', name: '🎥Boyfriend', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

@@ -751,7 +751,7 @@ async function proxyHandler(inReq, reply) {
 export default {
     meta: {
         key: 'vvideos',
-        name: '🔥VV视频',
+        name: '💋VV视频',
         type: 3,
     },
     api: async (fastify) => {

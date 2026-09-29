@@ -196,7 +196,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'xingba',
-        name: '🔥杏吧视频',
+        name: '💋杏吧视频',
         type: 3,
     },
     api: async (fastify) => {

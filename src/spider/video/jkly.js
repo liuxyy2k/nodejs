@@ -364,7 +364,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'jkly',
-        name: '🔥JK领域',
+        name: '💋JK领域',
         type: 3,
     },
     api: async (fastify) => {

@@ -363,7 +363,7 @@ async function proxyPlay(inReq, outResp) {
 export default {
     meta: {
         key: 'sinparty',
-        name: '🔞 SinParty',
+        name: '🔞SinParty',
         type: 3,
     },
     api: async (fastify) => {

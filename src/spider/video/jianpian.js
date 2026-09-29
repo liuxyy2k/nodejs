@@ -196,7 +196,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'jianpian', name: '🔥荐片', type: 3 },
+    meta: { key: 'jianpian', name: '🎬荐片', type: 3 },
     api: async (fastify) => {
         fastify.post('/init',     init);
         fastify.post('/home',     home);

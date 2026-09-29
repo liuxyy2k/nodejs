@@ -182,7 +182,7 @@ async function search(inReq) {
 export default {
     meta: {
         key: 'hhj',
-        name: '🔥Hohoj',
+        name: '🌸Hohoj',
         type: 3
     },
     api: async (fastify) => {

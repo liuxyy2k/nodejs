@@ -206,7 +206,7 @@ async function search(inReq, _outResp) {
 export default {
   meta: {
     key: 'hanime1',
-    name: '🔥Hanime1.my',
+    name: '🎌Hanime1.my',
     type: 3,
   },
   api: async (fastify) => {

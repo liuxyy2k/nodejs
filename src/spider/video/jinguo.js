@@ -196,7 +196,7 @@ async function playAll(inReq, outResp) {
 export default {
     meta: {
         key: 'jinguo',
-        name: '🔥金果短剧',
+        name: '📖金果短剧',
         type: 3,
     },
     api: async (fastify) => {

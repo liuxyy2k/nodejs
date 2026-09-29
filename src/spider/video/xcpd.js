@@ -188,7 +188,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'xcpd',
-        name: '🔥香肠派对',
+        name: '💋香肠派对',
         type: 3,
     },
     api: async (fastify) => {
