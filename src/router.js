@@ -95,7 +95,6 @@ import bgcg from "./spider/video/bagecg.js";
 import javrate from "./spider/video/javrate.js";
 import sefun from "./spider/video/sefun.js";
 import j18Tv from "./spider/video/18jTv.js";
-import twoJav from "./spider/video/twoJav.js";
 import popjav from "./spider/video/popjav.js";
 import javdirect from "./spider/video/javdirect.js";
 import chatur from "./spider/video/chatur.js";
@@ -291,7 +290,7 @@ export const getSpiders = async (server) => {
         miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn,   
         fcjav, javleak, javsaga, javmit, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
         javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt,
-        dogav, msavx, hubff, twoJav, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
+        dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, jptt, theporny, theporn, fullhd, owoav, masexTv,
         youavhub, paradisehill, yasetube, avporn, isese, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, lyt, t66yy, hscka, cableav, porncvd, pronlulu,
