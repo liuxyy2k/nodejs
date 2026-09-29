@@ -285,7 +285,7 @@ export const getSpiders = async (server) => {
         qingju, duanju51, duanju57, huangguo, huangdou, jinguo, kbduanju, crdj91,
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty,
-        myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, lubosp, jamtt,
+        myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, lubosp, 
         // ── JAV / 日系 AV ──
         miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn,   
         fcjav, javleak, javsaga, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
@@ -312,6 +312,7 @@ export const getSpiders = async (server) => {
         seqinghub, haose, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
         wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
         awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
+        jamtt,
         // ── 欧美 / 国际 ──
         onlyfans18, beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
