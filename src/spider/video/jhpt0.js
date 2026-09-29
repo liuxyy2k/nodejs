@@ -70,10 +70,11 @@ function buildUrl(base, params = {}) {
 async function request(url) {
     try {
         const resp = await req.get(url, {
-            timeout: 12000,
+            timeout: 6000,
             headers: { 'User-Agent': UA },
             responseType: 'text',
             transformResponse: [(d) => d],
+            validateStatus: (s) => s === 200,
         });
         return resp.data || '';
     } catch (e) {
@@ -198,18 +199,6 @@ function cleanItem(item, sourceKey, sourceName, isDetail = false) {
     return o;
 }
 
-async function loadFilter(sourceKey, sourceObj) {
-    const url = buildUrl(sourceObj.api, { ac: 'list' });
-    const data = parseResponse(await request(url));
-    const vals = [{ n: '全部(最新)', v: '' }];
-    for (const c of data.class || []) {
-        const cid = text(c.type_id);
-        const name = text(c.type_name);
-        if (cid || name) vals.push({ n: name || cid, v: cid });
-    }
-    return vals;
-}
-
 function isVideoFormat(url) {
     if (!url) return false;
     const u = String(url).toLowerCase();
@@ -223,14 +212,10 @@ async function init(_inReq, _outResp) {
 async function home(_inReq, _outResp) {
     const classes = [];
     const filters = {};
+    const defaultVals = [{ n: '全部(最新)', v: '' }];
     for (const [sk, so] of Object.entries(SOURCES)) {
         classes.push({ type_id: sk, type_name: so.name });
-        try {
-            const vals = await loadFilter(sk, so);
-            filters[sk] = [{ key: 'cateId', name: '分类', value: vals }];
-        } catch {
-            filters[sk] = [{ key: 'cateId', name: '分类', value: [{ n: '全部(最新)', v: '' }] }];
-        }
+        filters[sk] = [{ key: 'cateId', name: '分类', value: [...defaultVals] }];
     }
     return { class: classes, filters };
 }
@@ -328,37 +313,74 @@ async function play(inReq, _outResp) {
     };
 }
 
+async function searchOne([sk, so], key, pg) {
+    const stype = so.type || 1;
+    let url;
+    if (stype === 0 || stype === 3) {
+        url = buildUrl(so.api, { ac: 'videolist', wd: key, pg });
+    } else if (stype === 2) {
+        url = buildUrl(so.api, { wd: key, pg });
+    } else {
+        url = buildUrl(so.api, { ac: 'detail', wd: key, pg });
+    }
+    let data = parseResponse(await request(url));
+    if (stype !== 0 && stype !== 2 && stype !== 3 && !data.list?.length) {
+        const data2 = parseResponse(await request(buildUrl(so.api, { ac: 'videolist', wd: key, pg })));
+        if (data2.list?.length) data = data2;
+    }
+    const lst = (data.list || []).map((it) => {
+        const cleaned = cleanItem(it, sk, so.name, false);
+        cleaned.vod_pic = fixPic(cleaned.vod_pic);
+        return cleaned;
+    });
+    return { lst, pc: parseInt(data.pagecount || 1, 10) };
+}
+
+async function searchPool(items, key, pg, concurrency = 8, timeoutMs = 25000) {
+    const result = [];
+    let maxPage = 1;
+    let idx = 0;
+
+    const run = async () => {
+        while (idx < items.length) {
+            const cur = items[idx++];
+            try {
+                const { lst, pc } = await searchOne(cur, key, pg);
+                result.push(...lst);
+                if (pc > maxPage) maxPage = pc;
+            } catch (e) {
+                console.error('search skip', cur[0], e.message);
+            }
+        }
+    };
+
+    await Promise.race([
+        Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, run)),
+        new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+    return { result, maxPage };
+}
+
 async function search(inReq, _outResp) {
     const key = text(inReq.body.wd);
     const pg = parseInt(inReq.body.page || 1, 10);
-    if (!key) return { list: [], page: pg, pagecount: 0 };
+    if (!key) return { list: [], page: pg, pagecount: 1, limit: 40, total: 0 };
 
-    const result = [];
+    const items = Object.entries(SOURCES);
+    let result = [];
     let maxPage = 1;
 
-    for (const [sk, so] of Object.entries(SOURCES)) {
-        try {
-            const stype = so.type || 1;
-            let url;
-            if (stype === 3) {
-                url = buildUrl(so.api, { ac: 'videolist', wd: key, pg });
-            } else {
-                url = buildUrl(so.api, { ac: 'detail', wd: key, pg });
+    try {
+        ({ result, maxPage } = await searchPool(items, key, pg));
+    } catch {
+        for (const item of items.slice(0, 15)) {
+            try {
+                const { lst, pc } = await searchOne(item, key, pg);
+                result.push(...lst);
+                if (pc > maxPage) maxPage = pc;
+            } catch (e) {
+                console.error('search skip', item[0], e.message);
             }
-            let data = parseResponse(await request(url));
-            if (stype !== 3 && !data.list?.length) {
-                const data2 = parseResponse(await request(buildUrl(so.api, { ac: 'videolist', wd: key, pg })));
-                if (data2.list?.length) data = data2;
-            }
-            for (const it of data.list || []) {
-                const cleaned = cleanItem(it, sk, so.name, false);
-                cleaned.vod_pic = fixPic(cleaned.vod_pic);
-                result.push(cleaned);
-            }
-            const pc = parseInt(data.pagecount || 1, 10);
-            if (pc > maxPage) maxPage = pc;
-        } catch (e) {
-            console.error('search skip', sk, e.message);
         }
     }
 
