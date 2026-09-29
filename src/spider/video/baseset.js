@@ -53,7 +53,7 @@ async function category(e, t) {
       {
         vod_id: 'openInternalWebsite',
         vod_name: '点击配置',
-        vod_pic: CLICK_CONFIG_PIC,
+        vod_pic: 'https://gh-proxy.org/https://raw.githubusercontent.com/liuxyy2k/y2kspider/refs/heads/main/64453ad9dd1734d1c8a8460b8b047790.webp',
       }
     ]
   }
