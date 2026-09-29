@@ -821,32 +821,61 @@
             font-size: 12px;
         }
 
-        /* 响应式 */
-        @media (max-width: 1024px) {
+        /* 手机 / 窄屏：纵向堆叠，避免三栏被压进一屏 */
+        @media (max-width: 900px) {
+            html, body {
+                height: auto;
+                min-height: 100%;
+                overflow: auto;
+            }
+
+            body {
+                overflow-x: hidden;
+            }
+
             .layout {
-                flex-wrap: wrap;
-                overflow-y: auto;
+                flex-direction: column;
+                flex-wrap: nowrap;
+                height: auto;
+                min-height: 100dvh;
+                overflow: visible;
+            }
+
+            .sidebar,
+            .right-panel,
+            .main-content {
+                width: 100% !important;
+                max-width: none !important;
+                min-width: 0 !important;
+                flex: none;
             }
 
             .sidebar {
-                width: 100% !important;
-                max-height: 200px;
-            }
-
-            .spider-list {
                 max-height: none;
                 height: auto;
+                overflow: visible;
             }
 
-            .sidebar-top,
+            .sidebar-top {
+                flex: none !important;
+                height: 38vh !important;
+                min-height: 180px !important;
+                max-height: 320px;
+            }
+
             .sidebar-middle {
-                height: auto !important;
-                min-height: auto !important;
+                max-height: none;
+                overflow: visible;
             }
 
-            .right-panel {
-                width: 100% !important;
-                max-height: 300px;
+            .test-flow {
+                display: none;
+            }
+
+            .quick-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
             }
 
             .resizer,
@@ -854,14 +883,51 @@
                 display: none;
             }
 
-            .log-card,
-            .raw-card {
-                height: auto !important;
-                min-height: auto !important;
+            .main-content {
+                min-height: 0;
+                overflow: visible;
+                padding: 10px;
             }
 
-            body {
+            .response-card {
+                flex: none;
+                min-height: 50vh;
+                overflow: visible;
+            }
+
+            .content-display {
+                min-height: 42vh;
                 overflow: auto;
+            }
+
+            .right-panel {
+                max-height: none;
+                height: auto;
+                background: transparent;
+            }
+
+            .log-card,
+            .raw-card {
+                height: 200px !important;
+                min-height: 160px !important;
+                margin: 0 10px 10px;
+            }
+
+            .breadcrumb,
+            .pagination,
+            .search-input-area,
+            .card-title,
+            .recording-card-header {
+                flex-wrap: wrap;
+            }
+
+            .search-input-area input {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .pagination {
+                gap: 8px;
             }
         }
 
@@ -1377,6 +1443,7 @@
 
         // 从 localStorage 加载宽度
         function loadWidths() {
+            if (window.matchMedia('(max-width: 900px)').matches) return;
             const sidebarWidth = localStorage.getItem('test_sidebar_width');
             const rightPanelWidth = localStorage.getItem('test_right_panel_width');
             const logHeight = localStorage.getItem('test_log_height');
