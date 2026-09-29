@@ -1,3 +1,4 @@
+import { httpRecordStore } from "./util/httpRecord.js";
 import baseset from "./spider/video/baseset.js";
 import duoduo from "./spider/video/duoduo.js";
 import nsp from "./spider/video/nisp.js";
@@ -346,6 +347,33 @@ export default async function router(fastify, {db, config: serverConfig}) {
         spider.check?.(fastify)
         console.log('Register spider: ' + path);
     });
+
+    /** 测试页调试：调用真实接口，并录制这次调用里发出的 HTTP 请求 */
+    fastify.post('/spider/:key/:type/debug/:action', async (request, reply) => {
+        const { key, type, action } = request.params;
+        const allowed = new Set(['init', 'home', 'category', 'detail', 'play', 'search']);
+        if (!allowed.has(action)) {
+            return reply.code(404).send({ error: `不支持调试 ${action}` });
+        }
+        const recordings = [];
+        const injected = await httpRecordStore.run(recordings, () => fastify.inject({
+            method: 'POST',
+            url: `${spiderPrefix}/${encodeURIComponent(key)}/${encodeURIComponent(type)}/${action}`,
+            headers: { 'content-type': 'application/json' },
+            payload: request.body && typeof request.body === 'object' ? request.body : {},
+        }));
+        let response = {};
+        try {
+            response = JSON.parse(injected.body || '{}');
+        } catch {
+            response = { raw: injected.body };
+        }
+        if (injected.statusCode === 404) {
+            return { recordings, response, responseStatus: 404, error: '该爬虫没有这个接口' };
+        }
+        return { recordings, response, responseStatus: injected.statusCode };
+    });
+
     /**
      * @api {get} /check 检查
      */

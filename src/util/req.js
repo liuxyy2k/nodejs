@@ -1,3 +1,4 @@
+import './httpRecord.js';
 import _axios from 'axios';
 import https from 'https';
 import http from 'http';
