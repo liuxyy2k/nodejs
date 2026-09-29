@@ -318,7 +318,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'movieffm',
-        name: '🔥Movieffm',
+        name: '🌸Movieffm',
         type: 3,
     },
     api: async (fastify) => {

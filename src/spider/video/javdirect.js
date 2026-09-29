@@ -283,7 +283,7 @@ async function search(inReq, _outResp) {
 export default {
   meta: {
     key: 'javdirect',
-    name: '🔥JAV.direct',
+    name: '🌸JAV.direct',
     type: 3,
   },
   api: async (fastify) => {

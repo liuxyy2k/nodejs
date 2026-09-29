@@ -684,7 +684,7 @@ async function search(inReq) {
 }
 
 export default {
-    meta: { key: 'av01', name: '🔥AV01', type: 3 },
+    meta: { key: 'av01', name: '🌸AV01', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);

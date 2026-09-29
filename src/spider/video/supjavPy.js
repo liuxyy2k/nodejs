@@ -494,7 +494,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'supjavpy',
-        name: '🔥SupJav(PY)',
+        name: '🌸SupJav(PY)',
         type: 3,
     },
     api: async (fastify) => {

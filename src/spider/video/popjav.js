@@ -219,7 +219,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'popJav',
-        name: '🔥PopJav',
+        name: '🌸PopJav',
         type: 3,
     },
     api: async (fastify) => {

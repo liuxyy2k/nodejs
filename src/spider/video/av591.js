@@ -168,7 +168,7 @@ async function search(inReq, _outResp) {
 export default {
   meta: {
     key: 'av591',
-    name: '🔥亚洲素人',
+    name: '🌸亚洲素人',
     type: 3,
   },
   api: async (fastify) => {

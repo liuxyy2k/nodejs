@@ -349,7 +349,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'jableNew',
-        name: '🔥Jable新版',
+        name: '🌸Jable新版',
         type: 3,
     },
     api: async (fastify) => {

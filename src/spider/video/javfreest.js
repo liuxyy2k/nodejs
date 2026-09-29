@@ -817,7 +817,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'javfreest',
-        name: '🔥JavFreeStream',
+        name: '🌸JavFreeStream',
         type: 3,
     },
     api: async (fastify) => {
