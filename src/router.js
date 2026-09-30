@@ -296,11 +296,10 @@ export const getSpiders = async (server) => {
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
         javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
-        vlxxsex, x3china, hohoj, movie, luoli, j18Tv, jptt, theporny, theporn, fullhd, owoav, masexTv,
-        youavhub, paradisehill, yasetube, avporn, isese, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
-        baoporn, auditporn, ipornbase, lyt, t66yy, hscka, cableav, porncvd, pronlulu,
-        ppporn, pigav, dnaav, xm, march, ssp, hstream, lxtv5, mrcx, shunvh, zsrenqi, zcxh, bmm3, huoporn,
-        hdm18, avple, rou, rou233, av591,
+        vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporny, theporn, fullhd, owoav, masexTv,
+        youavhub, paradisehill, yasetube, avporn, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
+        baoporn, auditporn, ipornbase, t66yy, cableav, porncvd, pronlulu,
+        ppporn, pigav, dnaav, xm, march, hstream, lxtv5, huoporn, avple, rou, rou233, 
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
         mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
@@ -308,16 +307,16 @@ export const getSpiders = async (server) => {
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp,
         // ── 国产 / 中文 ──
-        seqinghub, haose, onlyfans18, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
-        wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
-        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
-        jamtt, ncxxx, jkly, huadu,
+        seqinghub, haose, onlyfans18, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51, zcxh, 
+        wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, 
+        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, 
+        jamtt, ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, 
         // ── APP ──
         tt, suiruixhs,
         // ── 音频 ──
         uaaudio,
         // ── 动漫 / Hentai ──
-        hanime, hanime1, hanime2, animei, ai, wnacg, hentaiasmr, sefun,
+        hanime, hanime1, hanime2, hdm18, animei, ai, wnacg, hentaiasmr, sefun,
         // ── 欧美 / 国际 ──
         beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
