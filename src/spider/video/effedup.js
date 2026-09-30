@@ -255,7 +255,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'effedup',
-        name: '🎥EffedUpMovies',
+        name: '🎬EffedUpMovies',
         type: 3,
     },
     api: async (fastify) => {
