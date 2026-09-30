@@ -303,21 +303,21 @@ export const getSpiders = async (server) => {
         hdm18, avple, rou, rou233, av591,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
-        mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk,
-        kb911, ds91, kdw91, dys18,
+        mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
+        ds91, kdw91, dys18,
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp,
+        // ── 国产 / 中文 ──
+        seqinghub, haose, onlyfans18, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
+        wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
+        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
+        jamtt, ncxxx, jkly, huadu,
         // ── APP ──
         tt, suiruixhs,
         // ── 音频 ──
         uaaudio,
         // ── 动漫 / Hentai ──
         hanime, hanime1, hanime2, animei, ai, wnacg, hentaiasmr, sefun,
-        // ── 国产 / 中文 ──
-        seqinghub, haose, onlyfans18, madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, gg51,
-        huadu, wanwu, luanlunba, maomi66, hjsqn, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, 
-        awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv,
-        jamtt, ncxxx, 
         // ── 欧美 / 国际 ──
         beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 

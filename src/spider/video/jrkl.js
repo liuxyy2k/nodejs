@@ -185,7 +185,7 @@ async function search(inReq) {
 export default {
   meta: {
     key: "kanliao",
-    name: "🔥今日看料",
+    name: "🍉今日看料",
     type: 3,
   },
 
