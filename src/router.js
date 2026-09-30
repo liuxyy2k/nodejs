@@ -296,7 +296,7 @@ export const getSpiders = async (server) => {
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
         javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
-        vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, fullhd, owoav, masexTv,
+        vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
         ppporn, pigav, dnaav, xm, march, lxtv5, huoporn, rou233, 
@@ -318,7 +318,7 @@ export const getSpiders = async (server) => {
         // ── 动漫 / Hentai ──
         hanime, hanime1, hanime2, hdm18, hstream, animei, ai, wnacg, hentaiasmr, sefun,
         // ── 欧美 / 国际 ──
-        beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino,
+        beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino, fullhd, 
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
     ];
     const t4Data = await getT4(server)

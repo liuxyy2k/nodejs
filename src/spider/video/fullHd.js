@@ -158,7 +158,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'fullhd',
-        name: '💎FullHD',
+        name: '💃FullHD',
         type: 1,
     },
     api: async (fastify) => {
