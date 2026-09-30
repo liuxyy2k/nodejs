@@ -520,7 +520,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'porncloud',
-        name: '🌸PornCloud',
+        name: '🎥PornCloud',
         type: 3,
     },
     api: async (fastify) => {

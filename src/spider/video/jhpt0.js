@@ -396,7 +396,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'jhpt0',
-        name: '💋聚合平台0',
+        name: '🎬聚合平台',
         type: 3,
     },
     api: async (fastify) => {
