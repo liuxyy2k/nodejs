@@ -289,7 +289,6 @@ async function img(inReq, reply) {
     try {
         resp = await req.get(target, {
             headers: headers(`${SITE}/`),
-            httpsAgent: agent,
             responseType: 'arraybuffer',
             timeout: 20000,
             validateStatus: () => true,

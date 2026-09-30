@@ -290,7 +290,7 @@ export const getSpiders = async (server) => {
         myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, lubosp, 
         // ── JAV / 日系 AV ──
         miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn,   
-        fcjav, javleak, javsaga, javmit, javtiful, spx91, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
+        fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
         javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, jptt, theporny, theporn, fullhd, owoav, masexTv,
@@ -303,7 +303,7 @@ export const getSpiders = async (server) => {
         mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, jkly, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk,
         kb911, ds91, kdw91, dys18,
          // ── 91 系列 ──
-         video91, sp91, pron91, porna91, pinse, rb91, av123dsp,
+        spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp,
         // ── APP ──
         tt, suiruixhs,
         // ── 音频 ──
