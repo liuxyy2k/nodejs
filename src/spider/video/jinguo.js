@@ -13,6 +13,9 @@ const HEADERS = {
 
 const CLASSES = [
     { type_id: '2', type_name: '全部' },
+    { type_id: 'latest', type_name: '最新上线'},
+    { type_id: 'heat', type_name: '热度排行'},
+    { type_id: 'landing', type_name: '精选推荐'},
     { type_id: '7', type_name: '原创精品' },
     { type_id: '3', type_name: '单体作品' },
     { type_id: '6', type_name: '动漫改编' },
@@ -196,7 +199,7 @@ async function playAll(inReq, outResp) {
 export default {
     meta: {
         key: 'jinguo',
-        name: '📖金果短剧',
+        name: '📖禁果短剧',
         type: 3,
     },
     api: async (fastify) => {
