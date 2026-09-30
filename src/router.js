@@ -289,7 +289,7 @@ export const getSpiders = async (server) => {
         douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan,
         hudie, effedup, jhpt0,
         // ── 短剧 ──
-        qingju, duanju51, blue51, duanju57, huangguo, huangdou, jinguo, yeguodj, kbduanju, crdj91,
+        qingju, duanju51, blue51, duanju57, huangguo, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty,
         myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
@@ -309,7 +309,7 @@ export const getSpiders = async (server) => {
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, 
         // ── 国产 / 中文 ──
-        seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, mdcmai, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, 
+        seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, 
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, 
         awxVideo, r3e2o, xx01, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, 
         jamtt, ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, 
