@@ -274,7 +274,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'huadu',
-        name: '🌸花都影视',
+        name: '💋花都影视',
         type: 3,
     },
     api: async (fastify) => {

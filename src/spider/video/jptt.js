@@ -262,7 +262,7 @@ export default {
 
     meta:{
         key:'jptt',
-        name:'🌸禁片天堂',
+        name:'💋禁片天堂',
         type:3
     },
 

@@ -277,7 +277,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'yasetube',
-        name: '🌸亚色影库',
+        name: '💋亚色影库',
         type: 3,
     },
     api: async (fastify) => {

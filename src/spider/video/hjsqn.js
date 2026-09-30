@@ -613,7 +613,7 @@ async function mediaProxy(inReq, reply, mediaType) {
 export default {
     meta: {
         key: 'hjsqn',
-        name: '💋海角社区',
+        name: '🍉海角社区',
         type: 3,
     },
     api: async (fastify) => {

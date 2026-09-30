@@ -247,7 +247,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key:  'luyitian',
-        name: '🌸撸一天',
+        name: '💋撸一天',
         type: 3,
     },
     api: async (fastify) => {
