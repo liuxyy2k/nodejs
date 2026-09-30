@@ -47,17 +47,32 @@ function fix(u) {
     return u;
 }
 
-function txt(s) {
-    return String(s || '')
-        .replace(/<[^>]+>/g, '')
+function decodeHtml(s) {
+    s = String(s || '');
+    s = s.replace(/&#x([0-9a-fA-F]+);?/g, (_, h) => {
+        const n = parseInt(h, 16);
+        return n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '';
+    });
+    s = s.replace(/&#(\d+);?/g, (_, n) => {
+        const c = parseInt(n, 10);
+        return c >= 0 && c <= 0x10ffff ? String.fromCodePoint(c) : '';
+    });
+    return s
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/\s+/g, ' ')
-        .trim();
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/&quot;/g, '"');
+}
+
+function txt(s) {
+    return decodeHtml(String(s || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+}
+
+function attr(tag, name) {
+    const m = String(tag || '').match(new RegExp(`\\b${name}=["']([^"']+)["']`, 'i'));
+    return m ? decodeHtml(m[1]).trim() : '';
 }
 
 function mid(text, a, b) {
@@ -156,19 +171,18 @@ function classId(href) {
 function collectClasses(text) {
     const arr = [];
     const seen = new Set();
-    const add = (href, name) => {
-        name = txt(name);
-        if (!name || ['首页', '发布页', 'VPN下载'].includes(name)) return;
+    const add = (href, inner, openTag) => {
+        let name = attr(openTag, 'title') || txt(inner);
+        if (!name || /^\d+$/.test(name) || ['首页', '发布页', 'VPN下载'].includes(name)) return;
+        if (/vod(search|play|down)/i.test(href)) return;
         const cid = classId(href);
         if (seen.has(cid)) return;
         seen.add(cid);
         arr.push({ type_id: cid, type_name: name });
     };
+    const re = /<a([^>]*href=["']([^"']*(?:vodtype|vodshow)[^"']+)["'][^>]*)>([\s\S]*?)<\/a>/gi;
     let m;
-    const re1 = /<a[^>]+href=["']([^"']*(?:vodtype|vodshow)[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-    while ((m = re1.exec(text))) add(m[1], m[2]);
-    const re2 = /<a[^>]+href=["'](\/vodshow\/\d+-----------\.html)["'][^>]*>([\s\S]*?)<\/a>/gi;
-    while ((m = re2.exec(text))) add(m[1], m[2]);
+    while ((m = re.exec(text))) add(m[2], m[3], m[1]);
     return arr.length ? arr : FALLBACK;
 }
 
@@ -188,7 +202,7 @@ async function init() {
 async function home() {
     await ensureHost();
     const text = await get(host);
-    return { class: collectClasses(text), list: videos(text), filters: {} };
+    return { class: collectClasses(text), filters: {} };
 }
 
 async function category(inReq) {
