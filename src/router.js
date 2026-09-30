@@ -252,6 +252,7 @@ import javleak from "./spider/video/javleak.js";
 import javsaga from "./spider/video/javsaga.js";
 import javmit from "./spider/video/javmit.js";
 import javtiful from "./spider/video/javtiful.js";
+import effedup from "./spider/video/effedup.js";
 import spx91 from "./spider/video/spx91.js";
 import seqinghub from "./spider/video/seqinghub.js";
 import ipornbase from "./spider/video/ipornbase.js";
@@ -283,7 +284,7 @@ export const getSpiders = async (server) => {
         baseset, push,
         // ── 正规影视 ──
         douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan,
-        hudie, jhpt0,
+        hudie, effedup, jhpt0,
         // ── 短剧 ──
         qingju, duanju51, duanju57, huangguo, huangdou, jinguo, yeguodj, kbduanju, crdj91,
         // ── 直播 ──
