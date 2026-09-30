@@ -258,7 +258,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: 'mdcmai',
-        name: '📖2048短剧',
+        name: '📖2048·短剧',
         type: 3,
     },
     api: async (fastify) => {
