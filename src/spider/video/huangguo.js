@@ -3,7 +3,12 @@ import crypto from 'crypto';
 
 const PORT = process.env.DEV_HTTP_PORT || 9988;
 const PREFIX = '/spider/huangguo/3';
-const SITE = 'https://huangguoai.com';
+const CANDIDATE_SITES = [
+    'https://huangguoai.com',
+    'https://huangguo10.com',
+    'https://1462.vqojfzoq.cc',
+];
+let SITE = CANDIDATE_SITES[0];
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -36,7 +41,9 @@ function fix(u) {
 
 function imgSrc(u) {
     u = fix(u || '');
-    if (/^https?:\/\//i.test(u) && u.includes('?')) u = u.replace(/\?[\s\S]*$/, '');
+    if (/^https?:\/\//i.test(u) && u.includes('?') && !/auth_key=/i.test(u)) {
+        u = u.replace(/\?[\s\S]*$/, '');
+    }
     return u;
 }
 
@@ -53,18 +60,36 @@ function proxyPic(url, inReq) {
 }
 
 async function fetchHtml(url, referer) {
-    try {
-        const resp = await axios.get(url, {
-            headers: referer ? { ...HEADERS, Referer: referer } : HEADERS,
-            timeout: 15000,
-            responseType: 'text',
-            validateStatus: () => true,
-        });
-        if (resp.status >= 400) return '';
-        return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
-    } catch {
-        return '';
+    const tryGet = async (target) => {
+        try {
+            const resp = await axios.get(target, {
+                headers: referer ? { ...HEADERS, Referer: referer } : { ...HEADERS, Referer: `${SITE}/` },
+                timeout: 15000,
+                responseType: 'text',
+                validateStatus: () => true,
+                family: 4,
+            });
+            if (resp.status >= 400) return '';
+            const html = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+            if (/cloudflare|Attention Required/i.test(html) && !/hg-drama-card|hg-card-grid/.test(html)) return '';
+            return html;
+        } catch {
+            return '';
+        }
+    };
+    let html = await tryGet(url);
+    if (html) return html;
+    const path = String(url || '').replace(/^https?:\/\/[^/]+/i, '') || '/';
+    for (const host of CANDIDATE_SITES) {
+        if (host === SITE) continue;
+        html = await tryGet(host + (path.startsWith('/') ? path : `/${path}`));
+        if (html) {
+            SITE = host;
+            HEADERS.Referer = `${SITE}/`;
+            return html;
+        }
     }
+    return '';
 }
 
 function gridSlices(html, allGrids) {
@@ -96,22 +121,26 @@ function cardBlocks(slice) {
 }
 
 function parseCardBlock(block, inReq) {
-    const a = block.match(/href="[^"]*\/detail\/(\d+)\/[^"]*"/);
+    const a = block.match(/href="[^"]*\/(?:video|detail)\/(\d+)\/[^"]*"/);
     if (!a) return null;
     const vid = a[1];
     const imgM = block.match(/data-src="([^"]+)"/) || block.match(/src="([^"]+)"/);
     let title = '';
-    const t = block.match(/hg-drama-card__title[^>]*>([\s\S]*?)<\/a>/);
-    if (t) title = stripTags(t[1]);
+    const t = block.match(/hg-drama-card__title[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/)
+        || block.match(/hg-drama-card__title[^>]*>([\s\S]*?)<\/div>/);
+    if (t) title = stripTags(t[1].replace(/<span class="sr-only"[^>]*>[\s\S]*?<\/span>/g, ''));
     if (!title) {
-        const tt = block.match(/<a[^>]+href="[^"]*\/detail\/\d+\/"[^>]*>([\s\S]*?)<\/a>/);
-        if (tt) title = stripTags(tt[1]);
+        const tt = block.match(/<a[^>]+href="[^"]*\/(?:video|detail)\/\d+\/"[^>]*>([\s\S]*?)<\/a>/);
+        if (tt) title = stripTags(tt[1].replace(/<span class="sr-only"[^>]*>[\s\S]*?<\/span>/g, ''));
     }
-    if (!title) return null;
+    if (!title) {
+        const alt = block.match(/alt="([^"]+)"/);
+        title = alt ? alt[1] : vid;
+    }
     const ep = block.match(/hg-drama-card__episode[^>]*>([\s\S]*?)<\/span>/);
     const score = block.match(/hg-drama-card__score[^>]*>([\s\S]*?)<\/span>/);
-    const rem = ep ? ep[1].trim() : '';
-    const sc = score ? score[1].trim() : '';
+    const rem = ep ? stripTags(ep[1]) : '';
+    const sc = score ? stripTags(score[1]) : '';
     return {
         vod_id: vid,
         vod_name: title,
@@ -149,7 +178,7 @@ function parseRanks(html, inReq) {
     for (let i = 0; i < starts.length; i++) {
         const to = i + 1 < starts.length ? starts[i + 1] : slice.length;
         const block = slice.slice(starts[i], to);
-        const a = block.match(/href="[^"]*\/detail\/(\d+)\/[^"]*"/);
+        const a = block.match(/href="[^"]*\/(?:video|detail)\/(\d+)\/[^"]*"/);
         if (!a || seen.has(a[1])) continue;
         seen.add(a[1]);
         const imgM = block.match(/data-src="([^"]+)"/) || block.match(/src="([^"]+)"/);
@@ -157,7 +186,7 @@ function parseRanks(html, inReq) {
         const t = block.match(/hg-rank-item__title[^>]*>([\s\S]*?)<\/h2>/);
         if (t) title = stripTags(t[1]);
         if (!title) {
-            const tt = block.match(/<a[^>]+href="[^"]*\/detail\/\d+\/"[^>]*>([\s\S]*?)<\/a>/);
+            const tt = block.match(/<a[^>]+href="[^"]*\/(?:video|detail)\/\d+\/"[^>]*>([\s\S]*?)<\/a>/);
             if (tt) title = stripTags(tt[1]);
         }
         if (!title) continue;
@@ -268,17 +297,21 @@ async function detail(inReq) {
     if (Array.isArray(id)) id = id[0];
     id = String(id || '').trim();
     if (!id) return { list: [] };
-    const html = await fetchHtml(`${SITE}/detail/${id}/`);
+    let html = await fetchHtml(`${SITE}/video/${id}/`);
+    if (!html) html = await fetchHtml(`${SITE}/detail/${id}/`);
     if (!html) return { list: [] };
     const title =
         stripTags(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '') ||
         stripTags(html.match(/<title>([^<]+)<\/title>/i)?.[1] || '').split('|')[0].trim();
     const pic =
         html.match(/property="og:image"[^>]+content="([^"]+)"/i)?.[1] ||
+        html.match(/"coverSrc":"([^"]+)"/)?.[1]?.replace(/\\u0026/g, '&').replace(/\\\//g, '/') ||
         html.match(/data-src="([^"]+)"/)?.[1] ||
         '';
     const tracks = [];
-    const gridM = html.match(/<div\s+class="[^"]*\bhg-web-detail__ep-grid\b[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    const gridM =
+        html.match(/<div\s+class="[^"]*\bhg-web-play__ep-grid\b[^"]*"[^>]*>([\s\S]*?)<\/div>/) ||
+        html.match(/<div\s+class="[^"]*\bhg-web-detail__ep-grid\b[^"]*"[^>]*>([\s\S]*?)<\/div>/);
     if (gridM) {
         const are = /<a\b[^>]*>[\s\S]*?<\/a>/g;
         let m;
@@ -288,12 +321,15 @@ async function detail(inReq) {
             if (!href) continue;
             const eid = tag.match(/data-ep-id="([^"]*)"/)?.[1] || '';
             const name = eid ? `第${eid}集` : stripTags(tag) || `第${tracks.length + 1}集`;
-            tracks.push(`${name.replace(/[#$]/g, ' ')}$${fix(href)}|${eid}`);
+            tracks.push(`${name.replace(/[#$]/g, ' ')}$${fix(href)}|${eid || tracks.length + 1}`);
         }
     }
     if (!tracks.length) {
-        const playM = html.match(/<a\b[^>]*class="[^"]*\bhg-web-detail__play\b[^"]*"[^>]*href="([^"]+)"/);
+        const playM =
+            html.match(/<a\b[^>]*class="[^"]*\bhg-web-detail__play\b[^"]*"[^>]*href="([^"]+)"/) ||
+            html.match(/<a\b[^>]*class="[^"]*\bhg-web-play__ep\b[^"]*"[^>]*href="([^"]+)"/);
         if (playM) tracks.push(`第1集$${fix(playM[1])}|1`);
+        else tracks.push(`第1集$${SITE}/video/${id}/|1`);
     }
     return {
         list: [

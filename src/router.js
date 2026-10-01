@@ -61,6 +61,7 @@ import cg91 from "./spider/video/91cg.js";
 import cg911 from "./spider/video/911cg.js";
 import jav91 from "./spider/video/jav91.js";
 import mdgw from "./spider/video/mdgw.js";
+import mdbdy from "./spider/video/mdbdy.js";
 import aw51 from "./spider/video/51aw.js";
 import bl51 from "./spider/video/51bl.js";
 import dycg from "./spider/video/dycg.js";
@@ -308,7 +309,7 @@ export const getSpiders = async (server) => {
         ppporn, pigav, dnaav, xm, march, lxtv5, huoporn, rou233, 
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
-        mrds, mrdld, mdgw, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
+        mrds, mrdld, mdgw, mdbdy, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
         ds91, kdw91, hjsqn, dys18, 
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, 
