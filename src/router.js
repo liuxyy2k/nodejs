@@ -14,6 +14,7 @@ import mitaoyuan from "./spider/video/mitaoyuan.js";
 import mitaofc2 from "./spider/video/mitaofc2.js";
 import goodav from "./spider/video/goodav.js";
 import javgg from "./spider/video/javgg.js";
+import tinyav from "./spider/video/tinyav.js";
 import javdino from "./spider/video/javdino.js";
 import javhd from "./spider/video/javhd.js";
 import ndmt from "./spider/video/ndmt.js";
@@ -62,6 +63,7 @@ import cg911 from "./spider/video/911cg.js";
 import jav91 from "./spider/video/jav91.js";
 import mdgw from "./spider/video/mdgw.js";
 import mdbdy from "./spider/video/mdbdy.js";
+import porncgw from "./spider/video/porncgw.js";
 import sp91com from "./spider/video/sp91com.js";
 import aw51 from "./spider/video/51aw.js";
 import bl51 from "./spider/video/51bl.js";
@@ -302,7 +304,7 @@ export const getSpiders = async (server) => {
         // ── JAV / 日系 AV ──
         miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn,   
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
-        javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt,
+        javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
@@ -310,7 +312,7 @@ export const getSpiders = async (server) => {
         ppporn, pigav, dnaav, xm, march, lxtv5, huoporn, rou233, 
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
-        mrds, mrdld, mdgw, mdbdy, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
+        mrds, mrdld, mdgw, mdbdy, porncgw, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
         ds91, kdw91, hjsqn, dys18, 
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, 
