@@ -1,6 +1,9 @@
 import { load } from 'cheerio';
+import crypto from 'crypto';
 import req from '../../util/req.js';
 
+const PORT = process.env.DEV_HTTP_PORT || 9988;
+const PREFIX = '/spider/porncgw/3';
 const site = 'https://porncgw.com';
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -66,6 +69,8 @@ const FILTERS = [
     },
 ];
 
+let cachedCdn = {};
+
 function abs(u) {
     if (!u) return '';
     u = String(u).trim().replace(/&amp;/g, '&');
@@ -86,6 +91,22 @@ function parseExtend(raw) {
     }
 }
 
+function e64(s) {
+    try {
+        return Buffer.from(s || '').toString('base64');
+    } catch {
+        return '';
+    }
+}
+
+function d64(s) {
+    try {
+        return Buffer.from(s || '', 'base64').toString('utf-8');
+    } catch {
+        return '';
+    }
+}
+
 function headers() {
     return {
         'User-Agent': UA,
@@ -96,6 +117,75 @@ function headers() {
     };
 }
 
+function isImgMagic(buf) {
+    return (
+        (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) ||
+        (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) ||
+        buf.slice(0, 3).toString() === 'GIF' ||
+        buf.slice(0, 4).toString() === 'RIFF'
+    );
+}
+
+function xorDescramble(buf) {
+    const out = Buffer.from(buf);
+    const key = Buffer.from('2019ysapp7527');
+    for (let i = 0; i < 100 && i < out.length; i++) out[i] ^= key[i % key.length];
+    return out;
+}
+
+function aesDecryptImg(buf) {
+    const decipher = crypto.createDecipheriv(
+        'aes-128-cbc',
+        Buffer.from('f5d965df75336270'),
+        Buffer.from('97b60394abc2fbe1'),
+    );
+    decipher.setAutoPadding(true);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
+function decodeImg(buf) {
+    if (isImgMagic(buf)) return buf;
+    if (buf.length % 16 === 0) {
+        try {
+            const aes = aesDecryptImg(buf);
+            if (isImgMagic(aes)) return aes;
+            const aesXor = xorDescramble(aes);
+            if (isImgMagic(aesXor)) return aesXor;
+        } catch {}
+    }
+    return xorDescramble(buf);
+}
+
+function proxyPic(url, inReq) {
+    url = abs(url);
+    if (!url || url.startsWith('blob:') || /cover-placeholder/i.test(url)) return '';
+    const prefix = inReq?.server?.prefix || PREFIX;
+    return `http://127.0.0.1:${PORT}${prefix}/img?url=${encodeURIComponent(e64(url))}`;
+}
+
+function parseCdn($) {
+    const el = $('#cdn-config');
+    if (!el.length) return cachedCdn;
+    const app = el.attr('data-cdn_app') || '';
+    const key = el.attr('data-video_cdn_auth_key') || 'x-cdn-auth';
+    const val = el.attr('data-video_cdn_auth_value') || '';
+    const on = el.attr('data-video_m3u8_cdn_enabled') === '1';
+    cachedCdn = {
+        'User-Agent': UA,
+        Referer: `${site}/`,
+        Origin: site,
+    };
+    if (on && key && val && app) {
+        cachedCdn[key] = val;
+        cachedCdn['x-cdn-app'] = app;
+    }
+    return cachedCdn;
+}
+
+function playHeader() {
+    return { ...cachedCdn, 'User-Agent': UA, Referer: `${site}/`, Origin: site };
+}
+
 async function fetchHtml(url) {
     try {
         const res = await req.get(url, {
@@ -103,10 +193,60 @@ async function fetchHtml(url) {
             timeout: 20000,
             validateStatus: () => true,
         });
-        return typeof res.data === 'string' ? res.data : '';
+        const html = typeof res.data === 'string' ? res.data : '';
+        if (html) parseCdn(load(html));
+        return html;
     } catch {
         return '';
     }
+}
+
+function parseVideoJson($) {
+    let found = null;
+    $('script[type="application/json"]').each((_, el) => {
+        const raw = $(el).html() || '';
+        if (!/videoApi|videoSrc|video_api/.test(raw)) return;
+        try {
+            found = JSON.parse(raw);
+        } catch {}
+    });
+    return found || {};
+}
+
+function aesDecryptPlay(b64, key, iv) {
+    if (!b64 || !key || !iv) return '';
+    try {
+        const decipher = crypto.createDecipheriv('aes-128-cbc', Buffer.from(key, 'utf8'), Buffer.from(iv, 'utf8'));
+        return Buffer.concat([decipher.update(Buffer.from(b64, 'base64')), decipher.final()]).toString('utf8').trim();
+    } catch {
+        return '';
+    }
+}
+
+async function resolvePlayUrl(html) {
+    const $ = load(html);
+    parseCdn($);
+    const info = parseVideoJson($);
+    const api = info.videoApi || info.video_api || '';
+    const key = info.videoKey || info.video_key || '';
+    const iv = info.videoIv || info.video_iv || '';
+    if (api && key && iv) {
+        const t = Math.floor(Date.now() / 1000 / 2100);
+        try {
+            const res = await req.get(`${abs(api)}/${t}`, {
+                headers: { ...headers(), Accept: 'application/json' },
+                timeout: 15000,
+                validateStatus: () => true,
+            });
+            const json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+            const plain = aesDecryptPlay(json?.data, key, iv);
+            if (/m3u8|mp4/i.test(plain)) return plain;
+        } catch {}
+    }
+    const fallback = info.videoSrc || info.video_url || info.previewSrc || '';
+    if (/\.(m3u8|mp4)/i.test(fallback)) return abs(fallback);
+    const htmlUrls = extractPlay(html);
+    return htmlUrls[0] || '';
 }
 
 function normPath(p) {
@@ -127,12 +267,8 @@ function buildListUrl(tid, page, ext = {}) {
         return abs(pg > 1 ? `${base}${pg}/` : base);
     }
     let path = normPath(ext.cat || tid || '/');
-    if (path === '/') {
-        return pg > 1 ? `${site}/list/${pg}/` : `${site}/`;
-    }
-    if (path === '/list') {
-        return pg > 1 ? `${site}/list/${pg}/` : `${site}/list`;
-    }
+    if (path === '/') return pg > 1 ? `${site}/list/${pg}/` : `${site}/`;
+    if (path === '/list') return pg > 1 ? `${site}/list/${pg}/` : `${site}/list`;
     if (!path.endsWith('/')) path += '/';
     return abs(pg > 1 ? `${path}${pg}/` : path);
 }
@@ -146,32 +282,25 @@ function parseId(href) {
 
 function coverOf($el) {
     const img = $el.find('img').first();
-    return (
-        img.attr('data-src') ||
-        img.attr('data-original') ||
-        img.attr('src') ||
-        ''
-    );
+    return img.attr('data-src') || img.attr('data-original') || img.attr('src') || '';
 }
 
 function listId(id) {
     if (!id) return '';
-    return id.startsWith('drama/') ? id.split('/').slice(0, 2).join('/') : id.split('/').slice(0, 2).join('/');
+    return id.split('/').slice(0, 2).join('/');
 }
 
-function parseVods($) {
+function parseVods($, inReq) {
     const vods = [];
     const seen = new Set();
     const add = (href, name, pic, remarks) => {
         const id = listId(parseId(href));
         if (!id || seen.has(id) || !name) return;
         seen.add(id);
-        let cover = abs(pic);
-        if (/cover-placeholder/i.test(cover)) cover = '';
         vods.push({
             vod_id: id,
             vod_name: name,
-            vod_pic: cover,
+            vod_pic: proxyPic(pic, inReq),
             vod_remarks: remarks,
         });
     };
@@ -234,13 +363,9 @@ function extractPlay(html) {
         seen.add(key);
         urls.push(u);
     };
-    for (const re of [
-        /data-preview-src="([^"]+)"/g,
-        /https?:\/\/[^"'\\\s]+(?:m3u8|mp4)[^"'\\\s]*/gi,
-    ]) {
-        let m;
-        while ((m = re.exec(html))) add((m[1] || m[0]).replace(/&amp;/g, '&'));
-    }
+    let m;
+    const re = /https?:\/\/[^"'\\\s]+(?:m3u8|mp4)[^"'\\\s]*/gi;
+    while ((m = re.exec(html))) add(m[0].replace(/&amp;/g, '&'));
     return urls;
 }
 
@@ -268,14 +393,14 @@ async function init() {
     return {};
 }
 
-async function home() {
+async function home(inReq) {
     const html = await fetchHtml(`${site}/`);
     const filters = {};
     for (const c of CLASSES) filters[c.type_id] = FILTERS;
     return {
         class: CLASSES,
         filters,
-        list: parseVods(load(html)),
+        list: parseVods(load(html), inReq),
     };
 }
 
@@ -283,12 +408,10 @@ async function category(inReq) {
     const page = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
     const tid = String(inReq.body.id || '/');
     const ext = parseExtend(inReq.body.extend || inReq.body.filters || inReq.body.filter);
-    const url = buildListUrl(tid, page, ext);
-    const html = await fetchHtml(url);
+    const html = await fetchHtml(buildListUrl(tid, page, ext));
     const $ = load(html);
-    const list = parseVods($);
     return {
-        list,
+        list: parseVods($, inReq),
         page,
         pagecount: parsePagecount($, page, ext.tag ? `/search/${ext.tag}` : ext.cat || tid),
         limit: 20,
@@ -306,16 +429,10 @@ async function detail(inReq) {
     const path = kind === 'drama' ? `/drama/${nid}/` : `/${raw}/`;
     const html = await fetchHtml(abs(path));
     const $ = load(html);
-    const name = $('h1').first().text().replace(/\s+/g, ' ').trim() || raw;
-    const pic =
-        $('meta[property="og:image"]').attr('content') ||
-        $('img[data-src]').first().attr('data-src') ||
-        '';
-    const content =
-        $('meta[property="og:description"]').attr('content') ||
-        $('meta[name="description"]').attr('content') ||
-        '';
-    let playFrom = 'porn吃瓜网';
+    const info = parseVideoJson($);
+    const name = $('h1').first().text().replace(/\s+/g, ' ').trim() || info.title || raw;
+    const pic = info.coverSrc || info.posterSrc || $('meta[property="og:image"]').attr('content') || '';
+    const content = info.description || $('meta[property="og:description"]').attr('content') || '';
     let playUrl = '';
     if (kind === 'drama') {
         const eps = dramaEps($, nid);
@@ -323,19 +440,16 @@ async function detail(inReq) {
             .map((e) => `${e.name}$${e.id}`)
             .join('#');
     } else {
-        const plays = extractPlay(html);
-        playUrl = plays.length
-            ? plays.map((u, i) => `${plays.length > 1 ? '线路' + (i + 1) : '播放'}$${u}`).join('#')
-            : `播放$${raw}`;
+        playUrl = `播放$${raw}`;
     }
     return {
         list: [
             {
                 vod_id: raw,
                 vod_name: name,
-                vod_pic: abs(pic),
+                vod_pic: proxyPic(pic, inReq),
                 vod_content: content,
-                vod_play_from: playFrom,
+                vod_play_from: 'porn吃瓜网',
                 vod_play_url: playUrl,
             },
         ],
@@ -345,17 +459,15 @@ async function detail(inReq) {
 async function play(inReq) {
     let raw = String(inReq.body.id || '');
     if (raw.includes('$')) raw = raw.split('$').pop();
+    let html = '';
     if (/^https?:\/\//i.test(raw) && /\.(m3u8|mp4)/i.test(raw)) {
-        return { parse: 0, url: raw, header: { 'User-Agent': UA, Referer: `${site}/` } };
+        if (!cachedCdn['x-cdn-auth']) html = await fetchHtml(`${site}/`);
+        return { parse: 0, url: raw, header: playHeader() };
     }
     raw = raw.replace(/^\/+|\/+$/g, '');
-    const html = await fetchHtml(abs(`/${raw}/`));
-    const plays = extractPlay(html);
-    return {
-        parse: 0,
-        url: plays[0] || '',
-        header: { 'User-Agent': UA, Referer: `${site}/` },
-    };
+    html = await fetchHtml(abs(`/${raw}/`));
+    const url = await resolvePlayUrl(html);
+    return { parse: 0, url, header: playHeader() };
 }
 
 async function search(inReq) {
@@ -365,7 +477,27 @@ async function search(inReq) {
     const base = `/search/${encodeURIComponent(kw)}/`;
     const html = await fetchHtml(abs(page > 1 ? `${base}${page}/` : base));
     const $ = load(html);
-    return { list: parseVods($), page, pagecount: parsePagecount($, page, '/search/') };
+    return { list: parseVods($, inReq), page, pagecount: parsePagecount($, page, '/search/') };
+}
+
+async function imgProxy(inReq, reply) {
+    try {
+        const raw = abs(d64(inReq.query.url));
+        if (!raw) return reply.code(404).send('');
+        const resp = await req.get(raw, {
+            headers: { 'User-Agent': UA, Referer: `${site}/`, Origin: site },
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            validateStatus: () => true,
+        });
+        const decrypted = decodeImg(Buffer.from(resp.data || []));
+        let ct = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8') ct = 'image/gif';
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch {
+        reply.code(500).send('');
+    }
 }
 
 export default {
@@ -377,5 +509,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img', imgProxy);
     },
 };
