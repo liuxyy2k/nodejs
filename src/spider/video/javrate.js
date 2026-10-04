@@ -94,11 +94,12 @@ function parseVods($) {
         const name = $(element).find('.movie-card-link').attr('title') || '';
         const year = $(element).find('.mgn-badge-year').text().trim() || '';
         const type = $(element).find('.mgn-badge-type').text().trim() || '';
+        let mark = year || type || $(element).find('.mg-badge--duration').text().trim() || '';
         list.push({
             vod_id: url,
             vod_name: name,
             vod_pic: pic,
-            vod_remarks: year + '|' + type,
+            vod_remarks: mark,
         });
     });
     return list;
@@ -111,6 +112,7 @@ async function init(_inReq, _outResp) {
 async function home(_inReq, _outResp) {
     const classes = [
             { type_id: '/movie/new', type_name: '最近更新' },
+            { type_id: '/movie/subtitle', type_name: '中文字幕' },
             { type_id: '/menu/uncensored', type_name: '无码A片' },
             { type_id: '/menu/censored', type_name: '日本A片' },
             { type_id: '/menu/chinese', type_name: '国产AV' },
@@ -199,7 +201,13 @@ async function category(inReq, _outResp) {
     } else {
         let url = `${siteUrl}${tid.replace('folder_', '')}`;
         if( pg > 1) {
-            url = `${siteUrl}${tid}/5-2-${pg}`
+            let sort = 5
+            if(tid === '/movie/subtitle') {
+                sort = 1
+            } else if(tid === '/movie/new') {
+                sort = 2
+            }
+            url = `${siteUrl}${tid}/${sort}-2-${pg}`
         }
         const html = await request(url);
         const $ = load(html);
