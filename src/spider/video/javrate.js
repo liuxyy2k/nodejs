@@ -1,5 +1,9 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
+import { config } from './config.js';
+import axios from 'axios';
+
+const FLARE_URL = config.FLARE_URL;
 
 const siteUrl = 'https://www.javrate.com';
 const searchUrl = siteUrl + '/search/';
@@ -56,6 +60,15 @@ function rewriteM3u8(text, playlistUrl, proxyBase) {
         .join('\n');
 }
 
+// async function request(url) {
+//     const resp = await axios.post(FLARE_URL, {
+//         cmd: 'request.get',
+//         url: url,
+//         maxTimeout: 60000,
+//     });
+//     return resp.data.solution.response;
+// }
+
 async function request(targetUrl, referer = '') {
     const headers = {
         'User-Agent': UA,
@@ -87,14 +100,21 @@ async function cdnRequest(targetUrl, { binary = false } = {}) {
 
 function parseVods($) {
     const list = [];
-    $('.mgn-item').each((_, element) => {
-        if(!$(element).attr('data-index')) return
-        const pic = $(element).find('.mgn-cover').attr('src') || '';
-        const url = $(element).find('.movie-card-link').attr('href') || '';
-        const name = $(element).find('.movie-card-link').attr('title') || '';
-        const year = $(element).find('.mgn-badge-year').text().trim() || '';
-        const type = $(element).find('.mgn-badge-type').text().trim() || '';
-        let mark = year || type || $(element).find('.mg-badge--duration').text().trim() || '';
+    // 最近更新 /movie/new 用 mg-box；其它列表多为 mgn-item
+    $('.mgn-item, .mg-box').each((_, element) => {
+        const $el = $(element);
+        const link = $el.find('.movie-card-link').first();
+        const url = link.attr('href') || '';
+        const name = link.attr('title') || '';
+        if (!url || !name) return;
+        const pic = $el.find('.mgn-cover, .mg-cover').attr('src') || '';
+        const year = $el.find('.mgn-badge-year').text().trim() || '';
+        const type = $el.find('.mgn-badge-type').text().trim() || '';
+        const mark =
+            year ||
+            type ||
+            $el.find('.mgn-badge--duration, .mg-badge--duration').text().trim() ||
+            '';
         list.push({
             vod_id: url,
             vod_name: name,
@@ -231,7 +251,7 @@ async function detail(inReq, _outResp) {
     const $ = load(html);
 
     const name = $('meta[name="twitter:title"]').attr('content') || '';
-    const pic = $('meta[property=witter:image"]').attr('content') || '';
+    const pic = $('meta[property="twitter:image"]').attr('content') || '';
     const description = $('meta[name=description"]').attr('content') || '';
     const player = $('#v2-player').attr('src')
     let plaUrl = siteUrl + player
