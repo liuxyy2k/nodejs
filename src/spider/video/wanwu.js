@@ -1,17 +1,26 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://wanwuu.com';
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 async function request(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...headers }
-    });
-    return resp.data;
+    const opts = {
+        headers: { 'User-Agent': UA, ...headers },
+        timeout: 15000,
+    };
+    try {
+        const resp = await axios.get(reqUrl, opts);
+        return resp.data;
+    } catch {
+        const resp = await axios.get(reqUrl, { ...opts, httpsAgent: agent, proxy: false });
+        return resp.data;
+    }
 }
 
 function getImgUrl($el) {
@@ -110,69 +119,44 @@ async function category(inReq, _outResp) {
     return { page: parseInt(page), list: videos };
 }
 
+async function resolvePlayUrl(pagePath, html) {
+    const pageUrl = pagePath.startsWith('http') ? pagePath : site + pagePath;
+    if (!html) html = await request(pageUrl, { Referer: site + '/' });
+    const $ = load(html);
+    const firstDecoded = unpackPacker($('.player-container script').html() || '');
+    if (!firstDecoded) return '';
+    const idMatch = firstDecoded.match(/id=(\d+)/);
+    const imgMatch = firstDecoded.match(/img=([^&"\\]+)/);
+    const adsMatch = firstDecoded.match(/ads=([^&"\\]*)/);
+    const uMatch = firstDecoded.match(/encodeURIComponent\("([^"]+)"\)/);
+    if (!idMatch || !uMatch) return '';
+    const t = Math.floor(Date.now() / 1000 / 1800);
+    const jsUrl = `${site}/videos/detail_play?id=${idMatch[1]}&img=${imgMatch?.[1] || ''}&ads=${adsMatch?.[1] || ''}&u=${encodeURIComponent(uMatch[1])}&t=${t}`;
+    const respJs = await request(jsUrl, { Referer: pageUrl });
+    const decoded = unpackPacker(typeof respJs === 'string' ? respJs : '');
+    if (!decoded) return '';
+    const urlMatch = decoded.match(/https?:\/\/[^"'\\\s]+?\.m3u8[^"'\\\s]*/);
+    return urlMatch ? urlMatch[0].replace(/&amp;/g, '&') : '';
+}
+
 async function detail(inReq, _outResp) {
     const url = inReq.body.id;
     const html = await request(site + url);
     const $ = load(html);
-    let playUrl = ''
     const title = $('meta[name="twitter:title"]').attr('content') || '';
-    const pic = '';
-    const evalMatch = $('.player-container').find('script').html()
-    if (evalMatch) {
-        const firstDecoded = await unpackPacker(evalMatch);
-        console.log(firstDecoded)
-        // 从代码中提取各参数
-        const idMatch = firstDecoded.match(/id=(\d+)/);
-        const imgMatch = firstDecoded.match(/img=([^&"]+)/);
-        const adsMatch = firstDecoded.match(/ads=([^&"]*)/);
-        const uMatch = firstDecoded.match(/encodeURIComponent\("([^"]+)"\)/);
-        const tValue = firstDecoded.match(/parseInt\(\(new Date\(\)\)\.getTime\(\)\/1000\/1800\)/);
-        const jsUrl = `/videos/detail_play?id=${idMatch[1]}&img=${imgMatch[1]}&ads=${adsMatch[1]}&u=${encodeURIComponent(uMatch[1])}&t=${tValue}`;
-        const respJs = await request(site + jsUrl);
-        const respMatch = respJs.match(/\}\('([\s\S]+?)',(\d+),(\d+),'([\s\S]+?)'\.split\('\|'\)/);
-        if (respMatch) {
-            const [, rp, ra, rc, rkStr] = respMatch;
-            const rk = rkStr.split('|');
-            const rBase = parseInt(ra);
-            const rCount = parseInt(rc);
-
-            // decode 函数（支持 base > 36 的字符编码）
-            const decode = (n) => {
-                return (n < rBase ? '' : decode(parseInt(n / rBase))) +
-                    ((n = n % rBase) > 35 ? String.fromCharCode(n + 29) : n.toString(36));
-            };
-
-            // 构建字典
-            const rDict = {};
-            let i = rCount;
-            while (i--) {
-                rDict[decode(i)] = rk[i] || decode(i);
-            }
-
-            // 还原代码
-            const decoded = rp.replace(/\b\w+\b/g, (w) => rDict[w] || w);
-            console.log('还原后的respJs:', decoded);
-
-            // 提取 url 字段（匹配 'url':'...' 或 "url":"..." ）
-           const urlMatch = decoded.match(/https?:\/\/[^\s'"\\]+/);
-            if (urlMatch) {
-                playUrl = urlMatch[0];
-                console.log('提取的播放地址:', playUrl);
-            }
-        }
-    }
+    const playUrl = await resolvePlayUrl(url, html);
     return {
         list: [{
             vod_id: url,
             vod_name: title,
-            vod_pic: pic,
+            vod_pic: '',
             vod_play_from: '默认',
             vod_play_url: '播放$' + playUrl,
         }],
     };
 }
 
-async function unpackPacker(source) {
+function unpackPacker(source) {
         const match = source.match(
             /\}\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/
         );
@@ -200,10 +184,12 @@ async function unpackPacker(source) {
     }
 
 async function play(inReq, _outResp) {
+    let url = inReq.body.id || '';
+    if (url.startsWith('/')) url = await resolvePlayUrl(url);
     return {
         parse: 0,
-        url: inReq.body.id,
-        header: { 'User-Agent': UA },
+        url,
+        header: { 'User-Agent': UA, Referer: `${site}/` },
     };
 }
 
@@ -242,7 +228,7 @@ async function imgProxy(inReq, reply) {
         if (match) raw = match[1];
         if (!raw) return reply.code(404).send('');
 
-        const resp = await axios.get(raw, {
+        const imgOpts = {
             headers: {
                 'User-Agent': UA,
                 'Referer':    `${site}/`,
@@ -250,7 +236,13 @@ async function imgProxy(inReq, reply) {
             },
             responseType: 'arraybuffer',
             timeout:      10000,
-        });
+        };
+        let resp;
+        try {
+            resp = await axios.get(raw, imgOpts);
+        } catch {
+            resp = await axios.get(raw, { ...imgOpts, httpsAgent: agent, proxy: false });
+        }
 
         const decrypted = aesDecrypt(Buffer.from(resp.data));
         let   ct        = 'image/jpeg';

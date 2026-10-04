@@ -92,11 +92,11 @@ async function upstreamProxyFetch(url, referer, { binary = false } = {}) {
     return null;
 }
 
-async function fetchText(url, referer = site) {
+async function fetchText(url, referer = site, { timeout = 12000, proxy = true } = {}) {
     try {
         const resp = await req.get(url, {
             headers: fetchHeaders(url, referer),
-            timeout: 45000,
+            timeout,
             responseType: 'text',
             validateStatus: () => true,
         });
@@ -105,6 +105,7 @@ async function fetchText(url, referer = site) {
     } catch {
         /* ignore */
     }
+    if (!proxy) return '';
     const data = await upstreamProxyFetch(url, referer);
     const text = typeof data === 'string' ? data : '';
     return text.includes('#EXTM3U') ? text : '';
@@ -402,14 +403,13 @@ function rewriteM3u8(text, baseUrl, referer, inReq) {
         const line = raw.trim();
         if (!line) continue;
         if (line.startsWith('#')) {
-            if (line.includes('URI="') && !line.includes('URI="http')) {
+            if (line.includes('URI="')) {
                 out.push(line.replace(/URI="([^"]+)"/g, (_, uri) => {
                     let abs = uri;
                     try { abs = new URL(uri, baseUrl).href; } catch { /* keep */ }
-                    return `URI="${proxyPlayUrl(abs, referer, inReq)}"`;
+                    const via = /\.m3u8(\?|$)/i.test(abs) ? proxyPlayUrl : proxySegUrl;
+                    return `URI="${via(abs, referer, inReq)}"`;
                 }));
-            } else if (line.includes('URI="http')) {
-                out.push(line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxySegUrl(uri, referer, inReq)}"`));
             } else {
                 out.push(raw.trimEnd());
             }
@@ -461,10 +461,38 @@ async function getPlayToken(vid) {
     return { accessToken: '', apiHost };
 }
 
-function buildManifestPlayUrl(vid, res, accessToken, host = apiHost) {
-    const id = parseInt(String(vid).replace(/\D/g, ''), 10);
+function jwtPayload(token) {
+    try {
+        return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8'));
+    } catch {
+        return null;
+    }
+}
+
+const CDN_HOST = 'https://customers.iw01.xyz';
+
+function playlistCandidates(vid, res, accessToken, host = apiHost) {
     const quality = res || 'v3';
-    return `${host}/api/v1/videos/${id}/manifest/index90-${quality}-a1.m3u8?access_token=${encodeURIComponent(accessToken)}`;
+    const id = parseInt(String(vid).replace(/\D/g, ''), 10);
+    const urls = [];
+    const sub = String(jwtPayload(accessToken)?.sub || '');
+    if (sub.includes('/map')) {
+        const base = sub.endsWith('/') ? sub : `${sub}/`;
+        for (const file of ['index.m3u8', 'master.m3u8', `${quality}.m3u8`]) {
+            urls.push(`${CDN_HOST}${base}${file}?access_token=${encodeURIComponent(accessToken)}`);
+        }
+    }
+    urls.push(`${host}/api/v1/videos/${id}/manifest/index90-${quality}-a1.m3u8?access_token=${encodeURIComponent(accessToken)}`);
+    return urls;
+}
+
+async function pickPlaylist(vid, res, accessToken, host, referer) {
+    const urls = playlistCandidates(vid, res, accessToken, host);
+    const hits = await Promise.all(urls.map(async (url) => {
+        const text = await fetchText(url, referer, { timeout: 8000, proxy: false });
+        return text.includes('#EXTM3U') ? url : '';
+    }));
+    return hits.find(Boolean) || '';
 }
 
 function parsePlayId(raw) {
@@ -490,10 +518,10 @@ function playHeaders() {
     };
 }
 
-async function buildDirectPlayUrl(vid, res = 'v3') {
+async function buildDirectPlayUrl(vid, res = 'v3', referer = site) {
     const { accessToken, apiHost: host } = await getPlayToken(vid);
     if (!accessToken) return '';
-    return buildManifestPlayUrl(vid, res, accessToken, host);
+    return pickPlaylist(vid, res, accessToken, host, referer);
 }
 
 async function buildMasterPlaylist(vid, referer) {
@@ -639,7 +667,7 @@ async function detail(inReq) {
 
 async function resolvePlayUrl(vid, res, inReq) {
     const referer = `${site}/${lang}/video/${vid}`;
-    const direct = await buildDirectPlayUrl(vid, res);
+    const direct = await buildDirectPlayUrl(vid, res, referer);
     if (direct) return proxyPlayUrl(direct, referer, inReq);
     const geo = await getGeo(true);
     if (geo?.token_v2) {
