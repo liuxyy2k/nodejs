@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
 
-const site = 'https://cn.xsz-av.com';
+const site = 'https://xsz-av.com';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 
 const CLASSES = [
