@@ -274,6 +274,9 @@ import spx91 from "./spider/video/spx91.js";
 import seqinghub from "./spider/video/seqinghub.js";
 import ipornbase from "./spider/video/ipornbase.js";
 import hunagguojuchang from "./spider/video/huangguojuchang.js";
+import nine1tanhua from "./spider/video/91tanhua.js";
+import xszav from "./spider/video/xszav.js";
+import avporner from "./spider/video/avporner.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
@@ -309,7 +312,7 @@ export const getSpiders = async (server) => {
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty,
         myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
-        miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn,   
+        miss, missav, thisavfull, dsys, getav, airav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn, xszav, avporner,
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
         javdino, javhd, jav36, jav91, javday, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
@@ -322,7 +325,7 @@ export const getSpiders = async (server) => {
         mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
         ds91, kdw91, hjsqn, dys18, 
          // ── 91 系列 ──
-        spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, 
+        spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
         // ── 国产 / 中文 ──
         wanwuai, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, mitaoshipin, mitaoyuan, mitaofc2, mtw, 
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, 
