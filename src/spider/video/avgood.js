@@ -1,8 +1,10 @@
 import axios from 'axios';
-import https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const DEFAULT_HOST = 'https://avgood.com';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const PREFIX = '/spider/avgood/3';
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const CATEGORIES = {
     '664': '在线视频',
@@ -67,9 +69,18 @@ function cleanHtml(s) {
         .trim();
 }
 
+async function get(url, extra = {}) {
+    const opts = { headers: headers(), ...extra };
+    try {
+        const r = await http.get(url, opts);
+        if (r.status >= 200 && r.status < 400) return r;
+    } catch {}
+    return http.get(url, { ...opts, proxy: false });
+}
+
 async function fetchHtml(url) {
     try {
-        const r = await http.get(url, { headers: headers() });
+        const r = await get(url);
         if (r.status < 200 || r.status >= 400) return '';
         return typeof r.data === 'string' ? r.data : String(r.data || '');
     } catch {
@@ -79,11 +90,31 @@ async function fetchHtml(url) {
 
 async function fetchFinalUrl(url) {
     try {
-        const r = await http.get(url, { headers: headers(), maxRedirects: 5 });
+        const r = await get(url);
         return r.request?.res?.responseUrl || r.config?.url || url;
     } catch {
         return url;
     }
+}
+
+function requestOrigin(inReq) {
+    const proto = String(inReq?.headers?.['x-forwarded-proto'] || 'http').split(',')[0].trim();
+    const reqHost = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host || `127.0.0.1:${process.env.DEV_HTTP_PORT || 9988}`;
+    return `${proto}://${reqHost}`;
+}
+
+function rewritePlaylist(text, baseUrl) {
+    const absLine = (u) => {
+        try { return new URL(u, baseUrl).href; } catch { return u; }
+    };
+    return text.split('\n').map((line) => {
+        if (line.includes('URI="')) {
+            return line.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${absLine(uri)}"`);
+        }
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) return absLine(trimmed);
+        return line;
+    }).join('\n');
 }
 
 async function resolveHost() {
@@ -311,8 +342,9 @@ async function resolvePlayUrl(input) {
     const h = await fetchHtml(fullUrl);
     if (!h) return '';
 
-    const pid = h.match(/<iframe[^>]*class="video-iframe"[^>]*src="([^"]+)"/);
-    if (!pid) return '';
+    const iframe = h.match(/<iframe\b[^>]*>/i);
+    const pid = iframe && iframe[0].match(/\bsrc="([^"]+)"/i);
+    if (!pid || !/video-iframe|remote_play|play/i.test(iframe[0] + pid[1])) return '';
 
     let src = pid[1];
     if (!src.startsWith('http')) src = abs(src);
@@ -328,9 +360,8 @@ async function resolvePlayUrl(input) {
     if (!ajax.startsWith('http')) ajax = abs(ajax);
 
     try {
-        const r = await http.get(ajax, { headers: headers() });
-        const data = typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {});
-        const obj = JSON.parse(data);
+        const r = await get(ajax, { headers: { ...headers(), Referer: playUrl } });
+        const obj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {});
         let link = obj.playlink || '';
         if (!link) return '';
         link = link.replace(/\\\//g, '/');
@@ -347,11 +378,36 @@ async function play(inReq, _outResp) {
         return { parse: 0, url, header: headers() };
     }
     const playUrl = await resolvePlayUrl(url);
+    if (/\.m3u8/i.test(playUrl)) {
+        return {
+            parse: 0,
+            url: `${requestOrigin(inReq)}${PREFIX}/proxy.m3u8?url=${encodeURIComponent(playUrl)}`,
+            header: headers(),
+        };
+    }
     return {
-        parse: playUrl && (/\.m3u8|\.mp4/i.test(playUrl) ? 0 : 1),
+        parse: playUrl && /\.mp4/i.test(playUrl) ? 0 : 1,
         url: playUrl,
         header: headers(),
     };
+}
+
+async function m3u8Proxy(inReq, reply) {
+    const target = String(inReq.query.url || '');
+    if (!target) return reply.code(404).type('text/plain').send('');
+    try {
+        const r = await get(target, { headers: headers(), responseType: 'text' });
+        const text = typeof r.data === 'string' ? r.data : String(r.data || '');
+        if (r.status < 200 || r.status >= 400 || !text.includes('#EXTM3U')) {
+            return reply.code(502).type('text/plain').send('');
+        }
+        return reply
+            .type('application/vnd.apple.mpegurl')
+            .header('Cache-Control', 'no-cache')
+            .send(rewritePlaylist(text, target));
+    } catch {
+        return reply.code(502).type('text/plain').send('');
+    }
 }
 
 export default {
@@ -367,5 +423,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/proxy.m3u8', m3u8Proxy);
     },
 };
