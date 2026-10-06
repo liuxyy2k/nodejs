@@ -15,7 +15,7 @@ const headers = {
 async function request(reqUrl) {
     const resp = await axios.get(reqUrl, {
         headers: headers,
-        httpsAgent: agent
+        // httpsAgent: agent
     });
     return resp.data;
 }
