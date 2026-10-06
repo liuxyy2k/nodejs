@@ -1,13 +1,18 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import req from '../../util/req.js';
 import { config } from './config.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const SITE = 'https://www.javxxx.me';
 const LANG = '/zh';
-const SERVER_API = config.SERVER_API;
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const FLARE_URL = config.FLARE_URL;
+
+const PLAY_HEADER = {
+  'User-Agent': UA,
+  Referer: `${SITE}/`,
+  Origin: SITE,
+};
 
 const FALLBACK_CLASSES = [
   { type_id: `${SITE}${LANG}/v24/category/censored/`, type_name: '有码' },
@@ -20,50 +25,48 @@ const FALLBACK_CLASSES = [
   { type_id: `${SITE}${LANG}/v34/category/fc2-ppv/`, type_name: 'FC2 PPV' },
 ];
 
-async function requestDirect(targetUrl, referer = `${SITE}${LANG}`) {
-  const resp = await axios.get(targetUrl, {
-    headers: {
-      'User-Agent': UA,
-      Referer: referer,
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    },
-    httpsAgent: agent,
-    timeout: 30000,
-    validateStatus: () => true,
-  });
-  return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+function isBlocked(html) {
+  const text = String(html || '');
+  return text.length < 1000 || /Just a moment|cf-browser-verification|403 Forbidden/i.test(text);
 }
 
-async function requestViaServer(targetUrl, referer = `${SITE}${LANG}`) {
-  const resp = await axios.post(SERVER_API, {
-    url: targetUrl,
-    referer,
-    key: 'mira123',
-  }, {
-    timeout: 90000,
-    headers: { 'Content-Type': 'application/json' },
-    validateStatus: () => true,
-  });
-  if (resp.status >= 400) throw new Error(`proxy HTTP ${resp.status}`);
+async function requestFlare(targetUrl) {
+  const resp = await axios.post(
+    FLARE_URL,
+    { cmd: 'request.get', url: targetUrl, maxTimeout: 60000 },
+    { timeout: 70000, validateStatus: () => true },
+  );
+  const html = resp.data?.solution?.response;
+  if (!html || isBlocked(html)) throw new Error('flare blocked');
+  return html;
+}
+
+async function requestDirect(targetUrl, referer = `${SITE}${LANG}`) {
+  const headers = {
+    'User-Agent': UA,
+    Referer: referer,
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    Connection: 'keep-alive',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': referer ? 'same-origin' : 'none',
+    'Upgrade-Insecure-Requests': '1',
+  };
+  const resp = await req.get(targetUrl, { headers, timeout: 30000, validateStatus: () => true });
   const html = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
-  if (html.length < 1000 || /Just a moment/i.test(html)) throw new Error('proxy blocked');
+  if (resp.status >= 400 || isBlocked(html)) throw new Error('direct blocked');
   return html;
 }
 
 async function request(targetUrl, referer = `${SITE}${LANG}`) {
-  for (let i = 0; i < 2; i++) {
-    try {
-      return await requestViaServer(targetUrl, referer);
-    } catch (e) {
-      console.log('[javxxx] proxy fail:', e.message);
-    }
+  try {
+    return await requestDirect(targetUrl, referer);
+  } catch (e) {
+    console.log('[javxxx] direct fail, flare:', e.message);
+    return requestFlare(targetUrl);
   }
-  const html = await requestDirect(targetUrl, referer);
-  if (html.length < 1000 || /Just a moment/i.test(html)) {
-    throw new Error('request blocked by cloudflare');
-  }
-  return html;
 }
 
 function fixUrl(href) {
@@ -152,11 +155,15 @@ function detailUrl(vid) {
   return `${SITE}/video/${id.replace(/^\/video\//, '').replace(/\/$/, '')}/`;
 }
 
-function extractDirectMedia(html) {
+function extractPlayUrls(html) {
   const urls = [...String(html || '').matchAll(/https?:\/\/[^"'\s<>]+\.(?:m3u8|mp4)(?:\?[^"'\s<>]*)?/gi)]
     .map((m) => m[0])
-    .filter((u) => !/\/preview\.mp4/i.test(u) && !/\/preview\.png/i.test(u));
-  return [...new Set(urls)];
+    .filter((u) => !/\/preview\.(?:mp4|png|webp)/i.test(u) && !/\.png|\.jpg/i.test(u));
+
+  const unique = [...new Set(urls)];
+  const cdn = unique.filter((u) => /pornfhd\.com/i.test(u));
+  if (cdn.length) return cdn;
+  return unique;
 }
 
 async function init(_inReq, _outResp) {
@@ -219,15 +226,8 @@ async function detail(inReq, _outResp) {
   const pic = $('meta[property="og:image"]').attr('content') || pickPic($('#player-row-left')) || '';
   const year = $('meta[property="article:published_time"]').attr('content') || '';
 
-  const playParts = [];
-  const direct = extractDirectMedia(html);
-  for (const media of direct) {
-    playParts.push(`播放$${media}`);
-  }
-
-  if (!playParts.length) {
-    playParts.push(`播放$${url}`);
-  }
+  const media = extractPlayUrls(html);
+  const playParts = media.map((u, i) => `${i === 0 ? '播放' : `线路${i + 1}`}$${u}`);
 
   return {
     list: [{
@@ -236,31 +236,32 @@ async function detail(inReq, _outResp) {
       vod_pic: pic,
       vod_year: year,
       vod_play_from: 'JAVXXX',
-      vod_play_url: playParts.join('#'),
+      vod_play_url: playParts.length ? playParts.join('#') : '',
     }],
   };
 }
 
 async function play(inReq, _outResp) {
-  const url = inReq.body.id || '';
-  const header = { 'User-Agent': UA, Referer: `${SITE}/` };
+  let url = String(inReq.body.id || '').trim();
+  if (url.includes('$')) url = url.split('$').pop().trim();
 
   if (/\.(m3u8|mp4)(\?|$)/i.test(url)) {
-    return { parse: 0, url, header };
+    return { parse: 0, jx: 0, url, header: PLAY_HEADER };
   }
 
   if (/javxxx\.me/i.test(url)) {
     try {
       const html = await request(url, url);
-      const direct = extractDirectMedia(html);
-      if (direct.length) {
-        return { parse: 0, url: direct[0], header };
+      const media = extractPlayUrls(html);
+      if (media.length) {
+        return { parse: 0, jx: 0, url: media[0], header: PLAY_HEADER };
       }
-    } catch {}
-    return { parse: 1, url, header };
+    } catch (e) {
+      console.log('[javxxx] play fetch fail:', e.message);
+    }
   }
 
-  return { parse: 1, url, header };
+  return { parse: 0, jx: 0, url: '', header: PLAY_HEADER };
 }
 
 async function search(inReq, _outResp) {

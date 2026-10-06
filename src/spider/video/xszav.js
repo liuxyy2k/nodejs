@@ -1,5 +1,9 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
+import axios from 'axios';  
+import { config } from './config.js';
+
+const FLARE_URL = config.FLARE_URL;
 
 const site = 'https://xsz-av.com';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
@@ -23,16 +27,16 @@ const CLASSES = [
     { type_id: '/videos/hanime', type_name: '动漫' },
 ];
 
-// async function request(url) {
-//     const resp = await axios.post(FLARE_URL, {
-//         cmd: 'request.get',
-//         url: url,
-//         maxTimeout: 60000,
-//     });
-//     return resp.data.solution.response;
-// }
+async function request(url) {
+    const resp = await axios.post(FLARE_URL, {
+        cmd: 'request.get',
+        url: url,
+        maxTimeout: 60000,
+    });
+    return resp.data.solution.response;
+}
 
-async function request(url, referer = '') {
+async function requestM3u8(url, referer = '') {
     const headers = {
         'User-Agent': UA,
         Referer: referer || `${site}/`,
@@ -112,7 +116,7 @@ async function detail(inReq) {
             vod_pic: pic,
             vod_content: desc,
             vod_play_from: 'XSZ',
-            vod_play_url: src ? `播放$${src}` : '',
+            vod_play_url: src ? `播放$${site}${src}` : '',
         }],
     };
 }
@@ -145,7 +149,7 @@ async function play(inReq) {
     }
     const header = { 'User-Agent': UA, Referer: referer };
     if (!id) return { parse: 0, url: '', header };
-    const master = await request(id, referer);
+    const master = await requestM3u8(id, referer);
     const variant = bestVariant(master);
     const url = variant || (id.startsWith('http') ? id : new URL(id, site).href);
     return { parse: 0, url, header };

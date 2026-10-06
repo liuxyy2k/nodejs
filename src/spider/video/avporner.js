@@ -3,7 +3,7 @@ import req from '../../util/req.js';
 import axios from 'axios';  
 import { config } from './config.js';
 
-// const FLARE_URL = config.FLARE_URL;
+const FLARE_URL = config.FLARE_URL;
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://avporner.com';
@@ -17,17 +17,17 @@ const site = 'https://avporner.com';
 //     return resp.data.solution.response;
 // }
 
-async function request(url, referer = '') {
-    const resp = await req.get(url, {
-        headers: {
-            'User-Agent': UA,
-            Referer: referer || `${site}/`,
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Upgrade-Insecure-Requests': '1',
-        },
-    });
+async function request(targetUrl, referer = '') {
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer || `${site}/`,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        Connection: 'keep-alive',
+    };
+    // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
+    const resp = await req.get(targetUrl, { headers });
     return resp.data;
 }
 
@@ -51,12 +51,12 @@ async function init() {
 async function home() {
     return {
         class: [
-            { type_id: '', type_name: '全部' },
-            { type_id: '/videos/category/Uncensored', type_name: '无码' },
-            { type_id: '/videos/category/Japanese', type_name: '日本人  ' },
+            // { type_id: '', type_name: '全部' },
             { type_id: '/videos/latest', type_name: '最新发行' },
             { type_id: '/videos/trending', type_name: '热门话题' },
             { type_id: '/videos/top', type_name: '热门视频' },
+            { type_id: '/videos/category/Uncensored', type_name: '无码' },
+            { type_id: '/videos/category/Japanese', type_name: '日本人  ' },
             { type_id: '/videos/category/Chinese', type_name: '中国人' },
             { type_id: '/videos/category/Korean', type_name: '韩国人' },
             { type_id: '/videos/category/Creampie', type_name: '奶油派' },
