@@ -1,17 +1,26 @@
 import axios from 'axios';
 import https from 'https';
+import { load } from 'cheerio';
 
 const HOSTS = ['https://javgg.co', 'https://javgg.net', 'https://javgg.club'];
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const CLASSES = [
-    { type_name: '最新', type_id: 'home' },
+    { type_name: '最新', type_id: 'new-post' },
+    { type_name: '今日热门', type_id: '/trending/?sort=today' },
+    { type_name: '本周热门', type_id: '/trending/?sort=weekly' },
+    { type_name: '本月热门', type_id: '/trending/?sort=monthly' },
     { type_name: '无码', type_id: 'tag/hd-uncensored' },
     { type_name: '有码', type_id: 'tag/censored' },
     { type_name: '英字', type_id: 'tag/english-subtitle' },
     { type_name: '中字', type_id: 'tag/chinese-subtitle' },
     { type_name: '素人', type_id: 'tag/amateur-jav' },
+    { type_name: '随机', type_id: 'random/' },
     { type_name: '中出', type_id: 'genre/creampie' },
     { type_name: '巨乳', type_id: 'genre/big-tits' },
     { type_name: '人妻', type_id: 'genre/married-woman' },
@@ -77,51 +86,19 @@ async function getHtml(url, timeout = 12000) {
 
 function parseList(html) {
     const list = [];
-    const seen = new Set();
-    const items = html.matchAll(
-        /<img[^>]+(?:data-src|data-original|src)=["']([^"']+)["'][^>]*>.*?(?:href=["'][^"']*?\/jav\/([a-zA-Z0-9\-_]+)\/?["'][^>]*>\s*([A-Z0-9\-_]+)|\/jav\/([a-zA-Z0-9\-_]+)\/)/gis,
-    );
-    for (const it of items) {
-        const pic = fixUrl(it[1]);
-        const vodId = String(it[2] || it[4] || '')
-            .replace(/^[-_]+|[-_]+$/g, '')
-            .toLowerCase();
-        const name = it[3] || vodId;
-        if (!vodId || vodId.length < 4 || seen.has(vodId)) continue;
-        seen.add(vodId);
+    const $ = load(html);
+    $('article').each((_, element) => {
+        const title = $(element).find('.titlecontent').text().trim();
+        const url = $(element).find('a').eq(0).attr('href');
+        const pic = $(element).find('img').attr('src');
+        const remarks = $(element).find('.data span').text().trim();
         list.push({
-            vod_id: vodId,
-            vod_name: cleanText(name) || vodId.toUpperCase(),
-            vod_pic: pic.includes('http') ? pic : '',
-            vod_remarks: '',
+            vod_id: url,
+            vod_name: title,
+            vod_pic: pic,
+            vod_remarks: remarks,
         });
-    }
-    if (list.length >= 5) return list;
-
-    const fallbacks = [
-        /href=["']([^"']*?\/jav\/([a-zA-Z0-9\-_]+)\/?)["'][^>]*>\s*([A-Z0-9\-_]+)/gis,
-        /\/jav\/([a-zA-Z0-9\-_]+)\/["'][^>]*>\s*([A-Z0-9\-_]+)/gis,
-    ];
-    for (const pat of fallbacks) {
-        for (const it of html.matchAll(pat)) {
-            const groups = [...it].slice(1);
-            const vodRaw = groups.length >= 3 ? groups[1] : groups[0];
-            const nameRaw = groups.length >= 3 ? groups[2] : groups[1] || vodRaw;
-            const vodId = String(vodRaw)
-                .replace(/[^a-zA-Z0-9\-_]/g, '')
-                .replace(/^[-_]+|[-_]+$/g, '')
-                .toLowerCase();
-            if (!vodId || vodId.length < 4 || seen.has(vodId)) continue;
-            seen.add(vodId);
-            list.push({
-                vod_id: vodId,
-                vod_name: cleanText(nameRaw) || vodId.toUpperCase(),
-                vod_pic: '',
-                vod_remarks: '',
-            });
-        }
-        if (list.length >= 20) break;
-    }
+    });
     return list;
 }
 
@@ -169,30 +146,118 @@ async function category(inReq) {
     return { list, page: pg, pagecount: 9999, limit: 40, total: 999999 };
 }
 
-async function detail(inReq) {
-    let vodId = inReq.body.id;
-    if (Array.isArray(vodId)) vodId = vodId[0];
-    vodId = String(vodId || '').trim();
-    if (!vodId) return { list: [] };
-    const url = `${host}/jav/${vodId}/`;
-    const html = await getHtml(url);
-    if (!html) return { list: [] };
+function requestOrigin(inReq) {
+    const proto = String(inReq.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+    const reqHost = inReq.headers['x-forwarded-host'] || inReq.headers.host;
+    return `${proto}://${reqHost}`;
+}
 
-    const titleM = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    const title = titleM ? cleanText(titleM[1]) : vodId.toUpperCase();
-    const pic = getPic(html, vodId);
-    let servers = [...html.matchAll(/(?:Server|server)\s*([A-Z]{2})/gi)].map((m) => m[1]);
-    if (!servers.length) servers = ['VH', 'TB', 'SW'];
+function playmateId(url) {
+    const m = String(url || '').match(/playmate\.to\/embed\/([^/?#]+)/i);
+    return m ? m[1] : '';
+}
 
-    const playFrom = [];
-    const playUrl = [];
-    for (const s of servers) {
-        playFrom.push(s);
-        playUrl.push(`${s}$${url}#${s}`);
+function collectEmbeds(html) {
+    const $ = load(html || '');
+    const seen = new Set();
+    const list = [];
+    $('iframe#playaa, iframe.metaframe').each((_, el) => {
+        const src = fixUrl($(el).attr('src') || $(el).attr('data-src') || '');
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        list.push(src);
+    });
+    return list;
+}
+
+function allowedMedia(url) {
+    try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host.endsWith('playmate.to') || host.endsWith('plauymito.live') || host.endsWith('javgg.co');
+    } catch {
+        return false;
     }
-    if (!playFrom.length) {
-        playFrom.push('JavGG');
-        playUrl.push(`正片$${url}`);
+}
+
+function isPlaylist(url) {
+    return /\.(m3u8|txt)(\?|$)/i.test(url);
+}
+
+function rewritePlaylist(text, playlistUrl, origin) {
+    return String(text)
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((line) => {
+            const trimmed = line.trim();
+            if (!trimmed) return line;
+            if (trimmed.startsWith('#')) {
+                return line.replace(/URI="([^"]+)"/g, (full, uri) => {
+                    let abs = '';
+                    try {
+                        abs = new URL(uri, playlistUrl).href;
+                    } catch {
+                        return full;
+                    }
+                    if (!allowedMedia(abs)) return full;
+                    const route = isPlaylist(abs) ? 'm3u8' : 'seg';
+                    return `URI="${origin}/spider/javgg/3/${route}?u=${encodeURIComponent(abs)}"`;
+                });
+            }
+            let abs = '';
+            try {
+                abs = new URL(trimmed, playlistUrl).href;
+            } catch {
+                return line;
+            }
+            if (!allowedMedia(abs)) return line;
+            const route = isPlaylist(abs) ? 'm3u8' : 'seg';
+            return `${origin}/spider/javgg/3/${route}?u=${encodeURIComponent(abs)}`;
+        })
+        .join('\n');
+}
+
+async function resolvePlaymate(id) {
+    if (!id) return '';
+    const resp = await axios.post(
+        'https://playmate.to/api/s',
+        { c: id, d: 'web' },
+        {
+            headers: {
+                'User-Agent': UA,
+                Origin: 'https://playmate.to',
+                Referer: `https://playmate.to/embed/${id}`,
+                'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+            validateStatus: () => true,
+        }
+    );
+    return String(resp.data?.sx || '').trim();
+}
+
+async function detail(inReq) {
+    const vodId = inReq.body.id;
+    const html = await getHtml(`${vodId}`);
+    const $ = load(html);
+    const title = $('meta[property="og:title"]').attr('content') || '';
+    const pic = $('meta[property="og:image"]').attr('content') || '';
+    const content = $('meta[name="description"]').attr('content') || '';
+    const embeds = collectEmbeds(html);
+    const pm = embeds.find((src) => playmateId(src)) || '';
+    const from = [];
+    const urls = [];
+    if (pm) {
+        from.push('Playmate');
+        urls.push(`正片$${pm}`);
+    }
+    embeds.forEach((src, i) => {
+        if (src === pm) return;
+        from.push(`线路${i + 1}`);
+        urls.push(`正片$${src}`);
+    });
+    if (!from.length) {
+        from.push('Javgg');
+        urls.push(`正片$${vodId}`);
     }
     return {
         list: [
@@ -200,9 +265,9 @@ async function detail(inReq) {
                 vod_id: vodId,
                 vod_name: title,
                 vod_pic: pic,
-                vod_content: '',
-                vod_play_from: playFrom.join('$$$'),
-                vod_play_url: playUrl.join('$$$'),
+                vod_content: content,
+                vod_play_from: from.join('$$$'),
+                vod_play_url: urls.join('$$$'),
             },
         ],
     };
@@ -217,42 +282,86 @@ async function search(inReq) {
 }
 
 async function play(inReq) {
-    let id = String(inReq.body.id || '').trim();
-    const result = { parse: 1, url: id, header: headers };
-    const low = id.toLowerCase();
-    if (['.m3u8', '.mp4', 'streamwish', 'vidhide', 'filemoon', 'dood'].some((x) => low.includes(x))) {
-        result.parse = low.includes('.m3u8') || low.includes('.mp4') ? 0 : 1;
-        return result;
+    const header = { 'User-Agent': UA, Referer: 'https://playmate.to/' };
+    let raw = String(inReq.body.id || '').trim();
+    if (raw.includes('$')) raw = raw.split('$').pop().trim();
+    let id = playmateId(raw);
+    if (!id && /^[A-Za-z0-9]+$/.test(raw) && raw.length >= 8) id = raw;
+    if (!id && /^https?:\/\//i.test(raw) && /javgg\.(co|net|club)/i.test(raw)) {
+        const html = await getHtml(raw);
+        const embed = collectEmbeds(html).find((src) => playmateId(src));
+        id = playmateId(embed);
     }
-    if (id.includes('javcode.net')) {
-        const m = id.match(/javcode\.net\/(?:rg|download)\/([A-Za-z0-9+/=]+)/);
-        if (m) {
-            const decoded = b64decodeSafe(m[1]);
-            if (decoded) result.url = decoded.startsWith('http') ? decoded : fixUrl(decoded);
-        }
-        return result;
+    const sx = await resolvePlaymate(id);
+    if (!sx) return { parse: 0, jx: 0, url: '', header };
+    return {
+        parse: 0,
+        jx: 0,
+        url: sx,
+        header,
+    };
+}
+
+async function m3u8(inReq, reply) {
+    const target = String(inReq.query.u || '').trim();
+    if (!allowedMedia(target)) {
+        reply.code(403);
+        return 'forbidden';
     }
-    if (id.includes('/jav/') || !/^https?:\/\//i.test(id)) {
-        const url = /^https?:\/\//i.test(id)
-            ? id.split('#')[0]
-            : `${host}/jav/${id.split('#')[0].replace(/^\/+|\/+$/g, '')}/`;
-        const html = await getHtml(url);
-        if (html) {
-            const m3u8 = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
-            if (m3u8) {
-                result.url = m3u8[1];
-                result.parse = 0;
-                return result;
-            }
-            const iframe = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-            if (iframe) {
-                result.url = fixUrl(iframe[1]);
-                return result;
-            }
-        }
-        result.url = url;
+    let resp;
+    try {
+        resp = await axios.get(target, {
+            headers: { 'User-Agent': UA, Referer: 'https://playmate.to/' },
+            timeout: 20000,
+            responseType: 'text',
+            validateStatus: () => true,
+        });
+    } catch {
+        reply.code(502);
+        return 'playlist failed';
     }
-    return result;
+    const text = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+    if (resp.status >= 400 || !text.includes('#EXTM3U')) {
+        reply.code(502);
+        return 'playlist failed';
+    }
+    reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Cache-Control', 'no-store');
+    return reply.send(rewritePlaylist(text, target, requestOrigin(inReq)));
+}
+
+async function seg(inReq, reply) {
+    const target = String(inReq.query.u || '').trim();
+    if (!allowedMedia(target)) {
+        reply.code(403);
+        return 'forbidden';
+    }
+    const reqHeaders = { 'User-Agent': UA, Referer: 'https://playmate.to/' };
+    if (inReq.headers.range) reqHeaders.Range = String(inReq.headers.range);
+    let resp;
+    try {
+        resp = await axios.get(target, {
+            headers: reqHeaders,
+            responseType: 'arraybuffer',
+            timeout: 20000,
+            validateStatus: () => true,
+        });
+    } catch {
+        reply.code(502);
+        return 'segment failed';
+    }
+    const buf = Buffer.isBuffer(resp.data) ? resp.data : Buffer.from(resp.data || []);
+    if (resp.status >= 400 || buf.length < 188 || buf[0] !== 0x47) {
+        reply.code(502);
+        return 'segment failed';
+    }
+    reply.code(resp.status === 206 ? 206 : 200);
+    reply.header('Content-Type', 'video/mp2t');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Cache-Control', 'no-store');
+    if (resp.headers['content-range']) reply.header('Content-Range', resp.headers['content-range']);
+    return reply.send(buf);
 }
 
 export default {
@@ -267,6 +376,8 @@ export default {
         fastify.post('/category', category);
         fastify.post('/detail', detail);
         fastify.post('/play', play);
+        fastify.get('/m3u8', m3u8);
+        fastify.get('/seg', seg);
         fastify.post('/search', search);
     },
 };
