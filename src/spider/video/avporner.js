@@ -24,7 +24,8 @@ async function request(targetUrl, referer = '') {
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
-        Connection: 'keep-alive',
+        'Origin': site,
+        'Content-Type': 'application/x-www-form-urlencoded',
     };
     // 走 req.js：自动带上 cookie.json 里的 Cookie，并保存响应 Set-Cookie
     const resp = await req.get(targetUrl, { headers });
@@ -73,7 +74,7 @@ async function home() {
 async function category(inReq) {
     let url = `${site}${inReq.body.id}`;
     const page = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
-    const $ = load(await request(`${url}?page_id=${page}`));
+    const $ = load(await request(`${url}?page_id=${page}`, `${url}`));
     return { page, pagecount: 9999999, list: parseVods($) };
 }
 
