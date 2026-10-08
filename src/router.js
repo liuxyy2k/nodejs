@@ -1,5 +1,6 @@
 import { httpRecordStore } from "./util/httpRecord.js";
 import baseset from "./spider/video/baseset.js";
+import yingtan from "./spider/video/yingtan.js";
 import duoduo from "./spider/video/duoduo.js";
 import nsp from "./spider/video/nisp.js";
 import duboku from "./spider/video/duboku.js";
@@ -308,7 +309,7 @@ export const getSpiders = async (server) => {
         // ── 系统 / 工具 ──
         baseset, push,
         // ── 正规影视 ──
-        douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan,
+        douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan,
         hudie, effedup, jhpt0,
         // ── 短剧 ──
         qingju, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
