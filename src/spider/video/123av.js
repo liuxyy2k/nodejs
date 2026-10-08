@@ -214,7 +214,7 @@ async function play(inReq) {
 export default {
     meta: {
         key: '123dsp',
-        name: '🌸123短视频',
+        name: '🎞️123短视频',
         type: 3,
     },
     api: async (fastify) => {

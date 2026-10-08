@@ -332,7 +332,7 @@ async function search(inReq) {
 export default {
     meta: {
         key: 'spx91',
-        name: '🌸91视频',
+        name: '🎞️91视频',
         type: 3,
     },
     api: async (fastify) => {
