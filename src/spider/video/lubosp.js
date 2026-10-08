@@ -569,7 +569,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'lubosp',
-        name: '📹直播录屏',
+        name: '💋直播录屏',
         type: 3,
     },
     api: async (fastify) => {

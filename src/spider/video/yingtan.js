@@ -206,7 +206,7 @@ async function play(request) {
 }
 
 export default {
-    meta: { key: 'yingtan', name: '影探', type: 3, searchable: 1, quickSearch: 1, filterable: 1 },
+    meta: { key: 'yingtan', name: '🎬影探', type: 3, searchable: 1, quickSearch: 1, filterable: 1 },
     api: async (fastify) => {
         fastify.get('/image', async (request, reply) => {
             let url;
