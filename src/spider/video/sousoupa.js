@@ -149,7 +149,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'ssp',
-        name: '🌸搜搜啪',
+        name: '💋搜搜啪',
         type: 3,
     },
     api: async (fastify) => {

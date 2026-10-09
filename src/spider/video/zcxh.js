@@ -315,7 +315,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'zcxh',
-        name: '🌸专草校花',
+        name: '💋专草校花',
         type: 3,
     },
     api: async (fastify) => {

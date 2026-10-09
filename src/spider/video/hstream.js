@@ -254,7 +254,7 @@ async function play(inReq, _outResp) {
 export default {
     meta: {
         key: 'hstream',
-        name: '🌸Hstream',
+        name: '🎌Hstream',
         type: 3,
     },
     api: async (fastify) => {

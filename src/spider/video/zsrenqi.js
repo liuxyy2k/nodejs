@@ -377,7 +377,7 @@ async function proxyHandler(inReq, outResp) {
 export default {
     meta: {
         key: 'zsrenqi',
-        name: '🌸真实人妻',
+        name: '💋真实人妻',
         type: 3,
     },
     api: async (fastify) => {
