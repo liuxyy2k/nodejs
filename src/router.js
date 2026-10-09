@@ -329,12 +329,12 @@ export const getSpiders = async (server) => {
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
         mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
-        ds91, kdw91, hjsqn, dys18, 
+        ds91, kdw91, hjsqn,
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
         // ── 国产 / 中文 ──
         wanwuai, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, 
-        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, 
+        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, 
         awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, 
         ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, 
         // ── APP ──
