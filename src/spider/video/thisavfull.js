@@ -849,7 +849,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'thisavfull',
-        name: '⚡MissAV免翻',
+        name: '🌸MissAV免翻',
         type: 3,
     },
     api: async (fastify) => {
