@@ -284,6 +284,7 @@ import javquick from "./spider/video/javquick.js";
 import juicyav from "./spider/video/juicyav.js";
 import fangsung from "./spider/video/fangsung.js";
 import javtsunami from "./spider/video/javtsunami.js";
+import porntv from "./spider/video/porntv.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
@@ -334,7 +335,7 @@ export const getSpiders = async (server) => {
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
         // ── 国产 / 中文 ──
-        wanwuai, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, 
+        wanwuai, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv,
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, 
         awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, 
         ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, 
