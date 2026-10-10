@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 const site = 'https://javday.app';
 
@@ -20,7 +20,7 @@ function parseVods($) {
         let pic = $(element).find('.videoBox-cover').attr('style') || '';
         const match = pic.match(/url\(([^)]+)\)/);
         if (match) {
-            pic = site + match[1].replace('"','').replace('\"','')
+            pic = match[1].replace('"','').replace('\"','')
         }
         const url = $(element).find('a').eq(0).attr('href') || '';
         const name = $(element).find('.title').text().trim();
@@ -45,10 +45,8 @@ async function home(_inReq, _outResp) {
         { type_id: '/label/hot/', type_name: '人气系列' },
         { type_id: '/category/censored/', type_name: '有码' },
         { type_id: '/category/uncensored/', type_name: '无码' },
-        { type_id: '/category/chinese-av/', type_name: '国产AV' },
+        { type_id: '/category/aiav/', type_name: 'AI短剧' },
         { type_id: '/category/uncensored-leaked/', type_name: '无码流出' },
-        { type_id: '/category/sex8/', type_name: '杏吧' },
-        { type_id: '/category/hongkongdoll/', type_name: 'doll' },
     ];
 
     return { class: classes,filters: {} };
@@ -58,7 +56,7 @@ async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
 
-    let url = `${site}${tid}/page/${page}/`;
+    let url = `${site}${tid}page/${page}/`;
     const html = await request(url);
     const $ = load(html);
     const list = parseVods($);
