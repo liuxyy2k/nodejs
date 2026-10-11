@@ -286,6 +286,8 @@ import juicyav from "./spider/video/juicyav.js";
 import fangsung from "./spider/video/fangsung.js";
 import javtsunami from "./spider/video/javtsunami.js";
 import porntv from "./spider/video/porntv.js";
+import aiduanju from "./spider/video/aiduanju.js";
+import youziduanju from "./spider/video/youziduanju.js";
 // import boyfriend from "./spider/video/boyfriend.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
@@ -316,7 +318,7 @@ export const getSpiders = async (server) => {
         douban, vqq, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan,
         hudie, effedup, jhpt0,
         // ── 短剧 ──
-        qingju, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
+        aiduanju, youziduanju, qingju, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty,
         myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
