@@ -190,7 +190,6 @@ import bilibili from "./spider/video/bilibili.js";
 import jav36 from "./spider/video/jav36.js";
 import xcpd from "./spider/video/xcpd.js";
 import jiujiu from "./spider/video/jiujiu.js";
-import pigav from "./spider/video/pigav.js";
 import adtv from "./spider/video/adTv.js";
 import uumb from "./spider/video/uumb.js";
 import luoli from "./spider/video/luoliAV.js";
