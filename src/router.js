@@ -332,7 +332,7 @@ export const getSpiders = async (server) => {
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
-        ppporn, pigav, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
+        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
         mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 

@@ -126,6 +126,8 @@ async function home(_inReq, _outResp) {
         class: [
             { type_id: 'latest',     type_name: '最近更新' },
             { type_id: 'tag/531',    type_name: '中文'     },
+            { type_id: 'tag/272',    type_name: '4K'     },
+            { type_id: 'tag/263',    type_name: '出道作品'     },
             { type_id: 'tag/268',    type_name: 'VR'       },
             { type_id: 'tags',       type_name: '类型'     },
             { type_id: 'maker',      type_name: '系列'     },
