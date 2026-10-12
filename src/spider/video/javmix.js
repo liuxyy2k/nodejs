@@ -198,7 +198,7 @@ async function play(inReq) {
         if (link) {
             const resp = await axios.get(link, {
                 headers: { 'User-Agent': UA, Referer: 'https://streamtape.com/', Range: 'bytes=0-1' },
-                httpsAgent: agent,
+                // httpsAgent: agent,
                 timeout: 20000,
                 maxRedirects: 5,
                 responseType: 'stream',
