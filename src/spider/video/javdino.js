@@ -4,6 +4,11 @@ import req from '../../util/req.js';
 const site = 'https://javdino.com';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+const PACKER_FN = String.raw`function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*d\s*\)`;
+const PACKED_EVAL_RE = new RegExp(
+    String.raw`eval\(${PACKER_FN}[\s\S]+?}\(\s*'[\s\S]+?',\s*\d+,\s*\d+,\s*'[\s\S]+?'\.split\('\|'\)\s*\)+`,
+);
+
 const CLASSES = [
     { type_id: 'new-releases', type_name: '最新发布' },
     { type_id: 'reducing-mosaic', type_name: '减马赛克' },
@@ -161,7 +166,87 @@ async function fetchListHtml(tid, page, filters = {}) {
 function absUrlJoin(base, rel) {
     if (!rel) return '';
     if (/^https?:\/\//i.test(rel)) return rel;
-    try { return new URL(rel, base).href; } catch { return rel; }
+    try {
+        const merged = new URL(rel, base);
+        const hostRaw = String(base).match(/^https?:\/\/([^/?#]+)/i)?.[1];
+        if (hostRaw && hostRaw !== merged.host) {
+            return `${merged.protocol}//${hostRaw}${merged.pathname}${merged.search}${merged.hash}`;
+        }
+        return merged.href;
+    } catch {
+        return rel;
+    }
+}
+
+function parsePackerArgs(code) {
+    const patterns = [
+        /}\(\s*'([\s\S]+)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/,
+        /}\(\s*'([\s\S]+)',\s*(\d+),\s*(\d+),\s*"([\s\S]*?)"\.split\('\|'\)/,
+    ];
+    for (const re of patterns) {
+        const m = code.match(re);
+        if (m) return m;
+    }
+    return null;
+}
+
+function unpackPacker(code) {
+    const args = parsePackerArgs(code);
+    if (!args) return '';
+    let payload = args[1];
+    const base = parseInt(args[2], 10);
+    const count = parseInt(args[3], 10);
+    if (!Number.isFinite(base) || base < 2 || base > 36) return '';
+    if (!Number.isFinite(count) || count < 0 || count > 100000) return '';
+    const dict = args[4].split('|');
+    for (let i = count - 1; i >= 0; i--) {
+        if (!dict[i]) continue;
+        payload = payload.replace(new RegExp('\\b' + i.toString(base) + '\\b', 'g'), dict[i]);
+    }
+    return payload;
+}
+
+function extractStreamUrl(unpacked) {
+    if (!unpacked) return '';
+    const urls = [];
+    for (const key of ['hls2', 'hls3', 'hls4']) {
+        const m = unpacked.match(new RegExp(`["']${key}["']\\s*:\\s*["']([^"']+)["']`));
+        if (m?.[1]) urls.push(m[1]);
+    }
+    const abs = urls.find((u) => /^https?:\/\//i.test(u));
+    if (abs) return abs;
+    if (urls[0]) return urls[0];
+    return unpacked.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/)?.[0] || '';
+}
+
+function hgEmbedId(url) {
+    return String(url || '').match(/(?:hglink|hgcloud)\.to\/e\/([^/?#]+)/i)?.[1]
+        || String(url || '').match(/iplayerhls\.com\/e\/([^/?#]+)/i)?.[1]
+        || '';
+}
+
+async function resolveIplayerEmbed(embedUrl) {
+    let id = hgEmbedId(embedUrl);
+    if (!id && /hg(?:link|cloud)\.to/i.test(embedUrl)) {
+        const page = await fetchText(unescapeJsUrl(embedUrl), `${site}/`);
+        id = page.match(/iplayerhls\.com\/e\/([^/"'?#]+)/i)?.[1]
+            || page.match(/(?:hglink|hgcloud)\.to\/e\/([^/"'?#]+)/i)?.[1]
+            || '';
+    }
+    if (!id) return '';
+    const player = `https://iplayerhls.com/e/${id}`;
+    const html = await fetchText(player, embedUrl || player);
+    const match = html.match(PACKED_EVAL_RE);
+    let playUrl = match ? extractStreamUrl(unpackPacker(match[0])) : extractM3u8FromHtml(html);
+    if (!playUrl) return '';
+    if (!playUrl.startsWith('http')) playUrl = `https://iplayerhls.com${playUrl}`;
+    const master = await fetchText(playUrl, player);
+    return pickBestM3u8(master, playUrl) || playUrl;
+}
+
+function extractM3u8FromHtml(html) {
+    const direct = String(html || '').match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/);
+    return direct?.[0] || '';
 }
 
 function pickBestM3u8(text, base) {
@@ -184,6 +269,10 @@ async function resolveEmbedM3u8(embedUrl, referer = '') {
     const url = unescapeJsUrl(embedUrl);
     if (!url) return '';
     if (/\.m3u8/i.test(url)) return url;
+
+    if (/hg(?:link|cloud)\.to|iplayerhls\.com/i.test(url)) {
+        return resolveIplayerEmbed(url);
+    }
 
     const embedReferer = /turbovidhls|turbosplayer|turboviplay/i.test(url)
         ? `${new URL(url).origin}/`
@@ -325,6 +414,9 @@ async function play(inReq) {
     let referer = `${site}/`;
     if (/turbovidhls|turbosplayer|turboviplay/i.test(playUrl)) {
         try { referer = `${new URL(playUrl).origin}/`; } catch { referer = 'https://turbovidhls.com/'; }
+    } else if (/hg(?:link|cloud)\.to|iplayerhls\.com/i.test(raw)) {
+        const id = hgEmbedId(raw);
+        referer = id ? `https://iplayerhls.com/e/${id}` : 'https://iplayerhls.com/';
     }
     return {
         parse: 0,
