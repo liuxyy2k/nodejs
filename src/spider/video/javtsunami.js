@@ -13,12 +13,15 @@ const headers = {
     'User-Agent': UA,
     Referer: `${site}/`,
 };
-async function request(reqUrl) {
+async function request(reqUrl, referer = `${site}/`) {
     const resp = await axios.get(reqUrl, {
-        headers: headers,
-        // httpsAgent: agent
+        headers: { ...headers, Referer: referer },
+        // httpsAgent: agent,
+        timeout: 20000,
+        validateStatus: () => true,
     });
-    return resp.data;
+    if (resp.status !== 200) return '';
+    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
 }
 
 function parseVods($) {
@@ -93,24 +96,83 @@ function unpackPacker(code) {
 }
 
 
+function absUrl(id) {
+    const raw = String(id || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `${site}${raw.startsWith('/') ? raw : `/${raw}`}`;
+}
+
 function collectIframes(html) {
     const $ = load(html || '');
     const list = [];
     const seen = new Set();
     $('.responsive-player iframe, iframe').each((_, el) => {
         const src = $(el).attr('src') || $(el).attr('data-src') || '';
-        if (!src || seen.has(src)) return;
+        if (!src || /^about:blank/i.test(src) || seen.has(src)) return;
         seen.add(src);
         list.push(src);
     });
     return list;
 }
 
+function collectServerTokens(html) {
+    const $ = load(html || '');
+    const resolveUrl = $('.jw-player-shell').attr('data-resolve-url')
+        || `${site}/wp-json/jw-dom-tabs/v1/resolve`;
+    const servers = [];
+    $('iframe[data-server-token]').each((_, el) => {
+        const token = $(el).attr('data-server-token') || '';
+        if (!token) return;
+        servers.push({
+            label: $(el).attr('data-server-label') || `线路${servers.length + 1}`,
+            token,
+        });
+    });
+    return { resolveUrl, servers };
+}
+
+async function resolveServerToken(resolveUrl, token, pageUrl) {
+    const resp = await axios.post(resolveUrl, { token }, {
+        headers: {
+            'User-Agent': UA,
+            Referer: pageUrl,
+            Origin: site,
+            'Content-Type': 'application/json',
+        },
+        // httpsAgent: agent,
+        timeout: 20000,
+        validateStatus: () => true,
+    });
+    return String(resp.data?.url || '').trim();
+}
+
+async function resolvePageEmbeds(pageUrl) {
+    const url = absUrl(pageUrl);
+    const html = await request(url, url);
+    const { resolveUrl, servers } = collectServerTokens(html);
+    const embeds = [];
+    for (const item of servers) {
+        const embed = await resolveServerToken(resolveUrl, item.token, url);
+        if (embed) embeds.push({ label: item.label, url: embed });
+    }
+    if (embeds.length) return embeds;
+    for (const src of collectIframes(html)) {
+        embeds.push({ label: '播放', url: src });
+    }
+    return embeds;
+}
+
 function absMedia(url, embedUrl) {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
     try {
-        return new URL(url, embedUrl).href;
+        const merged = new URL(url, embedUrl);
+        const hostRaw = String(embedUrl).match(/^https?:\/\/([^/?#]+)/i)?.[1];
+        if (hostRaw && hostRaw !== merged.host) {
+            return `${merged.protocol}//${hostRaw}${merged.pathname}${merged.search}${merged.hash}`;
+        }
+        return merged.href;
     } catch {
         return `https://hicherri.com${url.startsWith('/') ? '' : '/'}${url}`;
     }
@@ -122,11 +184,14 @@ function pickHls(unpacked, embedUrl) {
     for (const m of text.matchAll(/"(hls\d?)"\s*:\s*"([^"]+)"/g)) {
         links[m[1]] = absMedia(m[2], embedUrl);
     }
-    return links.hls2 || links.hls4 || links.hls3 || (text.match(/https?:[^"'\\\s]+\.m3u8[^"'\\\s]*/i) || [])[0] || '';
+    const abs = [links.hls2, links.hls3, links.hls4].find((u) => u && /^https?:\/\//i.test(u));
+    if (abs) return abs;
+    if (links.hls4) return absMedia(links.hls4, embedUrl);
+    return (text.match(/https?:[^"'\\\s]+\.m3u8[^"'\\\s]*/i) || [])[0] || '';
 }
 
 async function resolveHicherri(embedUrl) {
-    const html = await request(embedUrl);
+    const html = await request(embedUrl, embedUrl);
     const regex = /eval\s*\(\s*function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*d\s*\)\s*\{[\s\S]*?\}\s*\([\s\S]*?\.split\(['"]\|['"]\)\s*\)\s*\)/;
     const match = String(html).match(regex);
     if (!match) return '';
@@ -156,7 +221,6 @@ async function resolveVidara(embedUrl) {
                 'Content-Type': 'application/json',
             },
             // httpsAgent: agent,
-
             timeout: 15000,
             validateStatus: () => true,
         }
@@ -166,22 +230,21 @@ async function resolveVidara(embedUrl) {
 
 async function detail(inReq) {
     const id = inReq.body.id;
-    const html = await request(`${id}`);
+    const pageUrl = absUrl(id);
+    const html = await request(pageUrl, pageUrl);
     const $ = load(html);
-    const iframes = collectIframes(html);
-    const playUrl =
-        iframes.find((u) => /hicherri/i.test(u)) ||
-        iframes.find((u) => /iosbgaigo|vidara/i.test(u)) ||
-        iframes[0] ||
-        id;
+    const embeds = await resolvePageEmbeds(pageUrl);
+    const playGroups = embeds.length
+        ? embeds.map((item) => [item.label, item.url])
+        : [['Javtsunami', pageUrl]];
     return {
         list: [{
             vod_id: id,
             vod_name: $('meta[property="og:title"]').attr('content') || $('meta[name="og:title"]').attr('content') || '',
             vod_pic: $('meta[property="og:image"]').attr('content') || $('meta[name="og:image"]').attr('content') || '',
             vod_content: $('meta[property="og:description"]').attr('content') || $('meta[name="og:description"]').attr('content') || '',
-            vod_play_from: 'Javtsunami',
-            vod_play_url: `正片$${playUrl}`,
+            vod_play_from: playGroups.map((p) => p[0]).join('$$$'),
+            vod_play_url: playGroups.map((p) => `正片$${p[1]}`).join('$$$'),
         }],
     };
 }
@@ -194,9 +257,12 @@ async function play(inReq) {
     if (!raw) return { parse: 0, jx: 0, url: '', header };
 
     let embed = raw;
-    if (/javtsunami\.com/i.test(raw)) {
-        const iframes = collectIframes(await request(raw));
-        embed = iframes.find((u) => /hicherri/i.test(u)) || iframes[0] || '';
+    if (/javtsunami\.com/i.test(raw) || (raw.startsWith('/') && !/^https?:/i.test(raw))) {
+        const embeds = await resolvePageEmbeds(raw);
+        embed = embeds.find((u) => /hicherri/i.test(u.url))?.url
+            || embeds.find((u) => /iosbgaigo|vidara/i.test(u.url))?.url
+            || embeds[0]?.url
+            || '';
     }
     if (!embed) return { parse: 0, jx: 0, url: '', header };
 

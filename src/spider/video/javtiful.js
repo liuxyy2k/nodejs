@@ -1,5 +1,8 @@
 import { load } from 'cheerio';
-import req from '../../util/req.js';
+import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 /**
  * Javtiful · javtiful.com
@@ -30,9 +33,10 @@ function headers(referer) {
 }
 
 async function fetchText(url) {
-    const resp = await req.get(url, {
-        headers: headers(),
-        timeout: 20000,
+    const resp = await axios.get(url, {
+        headers: headers(url),
+        // httpsAgent: agent,
+        timeout: 25000,
         responseType: 'text',
         validateStatus: () => true,
     });
@@ -74,17 +78,18 @@ function parseList(html) {
     const $ = load(html || '');
     const list = [];
     const seen = new Set();
-    $('article.front-video-card').each((_, el) => {
+    $('article.video-card, article.front-video-card').each((_, el) => {
         const card = $(el);
-        const a = card.find('a.front-video-thumb').first();
-        const href = absUrl(a.attr('href'));
+        const a = card.find('a.video-card__thumbnail, a.front-video-thumb').first();
+        const href = absUrl(a.attr('href') || card.find('a[href*="/video/"]').first().attr('href'));
         if (!href || !/\/video\//.test(href) || seen.has(href)) return;
         seen.add(href);
-        const quality = card.find('.front-quality-tag').first().text().trim();
-        const dur = card.find('.front-duration-tag').first().text().trim();
+        const quality = card.find('.video-card__details strong, .front-quality-tag').first().text().trim();
+        const details = card.find('.video-card__details').first().text().replace(quality, '').trim();
+        const dur = card.find('.front-duration-tag').first().text().trim() || details;
         list.push({
             vod_id: href,
-            vod_name: cleanName(card.find('a.front-video-title').first().text()),
+            vod_name: cleanName(card.find('a.video-card__title, a.front-video-title').first().text()),
             vod_pic: picOf(card.find('img').first()),
             vod_remarks: [quality, dur].filter(Boolean).join(' '),
         });
@@ -95,7 +100,7 @@ function parseList(html) {
 function parsePageCount(html, page) {
     const $ = load(html || '');
     let max = page;
-    $('a.front-pagination-link').each((_, el) => {
+    $('a.pagination__link, a.front-pagination-link').each((_, el) => {
         const href = $(el).attr('href') || '';
         const m = href.match(/[?&]page=(\d+)/);
         if (m) max = Math.max(max, parseInt(m[1], 10));
@@ -109,14 +114,20 @@ function parseCategories(html) {
     const $ = load(html || '');
     const list = [];
     const seen = new Set();
-    $('a.front-collection-card-link').each((_, el) => {
+    $('a.category-card, a.front-collection-card-link').each((_, el) => {
         const href = $(el).attr('href') || '';
-        const m = href.match(/\/category\/([^/?#]+)/);
-        if (!m || seen.has(m[1])) return;
-        seen.add(m[1]);
-        const name = $(el).find('.front-collection-title').text().trim();
+        const m = href.match(/\/zh\/category\/([^/?#]+)/i) || href.match(/\/category\/([^/?#]+)/i);
+        if (!m) return;
+        const slug = decodeURIComponent(m[1]);
+        const key = slug.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        let name = $(el).find('.front-collection-title').text().trim();
+        if (!name) {
+            name = $(el).text().replace(/\s+/g, ' ').trim().replace(/^[\d,.]+\s*个视频\s*/i, '').trim();
+        }
         if (!name) return;
-        list.push({ type_id: `category/${m[1]}`, type_name: name });
+        list.push({ type_id: `category/${slug}`, type_name: name });
     });
     return list;
 }
