@@ -16,7 +16,7 @@ async function request(reqUrl, referer = `${site}/`) {
                 Referer: referer,
                 Accept: '*/*',
             },
-            httpsAgent: agent,
+            // httpsAgent: agent,
             timeout: 30000,
             validateStatus: () => true,
         });
