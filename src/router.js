@@ -322,13 +322,11 @@ export const getSpiders = async (server) => {
         // ── 系统 / 工具 ──
         baseset, push,
         // ── 正规影视 ──
-        douban, vqq, gz360, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan,
-        hudie, effedup, jhpt0,
+        douban, vqq, gz360, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan, hudie, effedup, jhpt0, 
         // ── 短剧 ──
         aiduanju, youziduanju, qingju, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
         // ── 直播 ──
-        liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty,
-        myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
+        liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty, myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
         miss, missav, thisavfull, dsys, javverse, javdone, javdoneNew, javeng, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn, xszav, avporner,
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javxxx, javgg, missav02, missavt, 
@@ -339,13 +337,12 @@ export const getSpiders = async (server) => {
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
         ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
         // ── 吃瓜 / 爆料 ──
-        cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao,
-        mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, 
-        ds91, kdw91, hjsqn,
+        cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, 
+        bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn,
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
         // ── 国产 / 中文 ──
-        wanwuai, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv,
+        wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv,
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, 
         awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, 
         ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, 
@@ -356,7 +353,7 @@ export const getSpiders = async (server) => {
         // ── 动漫 / Hentai ──
         hanime, hanime1, hanime2, hdm18, hstream, animei, ai, wnacg, hentaiasmr, sefun,
         // ── 欧美 / 国际 ──
-        beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, pektino, fullhd, 
+        beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, fullhd, 
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
     ];
     const t4Data = await getT4(server)
