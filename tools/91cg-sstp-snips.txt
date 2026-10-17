@@ -1,0 +1,23 @@
+
+--- data-config @55778 ---
+label="视频播放器">
+                <div class="dplayer dplayer-online" data-video_status="online" data-video_description="" data-config='{"live":true,"autoplay":false,"theme":"#14c5a6","loop":true,"screenshot":false,"hotkey":false,"preload":"metadata","lang":"zh-cn","logo":null,"volume":0.69999999999999996,"mutex":true,"video":{"url":"https:\/\/op.udhhzr.cn\/videos5\/deaac4c7aecb2ac4cc4350a0cf8f9a4f\/
+
+--- m3u8 @56091 ---
+rue,"video":{"url":"https:\/\/op.udhhzr.cn\/videos5\/deaac4c7aecb2ac4cc4350a0cf8f9a4f\/deaac4c7aecb2ac4cc4350a0cf8f9a4f.m3u8?auth_key=1792219369-6ad318e9c7c28-0-1bd739ab39bbed4dcbae01e10b7cdd0b&v=3&time=0&project_id=tj015&pv=1","type":"hls","pic":"https:\/\/pic.hdhwqx.cn\/upload_01\/upload\/20260924\/2026092417592557119.jpeg","thumbnails":null}}'></div>
+            </section>
+        </div>
+
+     
+
+--- dplayer @54355 ---
+sr/themes/Mirages/css/7.10.0/candid-video.css?v=20261012c" />
+<link rel="stylesheet" type="text/css" href="/usr/plugins/DPlayer/assets/DPlayer.min.css?v=1" /><script>document.body.classList.add('candid-video-detail-body', 'video-detail-page', 'no-banner');</script>
+<div id="post" class="candid-video-post" role="main">
+    <article class="post candid-video-post__article" itemscope itemtype="http://
+
+--- dplayer @54370 ---
+es/css/7.10.0/candid-video.css?v=20261012c" />
+<link rel="stylesheet" type="text/css" href="/usr/plugins/DPlayer/assets/DPlayer.min.css?v=1" /><script>document.body.classList.add('candid-video-detail-body', 'video-detail-page', 'no-banner');</script>
+<div id="post" class="candid-video-post" role="main">
+    <article class="post candid-video-post__article" itemscope itemtype="http://schema.org/Vide

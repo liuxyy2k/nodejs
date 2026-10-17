@@ -61,6 +61,29 @@ async function parseVods($) {
     return items
 }
 
+function parseRealtime($) {
+    const items = [];
+
+    $('a.realtime-card').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const img = $(el).find('img').first();
+        let name = ($(el).attr('aria-label') || img.attr('alt') || '').trim();
+        const idm = href.match(/video\/(\d+)/);
+        if (!name && idm) name = `实时偷拍 ${idm[1]}`;
+        const pic = img.attr('data-xkrkllgl') || '';
+        const status = $(el).find('.realtime-card__status').text().replace(/\s+/g, '');
+        if (!name || !href) return;
+        items.push({
+            vod_id: href.startsWith('http') ? href : site + href,
+            vod_name: name,
+            vod_pic: pic ? proxyImgUrl(pic) : '',
+            vod_remarks: status,
+        });
+    });
+
+    return items;
+}
+
 async function init(_inReq, _outResp) {
     return {};
 }
@@ -73,8 +96,11 @@ async function home(_inReq, _outResp) {
         { type_id: 'xsjlb',  type_name: '师生专栏' },
         { type_id: 'lpsd',   type_name: '深夜撸片' },
         { type_id: 'hjll',   type_name: '海角乱伦' },
-        { type_id: 'zptp',   type_name: '自拍偷拍' },
-        { type_id: '91th',   type_name: '91探花'   },
+        { type_id: 'zptp',        type_name: '自拍偷拍' },
+        { type_id: 'sstp',        type_name: '实时偷拍' },
+        { type_id: 'sstp/live',   type_name: '实时监控' },
+        { type_id: 'sstp/replay', type_name: '精彩回放' },
+        { type_id: '91th',        type_name: '91探花'   },
         { type_id: 'lqzk',   type_name: '猎奇重口' },
     ];
 
@@ -88,9 +114,11 @@ async function category(inReq, _outResp) {
 
     const html = await request(`${site}/category/${tid}/${page}/`);
     const $ = load(html);
-    const list = await parseVods($);
+    let list = await parseVods($);
+    if (!list.length) list = parseRealtime($);
+    const total = parseInt($('.candid-list-pagination__center').attr('data-total-pages'), 10);
 
-    return { page, pagecount: page + 1, list };
+    return { page, pagecount: total || page + 1, list };
 }
 
 async function detail(inReq, _outResp) {
