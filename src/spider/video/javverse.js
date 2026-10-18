@@ -1,8 +1,5 @@
 import { load } from 'cheerio';
-import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+import req from '../../util/req.js';
 
 /* ==========================================================================
  *  JAV Verse  ·  https://javverse.com
@@ -86,7 +83,6 @@ async function httpJson(url, opt = {}) {
         method,
         url,
         headers,
-        // httpsAgent: agent,
         timeout: 30000,
         validateStatus: () => true,
         responseType: 'text',
@@ -96,7 +92,7 @@ async function httpJson(url, opt = {}) {
         if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
     }
     try {
-        const r = await axios(config);
+        const r = await req(config);
         let data = r.data;
         if (typeof data === 'string') {
             const trimmed = data.trim();
@@ -114,14 +110,62 @@ async function httpJson(url, opt = {}) {
 
 function isCfBlock(html) {
     const s = String(html || '');
-    return !s || s.includes('Just a moment') || s.includes('cf-browser-verification');
+    return !s || s.includes('Just a moment') || s.includes('请稍候') || s.includes('cf-browser-verification') || s.includes('challenges.cloudflare.com');
+}
+
+let browseCookie = '';
+
+function captureBrowse(setCookie) {
+    for (const raw of setCookie || []) {
+        const pair = String(raw).split(';')[0].trim();
+        if (pair.startsWith('__Host-jv-browse=')) browseCookie = pair;
+    }
+}
+
+async function reqRsc(url) {
+    const u = new URL(url);
+    const headers = {
+        ...baseHeaders(`${site}/`),
+        Accept: '*/*',
+        RSC: '1',
+        'Next-Url': u.pathname,
+    };
+    if (browseCookie) headers.Cookie = browseCookie;
+    const r = await req.get(url, {
+        headers,
+        timeout: 30000,
+        maxRedirects: 0,
+        validateStatus: () => true,
+        responseType: 'text',
+    });
+    captureBrowse(r.headers['set-cookie']);
+    if (r.status >= 300 && r.status < 400 && r.headers.location) {
+        const next = new URL(r.headers.location, site).href;
+        if (browseCookie) headers.Cookie = browseCookie;
+        const r2 = await req.get(next, {
+            headers,
+            timeout: 30000,
+            validateStatus: () => true,
+            responseType: 'text',
+        });
+        captureBrowse(r2.headers['set-cookie']);
+        return typeof r2.data === 'string' ? r2.data : String(r2.data || '');
+    }
+    return typeof r.data === 'string' ? r.data : String(r.data || '');
+}
+
+async function getRsc(url) {
+    try {
+        return await reqRsc(url);
+    } catch {
+        return '';
+    }
 }
 
 async function getPublicHtml(url, referer = `${site}/`) {
     try {
-        const r = await axios.get(url, {
+        const r = await req.get(url, {
             headers: mergeCookieHeader(baseHeaders(referer)),
-            // httpsAgent: agent,
             timeout: 30000,
             validateStatus: () => true,
             responseType: 'text',
@@ -132,15 +176,22 @@ async function getPublicHtml(url, referer = `${site}/`) {
     }
 }
 
+function isCatalogUrl(url) {
+    return /\/(discover|works|search|work\/|genre\/|maker\/|actress\/|label\/|series\/|code\/)/.test(String(url || ''));
+}
+
 // 浏览列表/详情用游客头;带 Supabase Cookie 的 GET 容易触发 Cloudflare
 async function getHtml(url, referer) {
+    if (isCatalogUrl(url)) {
+        const rsc = await getRsc(url);
+        if (rsc && rsc.includes('work-card')) return rsc;
+    }
     let html = await getPublicHtml(url, referer || `${site}/`);
-    if (isCfBlock(html) && hasAuth()) {
+    if (isCfBlock(html) && hasAuth() && !isCatalogUrl(url)) {
         await ensureSession();
         try {
-            const r = await axios.get(url, {
+            const r = await req.get(url, {
                 headers: authHeaders(referer || `${site}/`),
-                // httpsAgent: agent,
                 timeout: 30000,
                 validateStatus: () => true,
                 responseType: 'text',
@@ -150,6 +201,10 @@ async function getHtml(url, referer) {
         } catch {
             /* keep guest html */
         }
+    }
+    if ((isCfBlock(html) || !String(html).includes('work-card')) && isCatalogUrl(url)) {
+        const rsc = await getRsc(url);
+        if (rsc && rsc.includes('work-card')) return rsc;
     }
     return html;
 }
@@ -175,12 +230,11 @@ async function postJson(path, body, referer = `${site}/`) {
     headers.Accept = 'application/json, text/plain, */*';
     headers.Origin = site;
     try {
-        const r = await axios({
+        const r = await req({
             method: 'POST',
             url,
             headers,
             data: body,
-            // httpsAgent: agent,
             timeout: 30000,
             validateStatus: () => true,
             responseType: 'text',
@@ -435,7 +489,9 @@ function flightText(html) {
             );
         }
     }
-    return out.join('\n');
+    if (out.length) return out.join('\n');
+    if (src.includes('work-card') && src.includes('"workId":')) return src;
+    return '';
 }
 
 /* --------------------------------------------------------------------------
@@ -479,14 +535,14 @@ function parseByFlight(html) {
     const text = flightText(html);
     if (!text) return [];
     const list = [];
-    const re = /"className":"work-card","workId":(\d+),"cover":"([^"]*)"/g;
+    const re = /"className":"work-card[^"]*","workId":(\d+),"cover":"([^"]*)"/g;
     const marks = [];
     let m;
     while ((m = re.exec(text))) marks.push({ at: m.index, id: m[1], pic: m[2] });
     marks.forEach((mk, i) => {
         const seg = text.slice(mk.at, i + 1 < marks.length ? marks[i + 1].at : mk.at + 4000);
         const code = (seg.match(/"code":"([^"]*)"/) || [])[1] || '';
-        const title = (seg.match(/"h3",null,\{[^{}]*"children":"((?:[^"\\]|\\.)*)"/) || [])[1] || '';
+        const title = (seg.match(/"h3",null,\{[^{}]*"children":"((?:[^"\\]|\\.)*)"/) || seg.match(/"ready-lead-title"[^}]*"children":"((?:[^"\\]|\\.)*)"/) || [])[1] || '';
         const date = (seg.match(/"work-card-bottom","children":\[\["\$","span",null,\{"children":"([^"]*)"/) || [])[1] || '';
         list.push({
             vod_id: `/work/${mk.id}`,
@@ -542,6 +598,15 @@ async function lookupCodeByWorkId(workId) {
 
 // 分页:优先看「下一页」链接里的 page=N,退而求其次看页码列表里的最大页码
 function parsePageInfo(html, page) {
+    const text = flightText(html) || String(html || '');
+    const pages = text.match(/"pages":(\d+)/);
+    const hasNext = /"hasNext":true/.test(text);
+    if (pages || hasNext) {
+        let pagecount = pages ? parseInt(pages[1], 10) : page + 1;
+        // 发现页总页上万,手机端按页码铺按钮会卡死,有下一页就只报当前+1
+        if (!pagecount || pagecount > 200) pagecount = hasNext ? page + 1 : Math.min(pagecount || page, 200);
+        return { page, pagecount: pagecount || page, limit: 48, total: (pagecount || page) * 48 };
+    }
     const $ = load(String(html || ''));
     const box = $('.catalog-pagination').first();
     let pagecount = 0;
@@ -826,7 +891,9 @@ async function category(inReq) {
     const html = await getHtml(url);
     const list = parseWorks(html);
     const info = parsePageInfo(html, page);
-    return { page: info.page, pagecount: info.pagecount, limit: info.limit, total: info.total, list };
+    const limit = list.length || info.limit || 0;
+    const total = list.length ? Math.max(list.length, (info.pagecount || page) * list.length) : 0;
+    return { page: info.page, pagecount: info.pagecount, limit, total, list };
 }
 
 async function detail(inReq) {
