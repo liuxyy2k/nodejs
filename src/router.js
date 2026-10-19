@@ -176,6 +176,7 @@ import suiruixhs from "./spider/video/suiruixhs.js";
 import x3av from "./spider/video/x3av.js";
 import dottaia from "./spider/video/dottaia.js";
 import av01 from "./spider/video/av01.js";
+import av01media from "./spider/video/av01media.js";
 import zsrenqi from "./spider/video/zsrenqi.js";
 import hscka from "./spider/video/hscka.js";
 import lyt from "./spider/video/luyitian.js";
@@ -341,7 +342,7 @@ export const getSpiders = async (server) => {
         javdino, javgogogo, javhd, jav36, jav91wm, javday, manko, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
-        youavhub, paradisehill, avporn, dottaia, av01, av3698, avgood, hayav, boxav, kissjav,
+        youavhub, paradisehill, avporn, dottaia, av01, av01media, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
         ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
         // ── 吃瓜 / 爆料 ──

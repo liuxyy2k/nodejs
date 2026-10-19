@@ -14,6 +14,7 @@ const lang = 'cn';
 let site = HOSTS[0];
 let apiHost = API_HOSTS[0];
 const tokenCache = new Map();
+const dvdToId = new Map();
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const GEO_FALLBACK = 'https://files.iw01.xyz/edge/geo.js?json';
 const MAX_HEIGHT = 720;
@@ -38,7 +39,7 @@ function parseJson(data) {
 
 function requestOrigin(inReq) {
     const host = String(inReq?.headers?.host || '').split(',')[0].trim();
-    if (!host) return `http://127.0.0.1:${process.env.DEV_HTTP_PORT || 3006}`;
+    if (!host) return `http://127.0.0.1:${process.env.DEV_HTTP_PORT || 9988}`;
     const proto = String(inReq?.headers?.['x-forwarded-proto'] || 'http').split(',')[0].trim();
     return `${proto}://${host}`;
 }
@@ -174,9 +175,7 @@ function geoCacheTtl(geo) {
 }
 
 function geoAccessQuery(geo) {
-    let q = `token_v2=${encodeURIComponent(geo.token_v2 || geo.token || '')}&expires=${geo.expires}&ip=${encodeURIComponent(geo.ip || '')}`;
-    if (geo.comp) q += '&comp=true';
-    return q;
+    return `token_v2=${encodeURIComponent(geo.token_v2 || geo.token || '')}&expires=${encodeURIComponent(geo.expires || '')}&ip=${encodeURIComponent(geo.ip || '')}&comp=true`;
 }
 
 async function fetchGeo(url, referer = `${site}/${lang}`) {
@@ -461,6 +460,127 @@ async function getPlayToken(vid) {
     return { accessToken: '', apiHost };
 }
 
+function addToken(url, tok) {
+    if (!tok || !url) return url;
+    try {
+        const u = new URL(url);
+        u.searchParams.set('access_token', tok);
+        return u.href;
+    } catch {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}access_token=${encodeURIComponent(tok)}`;
+    }
+}
+
+function vidFromManifestUrl(url) {
+    const m = String(url || '').match(/\/videos\/(\d+)\/manifest/);
+    return m ? m[1] : '';
+}
+
+function vidFromSegmentUrl(url) {
+    const m = String(url || '').match(/\/fmp4\/[^/]+\/([^/]+)\//);
+    return m ? dvdToId.get(m[1]) || '' : '';
+}
+
+function bestBandwidthVariant(body, baseUrl) {
+    let bestBw = -1;
+    let bestUri = '';
+    const lines = String(body || '').split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.startsWith('#EXT-X-STREAM-INF')) continue;
+        const bm = line.match(/BANDWIDTH=(\d+)/);
+        const bw = bm ? parseInt(bm[1], 10) : 0;
+        let uri = '';
+        for (let j = i + 1; j < lines.length; j++) {
+            const u = lines[j].trim();
+            if (u && !u.startsWith('#')) {
+                uri = u;
+                break;
+            }
+        }
+        if (bw > bestBw) {
+            bestBw = bw;
+            bestUri = uri;
+        }
+    }
+    if (!bestUri) return '';
+    if (/^https?:\/\//i.test(bestUri)) return bestUri;
+    try {
+        return new URL(bestUri, baseUrl).href;
+    } catch {
+        return bestUri;
+    }
+}
+
+async function buildTokenizedPlaylist(body, vid) {
+    const { accessToken: tok } = vid ? await getPlayToken(vid) : { accessToken: '' };
+    const out = [];
+    for (const line of String(body || '').split(/\r?\n/)) {
+        const s = line.trim();
+        if (s.startsWith('#EXT-X-MAP')) {
+            const m = s.match(/URI="([^"]+)"/);
+            if (m) out.push(s.replace(m[1], addToken(m[1], tok)));
+            else out.push(line);
+            continue;
+        }
+        if (s.includes('customers.iw01.xyz') && s.includes('/map/') && !s.startsWith('#')) {
+            const mm = s.match(/\/fmp4\/[^/]+\/([^/]+)\//);
+            if (mm && vid) dvdToId.set(mm[1], String(vid));
+            out.push(addToken(s, tok));
+            continue;
+        }
+        out.push(line);
+    }
+    return `${out.join('\n')}\n`;
+}
+
+async function resolveLocalM3u8(targetUrl, referer) {
+    let vid = vidFromManifestUrl(targetUrl);
+    let body = await fetchText(targetUrl, referer, { timeout: 25000, proxy: true });
+    if (!body?.includes('#EXTM3U')) return '';
+    if (body.includes('#EXT-X-STREAM-INF')) {
+        const sub = bestBandwidthVariant(body, targetUrl);
+        if (sub) body = await fetchText(sub, referer, { timeout: 25000, proxy: true });
+    }
+    if (!body?.includes('#EXTM3U')) return '';
+    if (!vid) vid = vidFromManifestUrl(targetUrl);
+    return buildTokenizedPlaylist(body, vid);
+}
+
+async function localM3u8Handler(inReq, reply) {
+    const url = String(inReq.query.url || '');
+    const referer = String(inReq.query.referer || `${site}/${lang}`);
+    if (!url) return reply.code(404).send('no url');
+    const out = await resolveLocalM3u8(url, referer);
+    if (!out.includes('#EXTM3U')) return reply.code(502).send('bad m3u8');
+    return reply
+        .type('application/vnd.apple.mpegurl')
+        .header('Access-Control-Allow-Origin', '*')
+        .send(out);
+}
+
+async function localBinHandler(inReq, reply) {
+    const url = String(inReq.query.url || '');
+    const referer = String(inReq.query.referer || `${site}/${lang}`);
+    if (!url) return reply.code(404).send('');
+    const vid = vidFromManifestUrl(url) || vidFromSegmentUrl(url);
+    const { accessToken: tok } = vid ? await getPlayToken(vid) : { accessToken: '' };
+    const buf = await fetchBytes(addToken(url, tok), referer);
+    if (!buf.length || buf.length < 50) return reply.code(502).send('');
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.type(/\.mp4|\.m4s/i.test(url) ? 'video/mp4' : 'application/octet-stream');
+    return reply.code(200).send(buf);
+}
+
+function masterM3u8Url(vid) {
+    return `${site}/api/v1/videos/${vid}/manifest/master.m3u8`;
+}
+
+function localM3u8PlayUrl(targetUrl, referer, inReq) {
+    return `${getProxyBase(inReq)}/local.m3u8?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(referer)}`;
+}
+
 function jwtPayload(token) {
     try {
         return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8'));
@@ -657,7 +777,11 @@ async function detail(inReq) {
                 vod_tag: tags,
                 vod_content: tName(v, 'description') || v.description || '',
                 vod_play_from: 'AV01',
-                vod_play_url: `1080P$${vid}|v3#720P$${vid}|v2#480P$${vid}|v1`,
+                vod_play_url: [
+                    `1080P$${masterM3u8Url(vid)}`,
+                    `720P$${masterM3u8Url(vid)}`,
+                    `480P$${masterM3u8Url(vid)}`,
+                ].join('#'),
             }],
         };
     } catch {
@@ -665,34 +789,25 @@ async function detail(inReq) {
     }
 }
 
-async function resolvePlayUrl(vid, res, inReq) {
-    const referer = `${site}/${lang}/video/${vid}`;
-    const direct = await buildDirectPlayUrl(vid, res, referer);
-    if (direct) return proxyPlayUrl(direct, referer, inReq);
-    const geo = await getGeo(true);
-    if (geo?.token_v2) {
-        return `${getProxyBase(inReq)}/master.m3u8?vid=${encodeURIComponent(vid)}`;
-    }
-    return '';
-}
-
 async function play(inReq) {
-    const { vid, res } = parsePlayId(inReq.body.id || inReq.body.flag || '');
+    const { vid } = parsePlayId(inReq.body.id || inReq.body.flag || '');
     const referer = `${site}/${lang}/video/${vid}`;
     const header = { ...playHeaders(), Referer: referer };
     const result = { parse: 0, jx: 0, format: 'application/x-mpegURL' };
     if (!vid) {
         return { ...result, parse: 1, url: `${site}/${lang}`, header };
     }
-    try {
-        const url = await resolvePlayUrl(vid, res, inReq);
-        if (url) {
-            return { ...result, url, header };
-        }
-    } catch {
-        /* fallthrough */
+    let purl = String(inReq.body.id || '').trim();
+    if (purl.includes('$')) purl = purl.split('$').pop().trim();
+    if (purl.includes('|')) purl = purl.split('|')[0].trim();
+    if (!/^https?:\/\//i.test(purl)) {
+        purl = masterM3u8Url(vid);
     }
-    return { ...result, parse: 1, url: referer, header };
+    return {
+        ...result,
+        url: localM3u8PlayUrl(purl, referer, inReq),
+        header,
+    };
 }
 
 async function search(inReq) {
@@ -723,5 +838,7 @@ export default {
         fastify.get('/master.m3u8', masterHandler);
         fastify.get('/proxy.m3u8', proxyM3u8Handler);
         fastify.get('/proxy.seg', proxySegHandler);
+        fastify.get('/local.m3u8', localM3u8Handler);
+        fastify.get('/local.bin', localBinHandler);
     },
 };
