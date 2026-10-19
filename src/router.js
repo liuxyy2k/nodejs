@@ -303,6 +303,7 @@ import chengguo from "./spider/video/chengguo.js";
 import uuzhibo from "./spider/video/uuzhibo.js";
 import qiezi from "./spider/video/qiezi.js";
 import yunvxinjing from "./spider/video/yunvxinjing.js";
+import hudieyingyuan from "./spider/video/hudieyingyuan.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -329,7 +330,7 @@ export const getSpiders = async (server) => {
         // ── 系统 / 工具 ──
         baseset, push,
         // ── 正规影视 ──
-        douban, vqq, gz360, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan, hudie, effedup, jhpt0, 
+        douban, vqq, gz360, hudieyingyuan, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan, hudie, effedup, jhpt0, 
         // ── 短剧 ──
         aiduanju, youziduanju, qingju, chengguo, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
         // ── 直播 ──
