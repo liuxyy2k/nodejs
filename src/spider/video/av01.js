@@ -755,7 +755,7 @@ async function home() {
         { type_id: 'latest', type_name: '最新视频' },
     ];
     try {
-        const tags = await apiGet('tags/by-score?page=1&limit=20');
+        const tags = await apiGet('tags/by-score?page=1&limit=50');
         for (const tag of tags?.tags || []) {
             classes.push({
                 type_id: `tag:${tag.id}`,
