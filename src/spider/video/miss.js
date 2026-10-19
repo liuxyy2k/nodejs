@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import req from '../../util/req.js';
 
 const KEY = 'py_missav';
-const NAME = '🌸MissAV🌸';
+const NAME = '🌸Miss';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0';
 const DEFAULT_SITE = 'https://missav.live';
 const KEY_SITE = '/missavSite';
