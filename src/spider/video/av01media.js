@@ -164,9 +164,8 @@ function vidFromSegment(url) {
     return m ? dvdToId.get(m[1]) || '' : '';
 }
 
-function bestVariant(body, baseUrl) {
-    let bestBw = -1;
-    let bestUri = '';
+function listVariants(body, baseUrl) {
+    const pairs = [];
     const lines = String(body || '').split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -181,18 +180,22 @@ function bestVariant(body, baseUrl) {
                 break;
             }
         }
-        if (bw > bestBw) {
-            bestBw = bw;
-            bestUri = uri;
+        if (!uri) continue;
+        if (!/^https?:\/\//i.test(uri)) {
+            try {
+                uri = new URL(uri, baseUrl).href;
+            } catch {
+                /* keep relative */
+            }
         }
+        pairs.push([bw, uri]);
     }
-    if (!bestUri) return '';
-    if (/^https?:\/\//i.test(bestUri)) return bestUri;
-    try {
-        return new URL(bestUri, baseUrl).href;
-    } catch {
-        return bestUri;
-    }
+    pairs.sort((a, b) => b[0] - a[0]);
+    return pairs.map((p) => p[1]);
+}
+
+function clearCdnToken(vid) {
+    if (vid) cdnCache.delete(String(vid));
 }
 
 async function buildTokenizedPlaylist(body, vid) {
@@ -307,12 +310,19 @@ function localBase(inReq) {
 async function resolveLocalM3u8(targetUrl, referer) {
     let vid = vidFromUrl(targetUrl);
     let body = await fetchBody(targetUrl, { referer });
-    if (!body) return '';
+    if (!body?.includes('#EXTM3U')) return '';
     if (body.includes('#EXT-X-STREAM-INF')) {
-        const sub = bestVariant(body, targetUrl);
-        if (sub) body = await fetchBody(sub, { referer });
+        let picked = false;
+        for (const sub of listVariants(body, targetUrl)) {
+            const subBody = await fetchBody(sub, { referer });
+            if (subBody?.includes('#EXTM3U')) {
+                body = subBody;
+                picked = true;
+                break;
+            }
+        }
+        if (!picked) return '';
     }
-    if (!body) return '';
     if (!vid) vid = vidFromUrl(targetUrl);
     return buildTokenizedPlaylist(body, vid);
 }
@@ -326,13 +336,23 @@ async function localM3u8Handler(inReq, reply) {
     return reply.type('application/vnd.apple.mpegurl').header('Access-Control-Allow-Origin', '*').send(out);
 }
 
+async function fetchBinWithToken(url, referer, vid) {
+    let tok = vid ? await cdnToken(vid) : '';
+    let buf = await fetchBody(addToken(url, tok), { referer, raw: true });
+    if ((!buf.length || buf.length < 50) && vid) {
+        clearCdnToken(vid);
+        tok = await cdnToken(vid);
+        buf = await fetchBody(addToken(url, tok), { referer, raw: true });
+    }
+    return buf;
+}
+
 async function localBinHandler(inReq, reply) {
     const url = String(inReq.query.url || '');
     const referer = String(inReq.query.referer || `${base()}/cn`);
     if (!url) return reply.code(404).send('');
-    let vid = vidFromUrl(url) || vidFromSegment(url);
-    const tok = vid ? await cdnToken(vid) : '';
-    const buf = await fetchBody(addToken(url, tok), { referer, raw: true });
+    const vid = vidFromUrl(url) || vidFromSegment(url);
+    const buf = await fetchBinWithToken(url, referer, vid);
     if (!buf.length || buf.length < 50) return reply.code(404).send('');
     const ctype = /\.mp4|\.m4s/i.test(url) ? 'video/mp4' : 'application/octet-stream';
     return reply.type(ctype).header('Access-Control-Allow-Origin', '*').send(buf);
@@ -405,6 +425,27 @@ async function category(inReq) {
     };
 }
 
+function buildVodContent(v) {
+    const desc = cn(v.description, v.description_translations, '');
+    const extra = [];
+    const maker = cn(v.maker, v.maker_translations, '');
+    if (maker) extra.push(`制作商: ${maker}`);
+    const actNames = (v.actresses || [])
+        .filter((a) => a && typeof a === 'object')
+        .map((a) => cn(a.name, a.name_translations, ''))
+        .filter(Boolean);
+    if (actNames.length) extra.push(`演员: ${actNames.join('、').slice(0, 200)}`);
+    const tagNames = (v.tags || [])
+        .filter((t) => t && typeof t === 'object')
+        .map((t) => cn(t.name, t.name_translations, ''))
+        .filter(Boolean);
+    if (tagNames.length) extra.push(`标签: ${tagNames.join('、').slice(0, 200)}`);
+    const dur = mmss(v.duration);
+    if (dur) extra.push(`时长: ${dur}`);
+    if (desc && extra.length) return `${desc}\n\n${extra.join('\n')}`;
+    return desc || extra.join('\n');
+}
+
 async function detail(inReq) {
     let raw = inReq.body.id;
     if (Array.isArray(raw)) raw = raw[0];
@@ -414,15 +455,17 @@ async function detail(inReq) {
     const v = await jsonGet(`${API}/videos/${vid}`);
     if (!v?.id) return { list: [] };
     const title = cn(v.title, v.title_translations, v.dvd_id || '未知');
+    const dur = mmss(v.duration);
     const m3u8 = `${base()}${API}/videos/${v.id}/manifest/master.m3u8`;
     return {
         list: [{
             vod_id: String(v.id),
             vod_name: title,
             vod_pic: await coverUrl(String(v.id)),
+            vod_content: buildVodContent(v),
             vod_play_from: 'AV01',
             vod_play_url: `第1集$${m3u8}`,
-            vod_remarks: mmss(v.duration) || '',
+            vod_remarks: dur || '',
         }],
         page: 1,
         pagecount: 1,

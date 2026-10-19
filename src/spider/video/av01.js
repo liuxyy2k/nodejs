@@ -482,9 +482,8 @@ function vidFromSegmentUrl(url) {
     return m ? dvdToId.get(m[1]) || '' : '';
 }
 
-function bestBandwidthVariant(body, baseUrl) {
-    let bestBw = -1;
-    let bestUri = '';
+function listBandwidthVariants(body, baseUrl) {
+    const pairs = [];
     const lines = String(body || '').split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -499,18 +498,23 @@ function bestBandwidthVariant(body, baseUrl) {
                 break;
             }
         }
-        if (bw > bestBw) {
-            bestBw = bw;
-            bestUri = uri;
+        if (!uri) continue;
+        if (!/^https?:\/\//i.test(uri)) {
+            try {
+                uri = new URL(uri, baseUrl).href;
+            } catch {
+                /* keep */
+            }
         }
+        pairs.push([bw, uri]);
     }
-    if (!bestUri) return '';
-    if (/^https?:\/\//i.test(bestUri)) return bestUri;
-    try {
-        return new URL(bestUri, baseUrl).href;
-    } catch {
-        return bestUri;
-    }
+    pairs.sort((a, b) => b[0] - a[0]);
+    return pairs.map((p) => p[1]);
+}
+
+function clearPlayToken(vid) {
+    const id = parseInt(String(vid).replace(/\D/g, ''), 10);
+    if (id) tokenCache.delete(id);
 }
 
 async function buildTokenizedPlaylist(body, vid) {
@@ -540,10 +544,17 @@ async function resolveLocalM3u8(targetUrl, referer) {
     let body = await fetchText(targetUrl, referer, { timeout: 25000, proxy: true });
     if (!body?.includes('#EXTM3U')) return '';
     if (body.includes('#EXT-X-STREAM-INF')) {
-        const sub = bestBandwidthVariant(body, targetUrl);
-        if (sub) body = await fetchText(sub, referer, { timeout: 25000, proxy: true });
+        let picked = false;
+        for (const sub of listBandwidthVariants(body, targetUrl)) {
+            const subBody = await fetchText(sub, referer, { timeout: 25000, proxy: true });
+            if (subBody?.includes('#EXTM3U')) {
+                body = subBody;
+                picked = true;
+                break;
+            }
+        }
+        if (!picked) return '';
     }
-    if (!body?.includes('#EXTM3U')) return '';
     if (!vid) vid = vidFromManifestUrl(targetUrl);
     return buildTokenizedPlaylist(body, vid);
 }
@@ -560,13 +571,23 @@ async function localM3u8Handler(inReq, reply) {
         .send(out);
 }
 
+async function fetchSegmentWithToken(url, referer, vid) {
+    let { accessToken: tok } = vid ? await getPlayToken(vid) : { accessToken: '' };
+    let buf = await fetchBytes(addToken(url, tok), referer);
+    if ((!buf.length || buf.length < 50) && vid) {
+        clearPlayToken(vid);
+        ({ accessToken: tok } = await getPlayToken(vid));
+        buf = await fetchBytes(addToken(url, tok), referer);
+    }
+    return buf;
+}
+
 async function localBinHandler(inReq, reply) {
     const url = String(inReq.query.url || '');
     const referer = String(inReq.query.referer || `${site}/${lang}`);
     if (!url) return reply.code(404).send('');
     const vid = vidFromManifestUrl(url) || vidFromSegmentUrl(url);
-    const { accessToken: tok } = vid ? await getPlayToken(vid) : { accessToken: '' };
-    const buf = await fetchBytes(addToken(url, tok), referer);
+    const buf = await fetchSegmentWithToken(url, referer, vid);
     if (!buf.length || buf.length < 50) return reply.code(502).send('');
     reply.header('Access-Control-Allow-Origin', '*');
     reply.type(/\.mp4|\.m4s/i.test(url) ? 'video/mp4' : 'application/octet-stream');
@@ -756,6 +777,25 @@ async function category(inReq) {
     }
 }
 
+function buildVodContent(v) {
+    const desc = tName(v, 'description') || v.description || '';
+    const extra = [];
+    const maker = tName(v, 'maker') || v.maker_translations?.cn || v.maker || '';
+    if (maker) extra.push(`制作商: ${maker}`);
+    const actNames = (v.actresses || [])
+        .map((a) => a?.name_translations?.cn || a?.name || '')
+        .filter(Boolean);
+    if (actNames.length) extra.push(`演员: ${actNames.join('、').slice(0, 200)}`);
+    const tagNames = (v.tags || [])
+        .map((t) => t?.name_translations?.cn || t?.name || '')
+        .filter(Boolean);
+    if (tagNames.length) extra.push(`标签: ${tagNames.join('、').slice(0, 200)}`);
+    const dur = fmtDuration(v.duration);
+    if (dur) extra.push(`时长: ${dur}`);
+    if (desc && extra.length) return `${desc}\n\n${extra.join('\n')}`;
+    return desc || extra.join('\n');
+}
+
 async function detail(inReq) {
     const vid = String(inReq.body.id || '').replace(/\D/g, '');
     if (!vid) return { list: [] };
@@ -765,17 +805,18 @@ async function detail(inReq) {
         const geo = await getGeo();
         const actress = (v.actresses || []).map((a) => a.name_translations?.cn || a.name).filter(Boolean).join(',');
         const tags = (v.tags || []).map((t) => t.name_translations?.cn || t.name).filter(Boolean).join(',');
+        const dur = fmtDuration(v.duration);
         return {
             list: [{
                 vod_id: vid,
                 vod_name: tName(v) || v.dvd_id || vid,
                 vod_pic: buildCover(v, geo),
-                vod_remarks: v.dvd_id || '',
+                vod_remarks: dur || v.dvd_id || '',
                 vod_year: (v.published_time || '').slice(0, 4),
                 vod_area: v.maker_translations?.cn || v.maker || '',
                 vod_actor: actress,
                 vod_tag: tags,
-                vod_content: tName(v, 'description') || v.description || '',
+                vod_content: buildVodContent(v),
                 vod_play_from: 'AV01',
                 vod_play_url: [
                     `1080P$${masterM3u8Url(vid)}`,
