@@ -297,6 +297,12 @@ import javdoneNew from "./spider/video/javdoneNew.js";
 import omgjav from "./spider/video/omgjav.js";
 import javlus from "./spider/video/javlus.js";
 import ziziflix from "./spider/video/ziziflix.js";
+import bagua from "./spider/video/bagua.js";
+import bianfu from "./spider/video/bianfu.js";
+import chengguo from "./spider/video/chengguo.js";
+import uuzhibo from "./spider/video/uuzhibo.js";
+import qiezi from "./spider/video/qiezi.js";
+import yunvxinjing from "./spider/video/yunvxinjing.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -325,7 +331,7 @@ export const getSpiders = async (server) => {
         // ── 正规影视 ──
         douban, vqq, gz360, leijing, panta, wogg, zhizhen, nsp, fengye, duboku, a123tv, wwgz, jianpian, duoduo, mogg, hanxiaoquan, yingtan, hudie, effedup, jhpt0, 
         // ── 短剧 ──
-        aiduanju, youziduanju, qingju, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
+        aiduanju, youziduanju, qingju, chengguo, duanju51, blue51, duanju57, huangguo, hunagguojuchang, huangguomj, hgdju, xiangjiaoai, maoduanju, lizhi, yydj, huangdou, jinguo, yeguodj, kbduanju, mdcmai, crdj91,
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty, myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
@@ -339,13 +345,13 @@ export const getSpiders = async (server) => {
         ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, 
-        bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn,
+        bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
          // ── 91 系列 ──
         spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
         // ── 国产 / 中文 ──
-        wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv,
-        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, 
-        awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, 
+        wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv, bianfu,
+        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi,
+        awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, yunvxinjing,
         ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, 
         // ── APP ──
         tt, suiruixhs,
