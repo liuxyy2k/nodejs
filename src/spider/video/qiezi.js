@@ -191,8 +191,7 @@ async function search() {
   return { page: 1, pagecount: 0, limit: 24, total: 0, list: [] };
 }
 
-export default function createSpider() {
-  return {
+export default {
     meta: { key: KEY, name: NAME, type: 3 },
     api: async (fastify) => {
       fastify.post('/init', init);
@@ -202,5 +201,4 @@ export default function createSpider() {
       fastify.post('/play', play);
       fastify.post('/search', search);
     },
-  };
 }

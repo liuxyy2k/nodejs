@@ -227,8 +227,7 @@ async function play(reqIn) {
   };
 }
 
-export default function spider() {
-  return {
+export default {
     meta: { key: KEY, name: NAME, type: 3 },
     api: async (fastify) => {
       fastify.post('/init', async () => ({}));
@@ -238,5 +237,4 @@ export default function spider() {
       fastify.post('/play', play);
       fastify.post('/search', search);
     },
-  };
 }

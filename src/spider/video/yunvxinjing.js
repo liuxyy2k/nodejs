@@ -205,8 +205,7 @@ async function search(reqIn) {
   return { page: pg, pagecount: list.length >= 20 ? pg + 1 : pg, limit: 20, total: list.length, list };
 }
 
-export default function createSpider() {
-  return {
+export default {
     meta: { key: KEY, name: NAME, type: 3 },
     api: async (fastify) => {
       fastify.post('/init', init);
@@ -216,5 +215,4 @@ export default function createSpider() {
       fastify.post('/play', play);
       fastify.post('/search', search);
     },
-  };
 }
