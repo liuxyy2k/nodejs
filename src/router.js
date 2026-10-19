@@ -346,10 +346,10 @@ export const getSpiders = async (server) => {
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
         ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
         // ── 吃瓜 / 爆料 ──
-        cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, baoliao, mrds, mrdld, mdgw, mdbdy, porncgw, xiaohuangniao, sp91com, 
-        bgcg, dycg, cg1024, cg84, jrkl, hl, hlbdy, hlcg, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
+        cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
+        jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
          // ── 91 系列 ──
-        spx91, video91, sp91, pron91, porna91, pinse, rb91, av123dsp, theporny, nine1tanhua,
+        spx91, video91, sp91, sp91com, pron91, porna91, pinse, rb91, nine1tanhua, av123dsp, theporny, xiaohuangniao, 
         // ── 国产 / 中文 ──
         wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv, bianfu,
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi,

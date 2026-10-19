@@ -697,7 +697,7 @@ async function search(inReq, _outResp) {
 }
 
 export default {
-    meta: { key: 'owoav', name: '💎owoav高清', type: 3 },
+    meta: { key: 'owoav', name: '🌸owoav高清', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);

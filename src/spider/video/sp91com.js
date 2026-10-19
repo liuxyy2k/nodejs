@@ -442,7 +442,7 @@ async function imgProxy(inReq, reply) {
 }
 
 export default {
-    meta: { key: 'sp91com', name: '🍉91视频网', type: 3 },
+    meta: { key: 'sp91com', name: '🎞️91视频网', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);

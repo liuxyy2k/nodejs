@@ -1,7 +1,7 @@
 import req from '../../util/req.js';
 
 const KEY = 'py_sanjipian';
-const NAME = '🦋蝴蝶影院';
+const NAME = '🎬蝴蝶影院';
 const DEFAULT_HOST = 'https://ptt01.com';
 const NAV_URLS = ['https://x99dh.cc', 'https://x99dh.one'];
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)';
