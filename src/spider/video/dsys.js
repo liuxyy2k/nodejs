@@ -6,7 +6,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 const host = 'https://apin8i2h1.230110.xyz';
 const phost = 'https://cdn.230110.xyz';
 
-const PORT   = process.env.DEV_HTTP_PORT || 9988;
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 // AES
 const AES_KEY = Buffer.from('OPQT123412FRANME');
@@ -114,7 +114,7 @@ function aes(text, operation = true) {
 function rebase(url) {
     try {
         const u = new URL(url);
-        return new URL(u.pathname,phost).href;
+        return new URL(u.pathname, phost).href;
     } catch (e) {
         return url;
     }
@@ -155,7 +155,7 @@ function signedCdnUrl(absUrl) {
     const expire =
         siteConfig?.video_sign_expire ||
         Math.floor(Date.now() / 1000) +
-            3600;
+        3600;
 
     const u = new URL(absUrl);
     const sign = cdnSign(u.pathname, expire);
@@ -190,7 +190,7 @@ function dashAttr(tag, name) {
 
 function parseDashSets(xml) {
     const sets = [];
-    const setRe =/<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi;
+    const setRe = /<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi;
     let m;
     while ((m = setRe.exec(xml))) {
 
@@ -251,12 +251,12 @@ function parseDashSets(xml) {
         const tplAttrs = tpl ? tpl[1] : '';
         const timescale = parseInt(
             dashAttr(tplAttrs, 'timescale') ||
-                '1',
+            '1',
             10
         );
         const startNumber = parseInt(
             dashAttr(tplAttrs, 'startNumber') ||
-                '1',
+            '1',
             10
         );
         let initialization = dashAttr(
@@ -287,7 +287,7 @@ function parseDashSets(xml) {
             );
             const r = parseInt(
                 /\br="(\d+)"/.exec(a)?.[1] ||
-                    '0',
+                '0',
                 10
             );
 
@@ -416,7 +416,7 @@ function buildMasterM3u8(sets, qs) {
 
 async function fetchMpdXml(absUrl) {
 
-    await ensureConfig().catch(() => {});
+    await ensureConfig().catch(() => { });
 
     const response = await axios.get(
         signedCdnUrl(absUrl),
@@ -558,7 +558,7 @@ async function getdata(data) {
                 data.route,
                 cfg.http_sign_key,
                 cfg.http_sign_id ||
-                    'http-sign-v1'
+                'http-sign-v1'
             );
     }
 
@@ -634,7 +634,7 @@ async function init(_inReq, _outResp) {
     return {};
 }
 
-async function home( _inReq,_outResp) {
+async function home(_inReq, _outResp) {
     const cfg = await ensureConfig();
 
     const classes =
@@ -651,9 +651,9 @@ async function home( _inReq,_outResp) {
     };
 }
 
-async function category(inReq,_outResp) {
-    const tid =String(inReq.body.id ?? '');
-    const pg =parseInt(inReq.body.page) || 1;
+async function category(inReq, _outResp) {
+    const tid = String(inReq.body.id ?? '');
+    const pg = parseInt(inReq.body.page) || 1;
 
     // tag 搜索
     if (
@@ -695,7 +695,7 @@ async function category(inReq,_outResp) {
 }
 
 async function detail(inReq, _outResp) {
-    const id =inReq.body.id;
+    const id = inReq.body.id;
     const data = {
         search_type: 'video_detail_filter_id',
         video_id: id,
@@ -721,7 +721,7 @@ async function detail(inReq, _outResp) {
     };
 }
 
-async function play(inReq,_outResp) {
+async function play(inReq, _outResp) {
     let id = inReq.body.id;
     let mode = 'dash';
     const raw = String(id || '');
@@ -896,12 +896,12 @@ async function proxySeg(segPath, req) {
     }
     try {
         await ensureConfig();
-    } catch (e) {}
+    } catch (e) { }
     const expire =
         siteConfig?.video_sign_expire ||
         Math.floor(Date.now() / 1000) +
-            3600;
-    const pathname =`/mpd/${String(segPath).replace(/^\/+/, '')}`;
+        3600;
+    const pathname = `/mpd/${String(segPath).replace(/^\/+/, '')}`;
     const url = `${phost}${pathname}?sign=${cdnSign(pathname, expire)}&expire=${expire}`;
     const hdrs = {
         ...playHeaders,
@@ -966,12 +966,12 @@ export default {
     },
 
     api: async (fastify) => {
-        fastify.post('/init',init);
+        fastify.post('/init', init);
         fastify.post('/home', home);
-        fastify.post('/category',category);
-        fastify.post('/detail',detail);
-        fastify.post('/play',play);
-        fastify.post('/search',search);
+        fastify.post('/category', category);
+        fastify.post('/detail', detail);
+        fastify.post('/play', play);
+        fastify.post('/search', search);
         const sendProxy = (reply, result) => {
             const [status, mime, hdrs, body] = result;
             if (hdrs) {
