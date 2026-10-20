@@ -12,6 +12,9 @@ const KEY = 'py_javmobile';
 const NAME = '🌸JavMobile';
 const SITE = 'https://javmobile.net';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+// 手机 UA：helvid 的 token 按设备签发 (d=apple/d=chromium)，用手机 UA 取 token
+// 才能保证用户手机端（MiraPlayer 原生 UA）请求分片不 404
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const REFERER = SITE + '/';
 
 // 8 个真实分类 (2026-10-20 从首页导航实测)
@@ -52,9 +55,10 @@ function fixUrl(u) {
 }
 
 // 双通道: 先框架 req，失败再原生 fetch
-async function getHtml(url, referer) {
+// ua: 覆盖默认 UA（取 helvid token 时必须用手机 UA，否则签出的 d=chromium token 在手机端分片 404）
+async function getHtml(url, referer, ua) {
   const headers = {
-    'User-Agent': UA,
+    'User-Agent': ua || UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.7',
     'Referer': referer || REFERER,
@@ -123,8 +127,10 @@ async function buildList(url, page, limit, tid) {
   if (!html) return { page, pagecount: page, limit, total: 0, list: [] };
   const list = parseCards(html);
   let pc = parsePagecount(html);
-  // 首页（最新）没有翻页链接，但 /page/N/ 有效，默认给一个较大的页数让 App 能加载更多
-  if (tid === 'latest' && pc <= 1 && list.length >= limit) pc = 50;
+  // 最新：首页无翻页链接，且各页 HTML 里解析出的 pagecount 会随当前页码波动
+  // （如第2页只能看到 /page/2/，pagecount 就变成 2），导致 App 误判已到最后一页。
+  // 实测 /page/100/ 仍有 30 条，固定给 100。
+  if (tid === 'latest' && list.length > 0) pc = 100;
   return { page, pagecount: Math.max(pc, page), limit, total: list.length, list };
 }
 
@@ -150,9 +156,11 @@ function extractSources(html) {
 }
 
 // Server1: upload18 播放页 -> window.PLAYER_CONFIG.m3u8 (带1次重试, 站方偶发 chunked 截断)
+// 注意: 必须用手机 UA 请求，helvid 按 UA 签发 token (d=apple)；用桌面 UA 签出的
+// d=chromium token 在手机端请求分片会 404，导致播不全/无法快进
 async function resolveUpload18(embedUrl) {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const html = await getHtml(embedUrl, REFERER);
+    const html = await getHtml(embedUrl, REFERER, MOBILE_UA);
     if (!html || !html.includes('window.PLAYER_CONFIG')) continue;
     const m = html.match(/window\.PLAYER_CONFIG\s*=\s*(\{.*?\});/s);
     if (!m) continue;
@@ -190,6 +198,79 @@ function unpackAudinifer(html) {
   }
   const um = p.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
   return um ? um[0] : '';
+}
+
+// m3u8 代理改写: helvid 原始 m3u8 有三个兼容性问题，可能导致 MiraPlayer
+// (iOS AVPlayer 系) 播放不从头、无法快进后退:
+//   1) #EXT-X-MEDIA-SEQUENCE:1 (VOD 标准应从 0 开始, AVPlayer 计算 seekable
+//      范围/起始位置时会因此偏移, 表现为跳过开头、无法 seek 回开头)
+//   2) #U18-CANARY:... 非标准行 (金丝雀检测行, 部分播放器解析受影响)
+//   3) #EXT-X-ALLOW-CACHE:YES 非标准标签
+// 播放时经本地 spider 代理下载原始 m3u8 并改写后再返回给播放器,
+// 分片 URL 本身是带签名的绝对地址, 保持原样由播放器直连 helvid。
+function fixM3u8(txt) {
+  let out = String(txt || '');
+  out = out.replace(/^#U18-CANARY:.*$/gm, '');
+  out = out.replace(/^#EXT-X-ALLOW-CACHE:.*$/gm, '');
+  out = out.replace(/^#EXT-X-MEDIA-SEQUENCE:\s*\d+\s*$/gm, '#EXT-X-MEDIA-SEQUENCE:0');
+  out = out.replace(/\n{3,}/g, '\n\n');
+  return out;
+}
+
+async function m3u8Proxy(request, reply) {
+  const q = request?.query || {};
+  const u = String(q.u || '');
+  const r = String(q.r || '');
+  if (!u) { reply.code(400).send('missing u'); return; }
+  let m3u8Url = '';
+  let referer = REFERER;
+  try {
+    m3u8Url = Buffer.from(u.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    if (r) referer = Buffer.from(r.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+  } catch (e) { reply.code(400).send('bad u'); return; }
+  if (!/^https?:\/\//.test(m3u8Url)) { reply.code(400).send('bad u'); return; }
+  const headers = {
+    'User-Agent': MOBILE_UA,
+    'Accept': '*/*',
+    'Referer': referer,
+  };
+  let raw = '';
+  try {
+    const { data, status } = await req.get(m3u8Url, { headers, timeout: 20000 });
+    if (status === 200 && data) raw = typeof data === 'string' ? data : String(data);
+  } catch (e) { /* 换通道2 */ }
+  if (!raw) {
+    try {
+      const resp = await fetch(m3u8Url, { headers });
+      if (resp.ok) raw = await resp.text();
+    } catch (e) { /* ignore */ }
+  }
+  if (!raw || !raw.includes('#EXTM3U')) {
+    // 降级：302 重定向到原始 m3u8（和之前直连行为一致）
+    reply.redirect(m3u8Url);
+    return;
+  }
+  reply.header('Content-Type', 'application/vnd.apple.mpegurl');
+  reply.header('Cache-Control', 'no-cache');
+  reply.send(fixM3u8(raw));
+}
+
+// base64url 编码 (供代理 URL 的 query 参数)
+function b64url(s) {
+  try {
+    return Buffer.from(String(s), 'utf8').toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  } catch (e) { return ''; }
+}
+
+// 构造本地 m3u8 代理地址 (js2p://_WEB_ 为 App 动态地址 scheme, 同 ffm3u8 先例)
+function proxyM3u8Url(reqIn, m3u8Url, referer) {
+  try {
+    const server = reqIn?.server;
+    const dynamic = server?.address?.()?.dynamic || 'js2p://_WEB_';
+    const prefix = server?.prefix || ('/spider/' + KEY + '/3');
+    return `${dynamic}${prefix}/proxy/m3u8?u=${b64url(m3u8Url)}&r=${b64url(referer || '')}`;
+  } catch (e) { return ''; }
 }
 
 async function resolveAudinifer(embedUrl) {
@@ -298,11 +379,19 @@ async function play(reqIn) {
   const r = await resolvePlay(durl);
   if (!r.url) return { parse: 0, url: '' };
   // Referer 必须与视频源站点一致 (helvid 只认 upload18.org, 否则 403)
+  // UA 必须用手机 UA：token 按设备签发 (d=apple)，与取 token 时的 UA 保持一致
   const referer = r.referer || REFERER;
+  let url = r.url;
+  // helvid 直链 m3u8 走本地代理改写 (修正 MEDIA-SEQUENCE 等兼容性问题,
+  // 解决 iOS 端播放不从头、无法快进后退)。其他源保持直连。
+  if (r.parse === 0 && /helvid\.com/.test(r.url)) {
+    const purl = proxyM3u8Url(reqIn, r.url, referer);
+    if (purl) url = purl;
+  }
   return {
     parse: r.parse,
-    url: r.url,
-    header: { 'User-Agent': UA, 'Referer': referer },
+    url,
+    header: { 'User-Agent': MOBILE_UA, 'Referer': referer },
   };
 }
 
@@ -325,5 +414,7 @@ export default {
       fastify.post('/detail', detail);
       fastify.post('/play', play);
       fastify.post('/search', search);
+      // m3u8 改写代理 (GET, 参考 ffm3u8 的 /proxy/hls 先例)
+      fastify.get('/proxy/m3u8', m3u8Proxy);
     },
 }
