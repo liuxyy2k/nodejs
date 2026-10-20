@@ -114,12 +114,84 @@ function isCfBlock(html) {
 }
 
 let browseCookie = '';
+let gateReadyAt = 0;
+const GATE_TTL_MS = 12 * 60 * 60 * 1000;
 
-function captureBrowse(setCookie) {
+function mergeBrowseCookie(setCookie) {
+    const jar = {};
+    for (const part of String(browseCookie || '').split(';')) {
+        const pair = part.trim();
+        const i = pair.indexOf('=');
+        if (i > 0) jar[pair.slice(0, i)] = pair;
+    }
     for (const raw of setCookie || []) {
         const pair = String(raw).split(';')[0].trim();
-        if (pair.startsWith('__Host-jv-browse=')) browseCookie = pair;
+        const i = pair.indexOf('=');
+        if (i > 0) jar[pair.slice(0, i)] = pair;
     }
+    browseCookie = Object.values(jar).join('; ');
+}
+
+function captureBrowse(setCookie) {
+    mergeBrowseCookie(setCookie);
+}
+
+function isBrowseGatePage(html) {
+    const s = String(html || '');
+    if (s.includes('work-card') && s.includes('"workId":')) return false;
+    return s.includes('fetch("/_browse/gate"') || (s.includes('id="opening"') && s.includes('jv-gate-try'));
+}
+
+async function ensureBrowseGate(force = false) {
+    if (!force && gateReadyAt && Date.now() - gateReadyAt < GATE_TTL_MS && browseCookie.includes('__Host-jv-browse=')) {
+        return true;
+    }
+    const headers = {
+        ...baseHeaders(`${site}/discover`),
+        'x-jv-gate': '1',
+        Origin: site,
+    };
+    if (browseCookie) headers.Cookie = browseCookie;
+    const r = await req({
+        method: 'POST',
+        url: `${site}/_browse/gate`,
+        headers,
+        timeout: 30000,
+        validateStatus: () => true,
+        responseType: 'text',
+    });
+    captureBrowse(r.headers['set-cookie']);
+    if (r.headers['set-cookie']?.length) req.saveCookies(true);
+    if (r.status === 204) {
+        gateReadyAt = Date.now();
+        return true;
+    }
+    if (r.status === 429) {
+        try {
+            const body = JSON.parse(String(r.data || '{}'));
+            const verify = body?.verifyUrl;
+            if (typeof verify === 'string' && verify.startsWith('/')) {
+                const vr = await req({
+                    method: 'GET',
+                    url: abs(verify),
+                    headers: { ...baseHeaders(`${site}/discover`), Cookie: browseCookie || undefined },
+                    timeout: 30000,
+                    validateStatus: () => true,
+                    responseType: 'text',
+                });
+                captureBrowse(vr.headers['set-cookie']);
+                if (vr.headers['set-cookie']?.length) req.saveCookies(true);
+                return ensureBrowseGate(true);
+            }
+        } catch {
+            /* 429 无 verifyUrl */
+        }
+    }
+    return browseCookie.includes('__Host-jv-browse=');
+}
+
+function rscOk(text) {
+    return text && text.includes('work-card') && text.includes('"workId":') && !isCfBlock(text) && !isBrowseGatePage(text);
 }
 
 async function reqRsc(url) {
@@ -128,10 +200,12 @@ async function reqRsc(url) {
         ...baseHeaders(`${site}/`),
         Accept: '*/*',
         RSC: '1',
-        'Next-Url': u.pathname,
+        'Next-Url': `${u.pathname}${u.search}`,
     };
     if (browseCookie) headers.Cookie = browseCookie;
-    const r = await req.get(url, {
+    const r = await req({
+        method: 'GET',
+        url,
         headers,
         timeout: 30000,
         maxRedirects: 0,
@@ -142,7 +216,9 @@ async function reqRsc(url) {
     if (r.status >= 300 && r.status < 400 && r.headers.location) {
         const next = new URL(r.headers.location, site).href;
         if (browseCookie) headers.Cookie = browseCookie;
-        const r2 = await req.get(next, {
+        const r2 = await req({
+            method: 'GET',
+            url: next,
             headers,
             timeout: 30000,
             validateStatus: () => true,
@@ -155,8 +231,18 @@ async function reqRsc(url) {
 }
 
 async function getRsc(url) {
+    await ensureBrowseGate();
     try {
-        return await reqRsc(url);
+        const text = await reqRsc(url);
+        if (rscOk(text)) return text;
+    } catch {
+        /* 重试 gate */
+    }
+    gateReadyAt = 0;
+    await ensureBrowseGate(true);
+    try {
+        const text = await reqRsc(url);
+        return rscOk(text) ? text : '';
     } catch {
         return '';
     }

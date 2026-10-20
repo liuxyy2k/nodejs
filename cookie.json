@@ -104,6 +104,44 @@
       "hostOnly": true,
       "creation": "2026-09-29T11:22:31.770Z",
       "lastAccessed": "2026-09-29T11:22:31.770Z"
+    },
+    {
+      "key": "__Host-jv-browse",
+      "value": "eyJpZCI6ImM2ZDkwMTQ0LTkwYTgtNGQ5MC1hNGE1LWNhMmVlYTFmNmU3ZCIsImV4cCI6MTc5NTA4NTI3NX0.cbkVnJQpprynpC8zBIAiyMd5gMtk_BsEROp6OSkPBpc",
+      "maxAge": 2591782,
+      "domain": "javverse.com",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-10-20T10:47:54.993Z",
+      "lastAccessed": "2026-10-20T10:51:34.418Z",
+      "sameSite": "lax"
+    },
+    {
+      "key": "__Host-jv-gate",
+      "value": "eyJpZCI6ImM2ZDkwMTQ0LTkwYTgtNGQ5MC1hNGE1LWNhMmVlYTFmNmU3ZCIsImV4cCI6MTc5NTA4NTI3NSwia2luZCI6ImdhdGUiLCJtIjoibGlnaHQifQ.2jYg7b8D-hR_6bmgqgp7zblP3cMnP34Rw4QO-UnyHF0",
+      "maxAge": 2591782,
+      "domain": "javverse.com",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-10-20T10:47:54.993Z",
+      "lastAccessed": "2026-10-20T10:51:34.418Z",
+      "sameSite": "lax"
+    },
+    {
+      "key": "jv-gate",
+      "value": "1",
+      "maxAge": 2591782,
+      "domain": "javverse.com",
+      "path": "/",
+      "secure": true,
+      "hostOnly": true,
+      "creation": "2026-10-20T10:47:54.993Z",
+      "lastAccessed": "2026-10-20T10:51:34.418Z",
+      "sameSite": "lax"
     }
   ]
 }
