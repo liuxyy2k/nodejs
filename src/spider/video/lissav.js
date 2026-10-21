@@ -374,7 +374,7 @@ async function search(inReq, _outResp) {
 export default {
     meta: {
         key: 'lissav',
-        name: '🌸LissAV',
+        name: '🌸Liss·AV',
         type: 3,
     },
     api: async (fastify) => {
