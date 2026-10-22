@@ -86,7 +86,7 @@ import https from 'https';
 import zlib from 'zlib';
 
 const KEY = 'py_bestjavporn';
-const NAME = 'BestJavPorn';
+const NAME = '🌸BestJavPorn';
 const HOST = 'https://www.bestjavporn.com';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const REFERER = HOST + '/';
