@@ -1,23 +1,36 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
-import axios from 'axios';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36';
 const site = 'https://javlust.net';
 
-import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const headers = {
     'User-Agent': UA,
     Referer: `${site}/`,
 };
+
 async function request(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: headers,
-        // httpsAgent: agent
+    const resp = await req.get(reqUrl, {
+        headers,
+        timeout: 25000,
+        validateStatus: () => true,
+        responseType: 'text',
     });
-    return resp.data;
+    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+}
+
+function absUrl(href) {
+    const s = String(href || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s)) return s;
+    return site + (s.startsWith('/') ? s : `/${s}`);
+}
+
+function buildListUrl(id, page) {
+    const path = String(id || '/').trim() || '/';
+    const u = new URL(path.startsWith('/') ? path : `/${path}`, site);
+    if (page > 1) u.searchParams.set('page', String(page));
+    return u.href;
 }
 
 function parseVods($) {
@@ -26,13 +39,38 @@ function parseVods($) {
         const href = $(el).find('a').eq(0).attr('href') || '';
         if (!href) return;
         list.push({
-            vod_id: $(el).find('a').eq(0).attr('href') || '',
+            vod_id: href,
             vod_name: $(el).find('h6').text().trim() || '',
             vod_pic: $(el).find('img').attr('data-src') || '',
             vod_remarks: $(el).find('.video-details').text().trim() || '',
         });
     });
     return list;
+}
+
+async function resolveStream(raw) {
+    const id = String(raw || '').trim();
+    if (!id) return '';
+    if (/\.m3u8(?:[?#]|$)|\.mp4(?:[?#]|$)/i.test(id)) return id;
+
+    const pageUrl = absUrl(id);
+    const html = await request(pageUrl);
+    const $ = load(html);
+
+    let playUrl =
+        $('#front-player source').attr('src') ||
+        $('#front-player video').attr('src') ||
+        $('video source').first().attr('src') ||
+        $('video').first().attr('src') ||
+        '';
+
+    if (!playUrl) {
+        const m = html.match(/https?:[^"'\s<>]+?\.(?:m3u8|mp4)(?:[?#][^"'\s<>]*)?/i);
+        playUrl = m ? m[0] : '';
+    }
+    if (playUrl.startsWith('//')) playUrl = `https:${playUrl}`;
+    if (playUrl.startsWith('/')) playUrl = site + playUrl;
+    return playUrl;
 }
 
 async function init() {
@@ -58,20 +96,17 @@ async function home() {
 }
 
 async function category(inReq) {
-    let url = `${site}${inReq.body.id}&page=${inReq.body.page || inReq.body.pg || 1}`;
     const page = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
-    const $ = load(await request(`${url}`));
+    const url = buildListUrl(inReq.body.id, page);
+    const $ = load(await request(url));
     return { page, pagecount: 9999999, list: parseVods($) };
 }
 
 async function detail(inReq) {
     const id = inReq.body.id;
-    const $ = load(await request(`${site}${id}`));
+    const $ = load(await request(absUrl(id)));
 
-    const vod_play_from = [];
-    const vod_play_url = [];
-
-    // 获取播放线路
+    const lines = [];
     $('button[data-src]').each((i, el) => {
         const name = $(el)
             .clone()
@@ -81,34 +116,16 @@ async function detail(inReq) {
             .text()
             .trim()
             .replace(/\s+/g, ' ');
-
-        const url = $(el).attr('data-src')?.trim();
-
-        if (!url) return;
-
-        // TVBox线路名称
-        vod_play_from.push(name || `服务器${i + 1}`);
-
-        // 当前页面只有一个播放地址，所以格式为：播放$URL
-        vod_play_url.push(`播放$${url}`);
+        const src = $(el).attr('data-src')?.trim();
+        if (!src) return;
+        lines.push(`${name || `服务器${i + 1}`}$${absUrl(src)}`);
     });
 
-    // 标题
     let vod_name = $('head title').text().trim();
-
-    // 如果 title 太杂，可以优先取页面 h4
     const pageTitle = $('.mt-3 h4').first().text().trim();
-    if (pageTitle) {
-        vod_name = pageTitle;
-    }
+    if (pageTitle) vod_name = pageTitle;
 
-    // 封面
-    let vod_pic = '';
-
-    // 优先 og:image
-    vod_pic = $('meta[property="og:image"]').attr('content') || '';
-
-    // 没有的话尝试其他图片
+    let vod_pic = $('meta[property="og:image"]').attr('content') || '';
     if (!vod_pic) {
         vod_pic =
             $('meta[name="twitter:image"]').attr('content') ||
@@ -116,7 +133,6 @@ async function detail(inReq) {
             '';
     }
 
-    // 简介
     const vod_content =
         $('meta[name="description"]').attr('content') ||
         $('.mt-3 h4').first().text().trim() ||
@@ -128,18 +144,23 @@ async function detail(inReq) {
             vod_name,
             vod_pic,
             vod_content,
-            vod_play_from: vod_play_from.join('$$$'),
-            vod_play_url: vod_play_url.join('$$$'),
+            vod_play_from: lines.length ? 'Javlust' : '',
+            vod_play_url: lines.join('#'),
         }],
     };
 }
 
 async function play(inReq) {
     const id = inReq.body.id;
-    const html = await request(`${id}`);
-    const $ = load(html);
-    const playUrl = $('#front-player').find('source').attr('src') || '';
-    return { parse: 0, url: playUrl, header: { 'User-Agent': UA, Referer: `${site}/` } };
+    const playUrl = await resolveStream(id);
+    const referer = /\.m3u8|\.mp4/i.test(String(id))
+        ? `${site}/`
+        : absUrl(id);
+    return {
+        parse: 0,
+        url: playUrl,
+        header: { 'User-Agent': UA, Referer: referer },
+    };
 }
 
 async function search(inReq) {
