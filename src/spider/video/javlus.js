@@ -4,8 +4,10 @@ import req from '../../util/req.js';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36';
 const MOBILE_UA =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const META_KEY = 'javlust';
 const site = 'https://javlust.net';
 const JAVTIFUL = 'https://javtiful.com';
+const UPLOAD18 = 'https://upload18.org';
 
 const headers = {
     'User-Agent': UA,
@@ -101,30 +103,105 @@ async function resolveJavtifulEmbed(embedUrl) {
     return { url, referer: pageUrl };
 }
 
-async function resolveUpload18(pageUrl) {
-    const html = await request(pageUrl, `${site}/`, MOBILE_UA);
-    const m = html.match(/window\.PLAYER_CONFIG\s*=\s*(\{[\s\S]*?\});/);
-    if (!m) return { url: '', referer: pageUrl };
+function isHelvidUrl(url) {
+    return /helvid\.com\/m\//i.test(String(url || ''));
+}
+
+function fixM3u8(txt) {
+    let out = String(txt || '');
+    out = out.replace(/^#U18-CANARY:.*$/gm, '');
+    out = out.replace(/^#EXT-X-ALLOW-CACHE:.*$/gm, '');
+    out = out.replace(/^#EXT-X-MEDIA-SEQUENCE:\s*\d+\s*$/gm, '#EXT-X-MEDIA-SEQUENCE:0');
+    out = out.replace(/\n{3,}/g, '\n\n');
+    return out;
+}
+
+function b64url(s) {
+    return Buffer.from(String(s), 'utf8')
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+}
+
+function proxyM3u8Url(inReq, m3u8Url, referer) {
     try {
-        const cfg = JSON.parse(m[1]);
-        const url = String(cfg.m3u8 || '').replace(/\\\//g, '/').trim();
-        if (/^https?:\/\//i.test(url)) return { url, referer: pageUrl };
+        const server = inReq?.server;
+        const dynamic = server?.address?.()?.dynamic || 'js2p://_WEB_';
+        const prefix = server?.prefix || `/spider/${META_KEY}/3`;
+        return `${dynamic}${prefix}/proxy/m3u8?u=${b64url(m3u8Url)}&r=${b64url(referer || '')}`;
     } catch {
-        /* ignore */
+        return '';
     }
-    return { url: '', referer: pageUrl };
+}
+
+async function m3u8Proxy(request, reply) {
+    const q = request?.query || {};
+    let m3u8Url = '';
+    let referer = UPLOAD18;
+    try {
+        m3u8Url = Buffer.from(String(q.u || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+        if (q.r) referer = Buffer.from(String(q.r).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    } catch {
+        reply.code(400).send('bad u');
+        return;
+    }
+    if (!/^https?:\/\//.test(m3u8Url)) {
+        reply.code(400).send('bad u');
+        return;
+    }
+    const resp = await req.get(m3u8Url, {
+        headers: { 'User-Agent': MOBILE_UA, Accept: '*/*', Referer: referer },
+        timeout: 20000,
+        validateStatus: () => true,
+        responseType: 'text',
+    });
+    const raw = typeof resp.data === 'string' ? resp.data : String(resp.data || '');
+    if (!raw.includes('#EXTM3U')) {
+        reply.redirect(m3u8Url);
+        return;
+    }
+    reply.header('Content-Type', 'application/vnd.apple.mpegurl');
+    reply.header('Cache-Control', 'no-cache');
+    reply.send(fixM3u8(raw));
+}
+
+async function resolveUpload18(pageUrl) {
+    const referer = absUrl(pageUrl, UPLOAD18);
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const html = await request(referer, `${site}/`, MOBILE_UA);
+        if (!html.includes('window.PLAYER_CONFIG')) continue;
+        const m = html.match(/window\.PLAYER_CONFIG\s*=\s*(\{.*?\});/s);
+        if (!m) continue;
+        try {
+            const cfg = JSON.parse(m[1]);
+            const url = String(cfg.m3u8 || '').replace(/\\\//g, '/').trim();
+            if (isHelvidUrl(url) || (/^https?:\/\//i.test(url) && /\.m3u8/i.test(url))) {
+                return { url, referer, helvid: isHelvidUrl(url) };
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    return { url: '', referer, helvid: false };
 }
 
 async function resolveStream(raw) {
     const id = playId(raw);
-    if (!id) return { url: '', referer: `${site}/` };
+    if (!id) return { url: '', referer: `${site}/`, helvid: false };
     if (/\.m3u8(?:[?#]|$)|\.mp4(?:[?#]|$)/i.test(id)) {
-        return { url: id, referer: `${site}/` };
+        const helvid = isHelvidUrl(id);
+        return {
+            url: id,
+            referer: helvid ? UPLOAD18 : `${site}/`,
+            helvid,
+        };
     }
 
     const pageUrl = absUrl(id);
     if (/javtiful\.com\/embed\//i.test(pageUrl)) {
-        return resolveJavtifulEmbed(pageUrl);
+        const hit = await resolveJavtifulEmbed(pageUrl);
+        return { ...hit, helvid: false };
     }
     if (/upload18\.org/i.test(pageUrl)) {
         return resolveUpload18(pageUrl);
@@ -142,8 +219,11 @@ async function resolveStream(raw) {
 
     if (!playUrl) {
         const iframe = $('iframe[src]').first().attr('src') || '';
-        if (/javtiful\.com\/embed\//i.test(iframe)) return resolveJavtifulEmbed(absUrl(iframe, JAVTIFUL));
-        if (/upload18\.org/i.test(iframe)) return resolveUpload18(absUrl(iframe));
+        if (/javtiful\.com\/embed\//i.test(iframe)) {
+            const hit = await resolveJavtifulEmbed(absUrl(iframe, JAVTIFUL));
+            return { ...hit, helvid: false };
+        }
+        if (/upload18\.org/i.test(iframe)) return resolveUpload18(absUrl(iframe, UPLOAD18));
     }
 
     if (!playUrl) {
@@ -151,7 +231,12 @@ async function resolveStream(raw) {
         playUrl = m ? m[0] : '';
     }
     playUrl = absUrl(playUrl);
-    return { url: playUrl, referer: pageUrl };
+    const helvid = isHelvidUrl(playUrl);
+    return {
+        url: playUrl,
+        referer: helvid ? UPLOAD18 : pageUrl,
+        helvid,
+    };
 }
 
 function parseServerButtons($) {
@@ -238,11 +323,23 @@ async function detail(inReq) {
 }
 
 async function play(inReq) {
-    const { url: playUrl, referer } = await resolveStream(inReq.body.id);
+    const { url: playUrl, referer, helvid } = await resolveStream(inReq.body.id);
+    if (!playUrl) return { parse: 0, url: '', header: { 'User-Agent': UA, Referer: `${site}/` } };
+
+    let url = playUrl;
+    const streamReferer = referer || `${site}/`;
+    if (helvid) {
+        const proxied = proxyM3u8Url(inReq, playUrl, streamReferer);
+        if (proxied) url = proxied;
+    }
+
     return {
         parse: 0,
-        url: playUrl,
-        header: { 'User-Agent': UA, Referer: referer || `${site}/` },
+        url,
+        header: {
+            'User-Agent': helvid ? MOBILE_UA : UA,
+            Referer: streamReferer,
+        },
     };
 }
 
@@ -260,5 +357,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/proxy/m3u8', m3u8Proxy);
     },
 };
