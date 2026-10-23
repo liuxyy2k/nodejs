@@ -213,7 +213,6 @@ import fengye from "./spider/video/fengyeyy.js";
 import gg51 from "./spider/video/gg51.js";
 import hstream from "./spider/video/hstream.js";
 import lxtv5 from "./spider/video/5lxtv.js";
-import wnacg from "./spider/video/wnacg.js";
 import uaaudio from "./spider/video/uaaudio.js";
 import xqxq from "./spider/video/xqxq.js";
 import t66yy from "./spider/video/t66yy.js";
@@ -367,7 +366,7 @@ export const getSpiders = async (server) => {
         // ── 音频 ──
         uaaudio,
         // ── 动漫 / Hentai ──
-        hanime, hanime1, hanime2, hdm18, hstream, animei, ai, wnacg, hentaiasmr, sefun,
+        hanime, hanime1, hanime2, hdm18, hstream, animei, ai, hentaiasmr, sefun,
         // ── 欧美 / 国际 ──
         beeg, pornhub, tube, ppphub, xvideos, xhams, redgif, kore, kbjfan, fullhd, 
         pmvhaven, naughtymachinima, porncloud, xxxFollow, 
