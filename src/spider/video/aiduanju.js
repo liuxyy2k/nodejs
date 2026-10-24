@@ -1,23 +1,28 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
-import axios from 'axios';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36';
 const site = 'https://eactandand.aibyq.cc';
 
-import { HttpsProxyAgent } from 'https-proxy-agent';
-// 改成你本地代理的端口
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const headers = {
     'User-Agent': UA,
     Referer: `${site}/`,
 };
-async function request(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: headers,
-        // httpsAgent: agent
+
+async function request(reqUrl, extraHeaders = {}) {
+    const resp = await req.get(reqUrl, {
+        headers: { ...headers, ...extraHeaders },
+        validateStatus: () => true,
     });
+    if (resp.status >= 400) return '';
     return resp.data;
+}
+
+function absUrl(path) {
+    const u = String(path || '').trim();
+    if (!u) return '';
+    if (/^https?:\/\//i.test(u)) return u;
+    return u.startsWith('/') ? `${site}${u}` : `${site}/${u}`;
 }
 
 function parseVods($) {
@@ -26,8 +31,8 @@ function parseVods($) {
         list.push({
             vod_id: $(el).find('a').eq(0).attr('href') || '',
             vod_name: $(el).find('.vod-name').text().trim() || '',
-            vod_pic: $(el).find('img').attr('src') ||'',
-            vod_remarks: $(el).find('.vod-remarks').text().trim() ||'',
+            vod_pic: $(el).find('img').attr('src') || '',
+            vod_remarks: $(el).find('.vod-remarks').text().trim() || '',
         });
     });
     return list;
@@ -39,25 +44,24 @@ async function init() {
 
 async function home(_inReq, _outResp) {
     const classes = [
-            { type_id: '/aidj/AIchengrenduanju/', type_name: 'AI成人短剧' },
-            { type_id: '/aidj/AIchengrenmanju/', type_name: 'AI成人漫剧' },
-            { type_id: '/aidj/AIhuanlian/', type_name: 'AI换脸' },
-            { type_id: '/aidj/AImogai/', type_name: 'AI魔改' }
+        { type_id: '/aidj/AIchengrenduanju/', type_name: 'AI成人短剧' },
+        { type_id: '/aidj/AIchengrenmanju/', type_name: 'AI成人漫剧' },
+        { type_id: '/aidj/AIhuanlian/', type_name: 'AI换脸' },
+        { type_id: '/aidj/AImogai/', type_name: 'AI魔改' },
     ];
     return { class: classes, filters: {} };
 }
 
 async function category(inReq) {
-    let url = `${site}${inReq.body.id}page/${inReq.body.page || inReq.body.pg || 1}/`;
+    const url = `${site}${inReq.body.id}page/${inReq.body.page || inReq.body.pg || 1}/`;
     const page = parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1;
-    const $ = load(await request(`${url}`));
+    const $ = load(await request(url));
     return { page, pagecount: 9999999, list: parseVods($) };
 }
 
 async function detail(inReq) {
     const id = inReq.body.id;
     const $ = load(await request(`${site}${id}`));
-    const currentUrl = `${site}${id}`;
     const playList = [];
     $('.episodes a').each((_, el) => {
         const name = $(el).text().trim();
@@ -78,32 +82,60 @@ async function detail(inReq) {
     };
 }
 
-async function play(inReq) {
-    const id = inReq.body.id;
-    const html = await request(`${site}${id}`)
-    let playerData = {};
-    let m3u8 = '';
-    if (html) {
-        const match = html.match(
-            /var\s+player_data\s*=\s*(\{[\s\S]*?\})\s*;?/
-        );
-        if (match) {
-            playerData = JSON.parse(match[1]);
-            //https://eactandand.aibyq.cc/huangguo.php?ac=play&id=8319&ep=2&_=1791685324692
-            const playUrl = `${site}/huangguo.php?ac=play&id=${playerData.url.split('|')[0]}&ep=${playerData.url.split('|')[1]}&_=${Date.now()}`;
-            console.log('playUrl:', playUrl);
-            const playData = await axios.get(playUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    Referer: `https://eactandand.aibyq.cc/static/player/huangguo.html?url=${playerData.url}`,
-                },
-                // httpsAgent: agent
-            });
-            console.log('playData:', playData.data);
-            m3u8 = playData.data.url;
+function parsePlayerData(html) {
+    const match = String(html || '').match(/var\s+player_data\s*=\s*(\{[\s\S]*?\})\s*;?/);
+    if (!match) return null;
+    try {
+        return JSON.parse(match[1]);
+    } catch {
+        return null;
+    }
+}
+
+async function loadPlayPageHtml(idPath) {
+    let path = String(idPath || '').split('$')[0].split('#')[0].trim();
+    if (!path.startsWith('/')) path = `/${path.replace(/^\/+/, '')}`;
+
+    let html = await request(`${site}${path}`, { Referer: `${site}${path}` });
+    if (parsePlayerData(html)) return { html, path };
+
+    if (/\/detail\//.test(path)) {
+        const $ = load(html);
+        const playHref = $('.episodes a').first().attr('href');
+        if (playHref) {
+            path = playHref.startsWith('/') ? playHref : `/${playHref}`;
+            html = await request(`${site}${path}`, { Referer: `${site}${path}` });
         }
     }
-    return { parse: 0, url: m3u8, header: { 'User-Agent': UA, Referer: `https://eactandand.aibyq.cc/static/player/huangguo.html?url=${playerData.url}` } };
+    return { html, path };
+}
+
+async function play(inReq) {
+    const { html, path: playPath } = await loadPlayPageHtml(inReq.body.id);
+    const playerData = parsePlayerData(html);
+    if (!playerData?.url) {
+        return { parse: 0, url: '' };
+    }
+
+    const [vodId, ep] = String(playerData.url).split('|');
+    const playerReferer = `${site}/static/player/huangguo.html?url=${encodeURIComponent(playerData.url)}`;
+    const apiUrl = `${site}/huangguo.php?ac=play&id=${vodId}&ep=${ep}&_=${Date.now()}`;
+    const playResp = await req.get(apiUrl, {
+        headers: { 'User-Agent': UA, Referer: playerReferer },
+        validateStatus: () => true,
+    });
+    const body = playResp.data;
+    let m3u8 = typeof body === 'object' && body != null ? body.url : '';
+    m3u8 = absUrl(m3u8);
+
+    return {
+        parse: 0,
+        url: m3u8,
+        header: {
+            'User-Agent': UA,
+            Referer: playerReferer,
+        },
+    };
 }
 
 async function search(inReq) {
