@@ -1,17 +1,20 @@
 import axios from 'axios';
-import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
+import CryptoJS from 'crypto-js';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import {
+    aes128CbcDecryptB64,
+    aes128CbcEncryptB64,
+    b64ToBytes,
+    bytesToB64,
+} from '../../util/aes128Pure.js';
 
 const host = 'https://apin8i2h1.230110.xyz';
 const phost = 'https://cdn.230110.xyz';
 
 const PORT = process.env.DEV_HTTP_PORT || 9988;
 
-// AES
-const AES_KEY = Buffer.from('OPQT123412FRANME');
-
-const AES_IV = Buffer.from('MRDCQP12QPM13412');
+const AES_KEY_STR = 'OPQT123412FRANME';
+const AES_IV_STR = 'MRDCQP12QPM13412';
 
 // 签名 key
 const SIGN_SECRET =
@@ -48,16 +51,11 @@ const http = axios.create({
 // ─────────────────────────────────────────────────────
 
 function md5(str) {
-    return crypto
-        .createHash('md5')
-        .update(str, 'utf8')
-        .digest('hex');
+    return CryptoJS.MD5(String(str)).toString(CryptoJS.enc.Hex);
 }
 
 function e64(str) {
-    return Buffer
-        .from(str, 'utf8')
-        .toString('base64');
+    return bytesToB64(new TextEncoder().encode(String(str)));
 }
 
 function d64(str) {
@@ -65,49 +63,30 @@ function d64(str) {
         .replace(/ /g, '+')
         .replace(/-/g, '+')
         .replace(/_/g, '/');
-    return Buffer.from(s, 'base64').toString('utf8');
+    return new TextDecoder('utf-8', { fatal: false }).decode(b64ToBytes(s));
 }
 
-// AES
-function aes(text, operation = true) {
-    // 加密
-    if (operation) {
-        const cipher =
-            crypto.createCipheriv(
-                'aes-128-cbc',
-                AES_KEY,
-                AES_IV
-            );
-
-        let encrypted =
-            cipher.update(
-                JSON.stringify(text),
-                'utf8',
-                'base64'
-            );
-
-        encrypted += cipher.final('base64');
-        return encrypted;
+function utf8ByteLength(s) {
+    if (typeof Buffer !== 'undefined') {
+        return Buffer.byteLength(String(s));
     }
+    return new TextEncoder().encode(String(s)).length;
+}
 
-    // 解密
-    const decipher =
-        crypto.createDecipheriv(
-            'aes-128-cbc',
-            AES_KEY,
-            AES_IV
-        );
+function newUid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
 
-    let decrypted =
-        decipher.update(
-            text,
-            'base64',
-            'utf8'
-        );
-
-    decrypted += decipher.final('utf8');
-
-    return JSON.parse(decrypted);
+// AES-128-CBC：7mmtv 式纯 JS（src/util/aes128Pure.js），与 Node/crypto-js 输出一致
+function aes(text, operation = true) {
+    if (operation) {
+        return aes128CbcEncryptB64(JSON.stringify(text), AES_KEY_STR, AES_IV_STR);
+    }
+    return JSON.parse(aes128CbcDecryptB64(String(text), AES_KEY_STR, AES_IV_STR));
 }
 
 // 图片重定向
@@ -140,12 +119,19 @@ function getProxyBase(inReq) {
     return `http://127.0.0.1:${PORT}${prefix}/proxy`;
 }
 
+function hexToBytes(hex) {
+    const h = String(hex || '').replace(/[^0-9a-fA-F]/g, '');
+    const out = new Uint8Array(h.length / 2);
+    for (let i = 0; i < out.length; i++) {
+        out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+    }
+    return out;
+}
+
 function cdnSign(pathname, expire) {
     const hex = md5(`${SIGN_SECRET}${pathname}${expire}`);
 
-    return Buffer
-        .from(hex, 'hex')
-        .toString('base64')
+    return bytesToB64(hexToBytes(hex))
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -476,10 +462,9 @@ function buildHttpSignature(
     const created =
         Math.floor(Date.now() / 1000);
 
-    const bodyHash = crypto
-        .createHash('sha256')
-        .update(body)
-        .digest('base64');
+    const bodyHash = CryptoJS.enc.Base64.stringify(
+        CryptoJS.SHA256(CryptoJS.enc.Utf8.parse(body)),
+    );
 
     const contentDigest =
         `sha-256=:${bodyHash}:`;
@@ -496,13 +481,9 @@ function buildHttpSignature(
         `"@signature-params": ${inner}`,
     ].join('\n');
 
-    const signatureValue = crypto
-        .createHmac(
-            'sha256',
-            Buffer.from(signKey, 'utf8')
-        )
-        .update(signingString)
-        .digest('base64');
+    const signatureValue = CryptoJS.enc.Base64.stringify(
+        CryptoJS.HmacSHA256(signingString, CryptoJS.enc.Utf8.parse(signKey)),
+    );
 
     return {
         'content-digest': contentDigest,
@@ -518,7 +499,7 @@ function buildHttpSignature(
 
 async function getdata(data) {
 
-    const uid = uuidv4();
+    const uid = newUid();
 
     const t =
         Math.floor(Date.now() / 1000);
@@ -568,8 +549,7 @@ async function getdata(data) {
         {
             headers: {
                 ...signHeaders,
-                'content-length':
-                    Buffer.byteLength(body),
+                'content-length': utf8ByteLength(body),
             },
         }
     );
