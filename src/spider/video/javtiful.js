@@ -1,13 +1,9 @@
 import { load } from 'cheerio';
-import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+import req from '../../util/req.js';
 
 /**
  * Javtiful · javtiful.com
- * 列表 /zh/videos、分类 /zh/category/{slug}
- * 播放页 video source / playerSources 为 fast-stream.jav.si 直链 mp4
+ * 播放：页面内 watch-config → POST playback 换 sources（短时效 token URL）
  */
 
 const SITE = 'https://javtiful.com';
@@ -33,9 +29,8 @@ function headers(referer) {
 }
 
 async function fetchText(url) {
-    const resp = await axios.get(url, {
+    const resp = await req.get(url, {
         headers: headers(url),
-        // httpsAgent: agent,
         timeout: 25000,
         responseType: 'text',
         validateStatus: () => true,
@@ -44,10 +39,10 @@ async function fetchText(url) {
     return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
 }
 
-function absUrl(href) {
+function absUrl(href, base = SITE) {
     if (!href) return '';
     try {
-        return new URL(href, SITE).href;
+        return new URL(href, base).href;
     } catch {
         return '';
     }
@@ -132,19 +127,23 @@ function parseCategories(html) {
     return list;
 }
 
+function normalizeSources(rawList) {
+    return (rawList || [])
+        .map((item) => ({
+            url: String(item?.src || item?.url || '').trim(),
+            size: parseInt(item?.size, 10) || 0,
+        }))
+        .filter((item) => /^https?:\/\//i.test(item.url))
+        .sort((a, b) => b.size - a.size);
+}
+
 function extractSources(html) {
     const text = String(html || '');
     const block = text.match(/"playerSources"\s*:\s*(\[[\s\S]*?\])/);
     if (block) {
         try {
-            const arr = JSON.parse(block[1]);
-            const list = arr
-                .map((item) => ({
-                    url: String(item?.src || '').trim(),
-                    size: parseInt(item?.size, 10) || 0,
-                }))
-                .filter((item) => /^https?:\/\//i.test(item.url));
-            if (list.length) return list.sort((a, b) => b.size - a.size);
+            const list = normalizeSources(JSON.parse(block[1]));
+            if (list.length) return list;
         } catch {
             /* fall through */
         }
@@ -157,6 +156,63 @@ function extractSources(html) {
         list.push({ url, size: parseInt($(el).attr('size'), 10) || 0 });
     });
     return list.sort((a, b) => b.size - a.size);
+}
+
+async function fetchSourcesViaWatchConfig(html, pageUrl) {
+    const cfgMatch = String(html || '').match(
+        /<script id="watch-config" type="application\/json">\s*([\s\S]*?)<\/script>/i,
+    );
+    if (!cfgMatch) return [];
+    let cfg;
+    try {
+        cfg = JSON.parse(cfgMatch[1]);
+    } catch {
+        return [];
+    }
+    const endpoint = String(cfg?.playback?.endpoint || '').trim();
+    const ticket = String(cfg?.playback?.ticket || '').trim();
+    if (!endpoint || !ticket) return [];
+
+    const resp = await req.post(`${SITE}${endpoint}`, `ticket=${encodeURIComponent(ticket)}`, {
+        headers: {
+            ...headers(pageUrl),
+            Accept: 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        timeout: 25000,
+        validateStatus: () => true,
+    });
+    const data = resp.data && typeof resp.data === 'object' ? resp.data : {};
+    return normalizeSources(data.sources);
+}
+
+async function resolveSources(pageUrl) {
+    const html = await fetchText(pageUrl);
+    if (!html) return { sources: [], pageUrl, html: '' };
+    let sources = await fetchSourcesViaWatchConfig(html, pageUrl);
+    if (!sources.length) sources = extractSources(html);
+    if (!sources.length && /\/embed\//i.test(pageUrl)) {
+        sources = await fetchSourcesViaWatchConfig(html, pageUrl);
+    }
+    return { sources, pageUrl, html };
+}
+
+function pageUrlFromId(raw) {
+    let id = String(raw || '').trim();
+    if (id.includes('$')) id = id.split('$').pop().trim();
+    if (!id) return '';
+    if (/^https?:\/\//i.test(id)) return id;
+    if (id.includes('/video/') || id.includes('/embed/')) {
+        return absUrl(id.startsWith('/') ? id : `/zh/${id.replace(/^\/?zh\//, '')}`);
+    }
+    return absUrl(`/zh/video/${id}`);
+}
+
+function isDirectMedia(url) {
+    const u = String(url || '');
+    if (!/^https?:\/\//i.test(u)) return false;
+    return /\.(mp4|m3u8)(\?|$)/i.test(u) || /fast-stream|\/stream\//i.test(u);
 }
 
 async function init() {
@@ -191,12 +247,12 @@ async function category(inReq) {
 
 async function detail(inReq) {
     let raw = String(Array.isArray(inReq.body.id) ? inReq.body.id[0] : inReq.body.id || '').trim();
-    const page = raw.startsWith('http') ? raw : absUrl(raw.startsWith('/') ? raw : `/zh/video/${raw}`);
+    const page = pageUrlFromId(raw) || absUrl(raw.startsWith('/') ? raw : `/zh/video/${raw}`);
+    const { sources } = await resolveSources(page);
     const html = await fetchText(page);
     const $ = load(html);
     const name = cleanName($('h1').first().text() || $('meta[property="og:title"]').attr('content'));
     const pic = absUrl($('meta[property="og:image"]').attr('content') || $('video#front-player').attr('poster'));
-    const sources = extractSources(html);
     const from = [];
     const urls = [];
     sources.forEach((item) => {
@@ -221,17 +277,33 @@ async function detail(inReq) {
 }
 
 async function play(inReq) {
-    const header = { 'User-Agent': UA, Referer: `${SITE}/` };
     let url = String(inReq.body.id || '').trim();
     if (url.includes('$')) url = url.split('$').pop().trim();
-    if (/fast-stream\.jav\.si|\.mp4(\?|$)/i.test(url)) {
-        return { parse: 0, jx: 0, url, header };
+
+    const pageUrl = pageUrlFromId(url) || (isDirectMedia(url) ? `${SITE}/` : '');
+    const referer = pageUrl && !isDirectMedia(url) ? pageUrl : `${SITE}/`;
+
+    if (isDirectMedia(url)) {
+        return {
+            parse: 0,
+            jx: 0,
+            url,
+            header: { 'User-Agent': UA, Referer: referer },
+        };
     }
-    if (!url) return { parse: 0, jx: 0, url: '', header };
-    const page = url.startsWith('http') ? url : absUrl(url);
-    const sources = extractSources(await fetchText(page));
-    if (!sources.length) return { parse: 0, jx: 0, url: '', header };
-    return { parse: 0, jx: 0, url: sources[0].url, header };
+
+    if (!pageUrl) {
+        return { parse: 0, jx: 0, url: '', header: { 'User-Agent': UA, Referer: `${SITE}/` } };
+    }
+
+    const { sources } = await resolveSources(pageUrl);
+    const playUrl = sources[0]?.url || '';
+    return {
+        parse: 0,
+        jx: 0,
+        url: playUrl,
+        header: { 'User-Agent': UA, Referer: pageUrl },
+    };
 }
 
 async function search(inReq) {
@@ -252,6 +324,31 @@ async function search(inReq) {
     };
 }
 
+async function proxyHandler(inReq, reply) {
+    const target = decodeURIComponent(String(inReq.query.url || '').trim());
+    const referer = decodeURIComponent(String(inReq.query.referer || `${SITE}/`).trim());
+    if (!/^https?:\/\//i.test(target)) return reply.code(404).type('text/plain').send('');
+    try {
+        const r = await req.get(target, {
+            headers: { 'User-Agent': UA, Referer: referer, Accept: '*/*', Range: inReq.headers.range || '' },
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            validateStatus: () => true,
+        });
+        if (r.status >= 400) return reply.code(r.status).type('text/plain').send('');
+        const ct = r.headers['content-type'] || 'application/octet-stream';
+        if (r.headers['content-range']) reply.header('Content-Range', r.headers['content-range']);
+        if (r.headers['accept-ranges']) reply.header('Accept-Ranges', r.headers['accept-ranges']);
+        return reply
+            .header('Access-Control-Allow-Origin', '*')
+            .type(ct)
+            .code(r.status === 206 ? 206 : 200)
+            .send(Buffer.from(r.data));
+    } catch {
+        return reply.code(502).type('text/plain').send('');
+    }
+}
+
 export default {
     meta: {
         key: 'javtiful',
@@ -265,5 +362,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/proxy', proxyHandler);
     },
 };
