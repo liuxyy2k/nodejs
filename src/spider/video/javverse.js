@@ -1,5 +1,14 @@
+import crypto from 'crypto';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { load } from 'cheerio';
 import req from '../../util/req.js';
+
+function toArray(v) {
+    if (!v) return [];
+    return Array.isArray(v) ? v : [v];
+}
 
 /* ==========================================================================
  *  JAV Verse  ·  https://javverse.com
@@ -30,8 +39,11 @@ import req from '../../util/req.js';
  *   POST /api/video/sessions/refresh { sessionId, ... }     -> 续期播放会话
  * ========================================================================== */
 
+const META_KEY = 'javverse';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://javverse.com';
+/** 点播代理暂存鉴权(TV 端往往不会把 play.header 带给分片/MP4) */
+const PLAY_AUTH_TTL_MS = 6 * 60 * 60 * 1000;
 
 // 站点前端公开的 Supabase 配置(用于账号登录)
 const SB_URL = 'https://ywapzolifdkuecxktlio.supabase.co';
@@ -55,6 +67,48 @@ let authMsg = '';
 let refreshFailAt = 0;
 /** /api/video/sessions 下发的 HttpOnly 密钥,拉 m3u8 必须带上 */
 let videoKeyCookie = '';
+const playAuthStore = new Map();
+
+/* --------------------------------------------------------------------------
+ *  登录态落盘
+ *  Supabase 的 refreshToken 是「用一次换一次」的轮换制:每次自动续期后,
+ *  旧 token 立刻作废。原来只存在内存里,进程一重启就又拿源码里那条早作废
+ *  的 token 去换,结果就是「明明刚还能播,重启后登录失效」。这里把轮换后的
+ *  新 token 存到旁边文件里,重启接着用。
+ * ------------------------------------------------------------------------ */
+const AUTH_STORE_FILE = (() => {
+    if (process.env.JAVVERSE_AUTH_FILE) return process.env.JAVVERSE_AUTH_FILE;
+    // 放临时目录而不是插件目录:有的框架会监听插件目录热重载,
+    // 写文件分分钟触发无限重载。想换位置就设 JAVVERSE_AUTH_FILE。
+    try {
+        const dir = path.join(os.tmpdir(), 'javverse-plugin');
+        fs.mkdirSync(dir, { recursive: true });
+        return path.join(dir, 'auth.json');
+    } catch {
+        return '';
+    }
+})();
+
+let persistedRT = (() => {
+    if (!AUTH_STORE_FILE) return '';
+    try {
+        const j = JSON.parse(fs.readFileSync(AUTH_STORE_FILE, 'utf8'));
+        return (j && j.refresh_token) || '';
+    } catch {
+        return '';
+    }
+})();
+
+function persistRefreshToken(rt) {
+    const token = String(rt || '').trim();
+    if (!token || token === persistedRT || !AUTH_STORE_FILE) return;
+    persistedRT = token;
+    try {
+        fs.writeFileSync(AUTH_STORE_FILE, JSON.stringify({ refresh_token: token, savedAt: new Date().toISOString() }), { mode: 0o600 });
+    } catch {
+        /* 目录只读就算了,不影响本次运行 */
+    }
+}
 
 /* --------------------------------------------------------------------------
  *  基础请求
@@ -74,6 +128,250 @@ function abs(u) {
     const s = String(u).trim();
     if (/^https?:\/\//i.test(s)) return s;
     return site + (s.startsWith('/') ? s : `/${s}`);
+}
+
+function b64url(s) {
+    return Buffer.from(String(s), 'utf8').toString('base64')
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function unb64url(s) {
+    return Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+}
+
+function prunePlayAuthStore() {
+    const now = Date.now();
+    for (const [k, v] of playAuthStore) {
+        if (!v || v.expires < now) playAuthStore.delete(k);
+    }
+}
+
+function storePlayAuth(headers) {
+    prunePlayAuthStore();
+    const token = crypto.randomBytes(12).toString('hex');
+    playAuthStore.set(token, {
+        headers: {
+            'User-Agent': headers['User-Agent'] || UA,
+            Referer: headers.Referer || `${site}/`,
+            Accept: '*/*',
+            ...(headers.Authorization ? { Authorization: headers.Authorization } : {}),
+            ...(headers.Cookie ? { Cookie: headers.Cookie } : {}),
+        },
+        expires: Date.now() + PLAY_AUTH_TTL_MS,
+    });
+    return token;
+}
+
+const ROUTE_SUFFIX_RE = /\/(init|home|category|detail|play|search)\/?$/i;
+
+function pluginPrefixOf(inReq) {
+    try {
+        const full = String(inReq?.raw?.url || inReq?.url || '').split('?')[0];
+        if (full && ROUTE_SUFFIX_RE.test(full)) return full.replace(ROUTE_SUFFIX_RE, '');
+    } catch {
+        /* 落到下面 */
+    }
+    const prefix = inReq?.server?.prefix;
+    if (typeof prefix === 'string') return prefix === '/' ? '' : prefix.replace(/\/+$/, '');
+    return `/spider/${META_KEY}/3`;
+}
+
+function proxyStreamPath(inReq, targetUrl, referer, token) {
+    try {
+        const srv = inReq?.server;
+        const addr = srv?.address?.();
+        const dynamic = addr?.dynamic || 'js2p://_WEB_';
+        const prefix = pluginPrefixOf(inReq);
+        const qs = `t=${token}&u=${b64url(targetUrl)}&r=${b64url(referer || '')}`;
+        if (dynamic) return `${dynamic}${prefix}/proxy/stream?${qs}`;
+        if (addr?.url) return `${addr.url}${prefix}/proxy/stream?${qs}`;
+        return '';
+    } catch {
+        return '';
+    }
+}
+
+function needsStreamProxy(url) {
+    const u = String(url || '');
+    return /javverse\.com\/api\/video\//i.test(u) || u.startsWith('/api/video/');
+}
+
+function rewriteJvM3u8(raw, playlistUrl, selfBase, referer, token) {
+    const lines = String(raw).split(/\r?\n/);
+    const mapLine = (line) => {
+        const s = line.trim();
+        if (!s || s.startsWith('#')) {
+            if (s.includes('URI="')) {
+                return line.replace(/URI="([^"]+)"/g, (_, uri) => {
+                    try {
+                        const absUri = new URL(uri, playlistUrl).href;
+                        return `URI="${selfBase}/proxy/stream?t=${token}&u=${b64url(absUri)}&r=${b64url(referer || '')}"`;
+                    } catch {
+                        return line;
+                    }
+                });
+            }
+            return line;
+        }
+        try {
+            const absUri = new URL(s, playlistUrl).href;
+            return `${selfBase}/proxy/stream?t=${token}&u=${b64url(absUri)}&r=${b64url(referer || '')}`;
+        } catch {
+            return line;
+        }
+    };
+    return lines.map(mapLine).join('\n');
+}
+
+function copyUpstreamHeaders(reply, hdrs, extra = {}) {
+    for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag']) {
+        if (hdrs?.[key] !== undefined) reply.header(key, hdrs[key]);
+    }
+    Object.entries(extra).forEach(([k, v]) => reply.header(k, v));
+}
+
+function playlistSelfBase(request) {
+    const urlPath = String(request.url || '').split('?')[0];
+    const prefix = urlPath.replace(/\/proxy\/stream\/?$/i, '') || `/spider/${META_KEY}/3`;
+    const srv = request.server;
+    const dynamic = srv?.address?.()?.dynamic || '';
+    const host = request.headers?.host;
+    if (dynamic) return `${dynamic}${prefix}`;
+    if (host) return `http://${host}${prefix}`;
+    const port = srv?.address?.()?.port;
+    if (port) return `http://127.0.0.1:${port}${prefix}`;
+    return '';
+}
+
+async function streamProxy(request, reply) {
+    const q = request?.query || {};
+    const token = q.t;
+    const entry = playAuthStore.get(token);
+    if (!entry || entry.expires < Date.now()) {
+        reply.code(403).send('play auth expired, replay');
+        return;
+    }
+    let target = '';
+    let referer = `${site}/`;
+    try {
+        target = unb64url(q.u);
+        if (q.r) referer = unb64url(q.r) || referer;
+    } catch {
+        reply.code(400).send('bad u');
+        return;
+    }
+    if (!/^https?:\/\//.test(target)) {
+        reply.code(400).send('bad u');
+        return;
+    }
+    const headers = {
+        ...entry.headers,
+        Referer: referer,
+        'Accept-Encoding': 'identity',
+        Accept: '*/*',
+    };
+    const range = request.headers?.range ? String(request.headers.range) : '';
+    if (range) headers.Range = range;
+    if (request.headers?.['if-range']) headers['If-Range'] = String(request.headers['if-range']);
+
+    const likelyPlaylist = /\.m3u8(\?|#|$)/i.test(target)
+        || /\/api\/video\/media\/stream\?/i.test(target);
+
+    if (likelyPlaylist) {
+        let pl;
+        try {
+            pl = await req.get(target, {
+                headers,
+                timeout: 120000,
+                validateStatus: () => true,
+                responseType: 'text',
+                maxRedirects: 5,
+            });
+        } catch (e) {
+            reply.code(502).send(String(e.message || 'upstream'));
+            return;
+        }
+        const raw = typeof pl.data === 'string' ? pl.data : String(pl.data || '');
+        if (!raw.includes('#EXTM3U')) {
+            reply.code(pl.status >= 200 && pl.status < 600 ? pl.status : 502).send(raw.slice(0, 500));
+            return;
+        }
+        const selfBase = playlistSelfBase(request);
+        if (!selfBase) {
+            reply.code(302).header('Location', target).send();
+            return;
+        }
+        reply.code(200);
+        copyUpstreamHeaders(reply, pl.headers, {
+            'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
+            'Cache-Control': 'no-cache',
+        });
+        reply.send(rewriteJvM3u8(raw, target, selfBase, referer, token));
+        return;
+    }
+
+    let resp;
+    try {
+        resp = await req.get(target, {
+            headers,
+            timeout: 120000,
+            validateStatus: () => true,
+            responseType: 'stream',
+            maxRedirects: 5,
+        });
+    } catch (e) {
+        reply.code(502).send(String(e.message || 'upstream'));
+        return;
+    }
+    const upStream = resp.data;
+    if (!upStream) {
+        reply.code(502).send('upstream');
+        return;
+    }
+
+    const status = resp.status >= 200 && resp.status < 600 ? resp.status : 502;
+    if (status === 204 || status === 304) {
+        try {
+            upStream.destroy?.();
+        } catch {
+            /* ignore */
+        }
+        reply.code(status).header('Cache-Control', 'no-cache').send();
+        return;
+    }
+
+    reply.code(status);
+    copyUpstreamHeaders(reply, resp.headers, { 'Cache-Control': 'no-cache' });
+
+    const close = () => {
+        try {
+            upStream.destroy?.();
+        } catch {
+            /* ignore */
+        }
+    };
+    request.raw?.once?.('aborted', close);
+    request.raw?.once?.('close', close);
+    reply.raw?.once?.('close', close);
+
+    try {
+        await reply.send(upStream);
+    } catch (e) {
+        close();
+        if (!reply.sent) reply.code(502).send(String(e.message || 'upstream stream'));
+    }
+}
+
+function pickLine2File(data) {
+    if (!data || typeof data !== 'object') return '';
+    return data.fileUrl || data.file_url || data.url || '';
+}
+
+function pickPlaylist(data) {
+    if (!data || typeof data !== 'object') return '';
+    return data.playlistUrl || data.playlist_url || data.m3u8Url || data.hlsUrl
+        || data.streamUrl || data.stream?.playlistUrl || data.stream?.url
+        || (typeof data.playlist === 'string' ? data.playlist : '');
 }
 
 async function httpJson(url, opt = {}) {
@@ -124,7 +422,7 @@ function mergeBrowseCookie(setCookie) {
         const i = pair.indexOf('=');
         if (i > 0) jar[pair.slice(0, i)] = pair;
     }
-    for (const raw of setCookie || []) {
+    for (const raw of toArray(setCookie)) {
         const pair = String(raw).split(';')[0].trim();
         const i = pair.indexOf('=');
         if (i > 0) jar[pair.slice(0, i)] = pair;
@@ -142,7 +440,7 @@ function isBrowseGatePage(html) {
     return s.includes('fetch("/_browse/gate"') || (s.includes('id="opening"') && s.includes('jv-gate-try'));
 }
 
-async function ensureBrowseGate(force = false) {
+async function ensureBrowseGate(force = false, depth = 0) {
     if (!force && gateReadyAt && Date.now() - gateReadyAt < GATE_TTL_MS && browseCookie.includes('__Host-jv-browse=')) {
         return true;
     }
@@ -181,7 +479,8 @@ async function ensureBrowseGate(force = false) {
                 });
                 captureBrowse(vr.headers['set-cookie']);
                 if (vr.headers['set-cookie']?.length) req.saveCookies(true);
-                return ensureBrowseGate(true);
+                // 原来无条件递归,遇到持续 429 + verifyUrl 会一直往下套
+                if (depth < 2) return ensureBrowseGate(true, depth + 1);
             }
         } catch {
             /* 429 无 verifyUrl */
@@ -268,7 +567,10 @@ function isCatalogUrl(url) {
 
 // 浏览列表/详情用游客头;带 Supabase Cookie 的 GET 容易触发 Cloudflare
 async function getHtml(url, referer) {
-    if (isCatalogUrl(url)) {
+    // 详情页(/work/123)本来就没有 work-card,走 RSC 那套永远命中不了,
+    // 只会白跑两次请求、白白刷站点频率。列表页才走 RSC。
+    const detailLike = /\/work\/\d+/.test(String(url || ''));
+    if (!detailLike && isCatalogUrl(url)) {
         const rsc = await getRsc(url);
         if (rsc && rsc.includes('work-card')) return rsc;
     }
@@ -288,7 +590,7 @@ async function getHtml(url, referer) {
             /* keep guest html */
         }
     }
-    if ((isCfBlock(html) || !String(html).includes('work-card')) && isCatalogUrl(url)) {
+    if ((isCfBlock(html) || (!detailLike && !String(html).includes('work-card'))) && isCatalogUrl(url)) {
         const rsc = await getRsc(url);
         if (rsc && rsc.includes('work-card')) return rsc;
     }
@@ -300,18 +602,15 @@ async function getDetailHtml(url) {
 }
 
 function captureVideoKey(setCookie) {
-    for (const raw of setCookie || []) {
+    for (const raw of toArray(setCookie)) {
         const pair = String(raw).split(';')[0].trim();
-        if (pair.startsWith('jav_verse_video_key=')) {
-            videoKeyCookie = pair;
-            return;
-        }
+        if (/^jav_verse_video_key=/i.test(pair)) videoKeyCookie = pair;
     }
 }
 
-async function postJson(path, body, referer = `${site}/`) {
+async function postGuestJson(path, body, referer = `${site}/`) {
     const url = site + path;
-    const headers = authHeaders(referer);
+    const headers = mergeCookieHeader(baseHeaders(referer));
     headers['Content-Type'] = 'application/json';
     headers.Accept = 'application/json, text/plain, */*';
     headers.Origin = site;
@@ -336,6 +635,48 @@ async function postJson(path, body, referer = `${site}/`) {
             }
         }
         return { status: r.status, data };
+    } catch (e) {
+        return { status: e.response?.status || 0, data: e.response?.data || { error: e.message } };
+    }
+}
+
+async function postJsonOnce(path, body, referer) {
+    const url = site + path;
+    const headers = authHeaders(referer);
+    headers['Content-Type'] = 'application/json';
+    headers.Accept = 'application/json, text/plain, */*';
+    headers.Origin = site;
+    const r = await req({
+        method: 'POST',
+        url,
+        headers,
+        data: body,
+        timeout: 30000,
+        validateStatus: () => true,
+        responseType: 'text',
+    });
+    captureVideoKey(r.headers['set-cookie']);
+    let data = r.data;
+    if (typeof data === 'string') {
+        const trimmed = data.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try { data = JSON.parse(trimmed); } catch { data = { text: data.slice(0, 400) }; }
+        } else {
+            data = trimmed;
+        }
+    }
+    return { status: r.status, data };
+}
+
+async function postJson(path, body, referer = `${site}/`) {
+    try {
+        let r = await postJsonOnce(path, body, referer);
+        if (isVideoAuthError(r.data, r.status)) {
+            session = null;
+            await ensureSession(true);
+            r = await postJsonOnce(path, body, referer);
+        }
+        return r;
     } catch (e) {
         return { status: e.response?.status || 0, data: e.response?.data || { error: e.message } };
     }
@@ -458,8 +799,43 @@ function authErrText(d) {
     if (/captcha/i.test(all)) return '站点登录带人机验证,后台请求过不去,请改用 refreshToken 或 cookie 方式';
     if (/invalid_credentials/i.test(all)) return '账号或密码不正确';
     if (/email_not_confirmed/i.test(all)) return '邮箱还没验证,先去邮箱点确认链接';
-    if (/Refresh token is not valid|invalid_grant/i.test(all)) return '登录态已失效,重新取一份 refreshToken';
+    if (/Refresh token is not valid|invalid_grant|refresh_token_already_used/i.test(all)) {
+        return '登录态已失效,请在 ext 或源码 cfg 里更新 refreshToken(浏览器 Local Storage 重新复制)';
+    }
     return msg || '登录失败';
+}
+
+function extractRefreshToken(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (s.startsWith('base64-') || s.charAt(0) === '{') {
+        const parsed = parseSessionAny(s);
+        return (parsed && parsed.refresh_token) || '';
+    }
+    return s;
+}
+
+function sessionLive() {
+    return !!(session && session.access_token && (session.expires_at || 0) - 60 > nowSec());
+}
+
+function isVideoAuthError(data, status) {
+    if (status === 401) return true;
+    const s = typeof data === 'string' ? data : JSON.stringify(data || {});
+    return /auth_required|登录已过期|Unauthorized/i.test(s);
+}
+
+async function hydrateAuthFromJar() {
+    try {
+        await req.loadCookies();
+        const jarStr = await req.getCookieJar().getCookieString(`${site}/`);
+        if (!jarStr || !jarStr.includes(SB_COOKIE)) return;
+        if (!cfg.cookie) cfg.cookie = jarStr;
+        const fromJar = parseSessionAny(jarStr);
+        if (fromJar && fromJar.access_token) session = fromJar;
+    } catch {
+        /* ignore */
+    }
 }
 
 // 账号密码登录(站点开了人机验证时会失败,返回原因)
@@ -480,16 +856,9 @@ async function loginByPassword() {
 
 // 用 refreshToken 换新登录态(这条不需要人机验证,可长期自动续)
 async function refreshSession() {
-    let rt = cfg.refreshToken || (session && session.refresh_token);
-    if (rt && String(rt).startsWith('base64-')) {
-        const parsed = parseSessionAny(rt);
-        if (parsed) {
-            session = parsed;
-            cfg.refreshToken = parsed.refresh_token;
-            rt = parsed.refresh_token;
-        }
-    }
+    let rt = extractRefreshToken(cfg.refreshToken) || (session && session.refresh_token) || '';
     if (!rt) return null;
+    cfg.refreshToken = rt;
     const headers = { apikey: SB_KEY, 'Content-Type': 'application/json' };
     const r = await httpJson(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
@@ -498,34 +867,49 @@ async function refreshSession() {
     });
     if (r.status >= 200 && r.status < 300 && r.data && r.data.access_token) {
         session = makeSession(r.data);
+        cfg.refreshToken = session.refresh_token || rt;
+        // Supabase 是轮换制:旧 refreshToken 换完立即作废,必须落盘,否则重启就掉登录
+        persistRefreshToken(session.refresh_token);
         authMsg = '登录成功';
         refreshFailAt = 0;
         return session;
     }
     refreshFailAt = Date.now();
-    if (!session || !session.access_token) authMsg = authErrText(r.data);
+    authMsg = authErrText(r.data);
+    session = null;
     return null;
 }
 
 let authBusy = null;
 async function ensureSession(force) {
-    if (!force && session && session.access_token && session.expires_at - 90 > nowSec()) return session;
+    if (!force && sessionLive()) return session;
     if (authBusy) return authBusy;
     authBusy = (async () => {
         try {
+            await hydrateAuthFromJar();
             if (!session && cfg.cookie) {
                 const fromCookie = parseSessionAny(cfg.cookie);
                 if (fromCookie) session = fromCookie;
             }
             if (!session && cfg.accessToken) {
-                session = makeSession({ access_token: cfg.accessToken, expires_in: 3600, refresh_token: cfg.refreshToken });
+                session = makeSession({
+                    access_token: cfg.accessToken,
+                    expires_in: 3600,
+                    refresh_token: extractRefreshToken(cfg.refreshToken) || cfg.refreshToken,
+                });
             }
-            if ((cfg.refreshToken || (session && session.refresh_token)) && Date.now() - refreshFailAt > 60000) {
+            const wantRefresh = force || !sessionLive();
+            if (wantRefresh && (extractRefreshToken(cfg.refreshToken) || (session && session.refresh_token)) && Date.now() - refreshFailAt > 15000) {
                 const s = await refreshSession();
                 if (s) return s;
+            } else if (sessionLive()) {
+                return session;
             }
-            if (cfg.email && cfg.password) return await loginByPassword();
-            return session;
+            if (cfg.email && cfg.password) {
+                const s = await loginByPassword();
+                if (s) return s;
+            }
+            return sessionLive() ? session : null;
         } finally {
             authBusy = null;
         }
@@ -539,17 +923,29 @@ function hasAuth() {
 }
 
 function mergeCookieHeader(h) {
-    const parts = [];
-    if (cfg.cookie) parts.push(cfg.cookie);
-    if (videoKeyCookie) parts.push(videoKeyCookie);
-    if (session && session.access_token) parts.push(buildSupabaseCookie(session));
-    if (parts.length) h.Cookie = h.Cookie ? `${parts.join('; ')}; ${h.Cookie}` : parts.join('; ');
+    // 按 cookie 名去重(后来的覆盖先来的),避免同一份 sb-xxx-auth-token
+    // 在同一个请求头里出现好几次,把 Supabase 的分块 cookie 解析搞乱
+    const bag = new Map();
+    const push = (str) => {
+        for (const part of String(str || '').split(';')) {
+            const pair = part.trim();
+            if (!pair) continue;
+            const i = pair.indexOf('=');
+            if (i > 0) bag.set(pair.slice(0, i), pair);
+        }
+    };
+    push(cfg.cookie);
+    push(browseCookie);
+    push(videoKeyCookie);
+    if (sessionLive()) push(buildSupabaseCookie(session));
+    const built = Array.from(bag.values()).join('; ');
+    if (built) h.Cookie = h.Cookie ? `${built}; ${h.Cookie}` : built;
     return h;
 }
 
 function authHeaders(referer) {
     const h = baseHeaders(referer);
-    if (session && session.access_token) h.Authorization = `Bearer ${session.access_token}`;
+    if (sessionLive()) h.Authorization = `Bearer ${session.access_token}`;
     return mergeCookieHeader(h);
 }
 
@@ -800,7 +1196,7 @@ function pickVariant(list, want) {
 }
 
 // 解析片源:线路1 = sessions(m3u8) 线路2 = line2(直链)
-async function resolvePlay(workId, code, variant) {
+async function resolvePlay(workId, code, variant, opts = {}) {
     const lines = [];
     const notes = [];
     if (!workId) return { lines, notes };
@@ -819,10 +1215,25 @@ async function resolvePlay(workId, code, variant) {
     const v2 = pickVariant(prep.line2Variants, variant);
 
     const wid = parseInt(workId, 10) || workId;
-    const body1 = v1 ? { workId: wid, code, variant: v1 } : { workId: wid, code };
+
+    if (!opts.skipLine2) {
+        try {
+            const s2 = await postGuestJson('/api/video/line2', { workId: wid, code }, pageRef);
+            const fileUrl = pickLine2File(s2.data);
+            if (s2.status >= 200 && s2.status < 300 && fileUrl) {
+                const tag = s2.data.variant || v2;
+                lines.push({ name: `线路2${tag ? ` ${tag}` : ''}`, url: abs(fileUrl) });
+            }
+        } catch {
+            /* line2 optional */
+        }
+    }
+
+    const variantTag = v1 || variant || 'standard';
+    const body1 = { workId: wid, code, variant: variantTag };
     try {
         const s = await postJson('/api/video/sessions', body1, pageRef);
-        const playlistUrl = s.data && (s.data.playlistUrl || s.data.playlist_url || s.data.url || s.data.m3u8Url);
+        const playlistUrl = pickPlaylist(s.data);
         if (isCloudflarePayload(s.data)) {
             notes.push('播放接口被 Cloudflare 拦截,请在 ext 里补充浏览器 Cookie(含 cf_clearance)');
         } else if (s.status === 401) {
@@ -842,20 +1253,6 @@ async function resolvePlay(workId, code, variant) {
         notes.push('线路 1 请求失败');
     }
 
-    try {
-        const body2 = v2 ? { workId: wid, code, variant: v2 } : { workId: wid, code };
-        const s = await postJson('/api/video/line2', body2, pageRef);
-        const fileUrl = s.data && (s.data.fileUrl || s.data.file_url || s.data.url);
-        if (s.status >= 200 && s.status < 300 && fileUrl) {
-            const tag = s.data.variant || v2;
-            lines.push({ name: `线路2${tag ? ` ${tag}` : ''}`, url: abs(fileUrl) });
-        } else if (s.status !== 401) {
-            notes.push((s.data && (s.data.error || s.data.msg)) || '线路 2 片源暂时无法获取');
-        }
-    } catch (e) {
-        /* 线路 2 拿不到就算了 */
-    }
-
     return { lines, notes };
 }
 
@@ -865,21 +1262,19 @@ async function resolvePlay(workId, code, variant) {
 async function init(inReq) {
     const ext = (inReq && inReq.body && inReq.body.ext) || {};
     cfg.cookie = ext.cookie || ext.cookieJavverse || cfg.cookie || '';
-    cfg.email = ext.email || ext.username || cfg.email || 'liuxy01999@gmail.com';
-    cfg.password = ext.password || cfg.password || '12345678';
+    cfg.email = ext.email || ext.username || cfg.email || '';
+    cfg.password = ext.password || cfg.password || '';
     cfg.captchaToken = ext.captchaToken || cfg.captchaToken || '';
-    cfg.refreshToken = ext.refreshToken || ext.refresh_token || cfg.refreshToken || '';
+    // 优先级:ext 里手填的 > 上次自动轮换后落盘的 > 源码兜底(源码那条基本早已作废)
+    cfg.refreshToken = ext.refreshToken || ext.refresh_token || persistedRT || cfg.refreshToken || '';
     cfg.accessToken = ext.accessToken || ext.access_token || cfg.accessToken || '';
 
-    // refreshToken 也可能是整段登录态 JSON 或 Local Storage 的 base64- 串
+    // refreshToken 也可能是整段登录态 JSON 或 Local Storage 的 base64- 串(只提取 refresh, 避免过期 access 被当成已登录)
     if (cfg.refreshToken) {
         const trimmed = cfg.refreshToken.trim();
         if (trimmed.charAt(0) === '{' || trimmed.startsWith('base64-')) {
-            const js = parseSessionAny(trimmed);
-            if (js) {
-                session = js;
-                cfg.refreshToken = js.refresh_token;
-            }
+            const rt = extractRefreshToken(trimmed);
+            if (rt) cfg.refreshToken = rt;
         }
     }
     // 贴的是 cookie 的话,里面就带着登录态,直接反解出来
@@ -887,14 +1282,16 @@ async function init(inReq) {
         const s = parseSessionAny(cfg.cookie);
         if (s) session = s;
     }
+    // 首次初始化本来就还没有内存态,非强制刷新也一定会去换一次;
+    // 用非强制是为了避免"每次 init 都白白轮换一次 token"
     if (hasAuth()) await ensureSession();
 
     return {
         cookie: cfg.cookie,
         email: cfg.email,
         // 方便调用方自查登录是否真的成功
-        login: !!(session && session.access_token),
-        loginMsg: authMsg || (hasAuth() ? '' : '未配置登录信息'),
+        login: sessionLive(),
+        loginMsg: authMsg || (hasAuth() ? (sessionLive() ? '' : '登录态无效,请更新 refreshToken') : '未配置登录信息'),
         user: (session && session.user && (session.user.email || session.user.id)) || '',
     };
 }
@@ -1100,16 +1497,19 @@ async function play(inReq) {
     const needResolve = url.startsWith('jv://') || /\/api\/video\/media\/stream\?ticket=/.test(url);
 
     if (needResolve) {
-        await ensureSession(true);
+        await ensureBrowseGate();
+        // 不要每次播放都强制换 token:Supabase 轮换制,强制刷新等于每次都作废旧 token,
+        // 一旦落盘失败或并发就会把登录态烧掉。按需刷新就够了。
+        await ensureSession();
         let workId = '';
         let code = '';
-        let line = 1;
         let variant = '';
         if (url.startsWith('jv://')) {
             const seg = url.slice(5).split('|');
             workId = seg[0];
             code = decodeURIComponent(seg[1] || '');
-            line = parseInt(seg[2] || '1', 10) || 1;
+            // seg[2] 是线路号。两条线路都先走线路2 直链(MP4 对电视端兼容最好),
+            // 拿不到再回落线路1 的 m3u8
             variant = seg[3] ? decodeURIComponent(seg[3]) : '';
         } else {
             const m = url.match(/[?&]ticket=([^&]+)/);
@@ -1123,20 +1523,39 @@ async function play(inReq) {
         if (!code && workId) code = await lookupCodeByWorkId(workId);
         pageRef = workId ? `${site}/work/${workId}` : `${site}/`;
         videoKeyCookie = '';
-        if (line === 2) {
-            const wid = parseInt(workId, 10) || workId;
-            const s = await postJson('/api/video/line2', variant ? { workId: wid, code, variant } : { workId: wid, code }, pageRef);
-            const fileUrl = s.data && (s.data.fileUrl || s.data.file_url || s.data.url);
-            if (fileUrl) url = abs(fileUrl);
-        } else {
-            const r = await resolvePlay(workId, code, variant || null);
+        const wid = parseInt(workId, 10) || workId;
+        const tryLine2 = async () => {
+            const body2 = variant ? { workId: wid, code, variant } : { workId: wid, code };
+            const s = await postGuestJson('/api/video/line2', body2, pageRef);
+            const fileUrl = pickLine2File(s.data);
+            if (s.status >= 200 && s.status < 300 && fileUrl) return abs(fileUrl);
+            return '';
+        };
+
+        url = await tryLine2();
+        if (!url) {
+            // 线路 2 拿不到就回落线路 1。原来这里失败会把 jv:// 伪协议原样
+            // 丢给播放器 —— 播放器不认识这个协议,必然黑屏/报错。
+            const r = await resolvePlay(workId, code, variant || null, { skipLine2: true });
             const hit = r.lines.find((l) => l.url && !String(l.url).startsWith('jv://'));
             if (hit) url = hit.url;
         }
     }
 
+    if (!url || url.startsWith('jv://')) {
+        return { parse: 0, url: url || '', header: { 'User-Agent': UA, Referer: pageRef } };
+    }
+
     const header = authHeaders(pageRef);
-    return { parse: 0, url, header };
+    const fullUrl = abs(url);
+    if (needsStreamProxy(fullUrl)) {
+        const token = storePlayAuth(header);
+        const proxied = proxyStreamPath(inReq, fullUrl, pageRef, token);
+        if (proxied) {
+            return { parse: 0, url: proxied, header: { 'User-Agent': UA, Referer: pageRef } };
+        }
+    }
+    return { parse: 0, url: fullUrl, header };
 }
 
 async function search(inReq) {
@@ -1157,5 +1576,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/proxy/stream', streamProxy);
     },
 };
