@@ -2373,13 +2373,13 @@ async function fetchPage(url, opts = {}) {
       ['req', chReq, 9000],
       ['https', chHttps, 9000],
     ]);
-    if (!winner) {
+    if (!winner && !opts.directOnly) {
       await runWave([
         ['own', chOwn, 10000],
         ['demo', chDemo, 10000],
       ]);
     }
-    if (!winner) {
+    if (!winner && !opts.directOnly) {
       await runWave([
         ['jina', chJina, 10000],
         ['aoGet', chAoGet, 12000],
@@ -2466,9 +2466,9 @@ async function httpPostForm(url, bodyStr, opts = {}) {
     const deadline = new Promise((r) => setTimeout(r, remain));
     await Promise.race([winP, all, deadline]);
   };
-  const ownPostTo = async (target) => {
+  const ownPostTo = async (target, to) => {
     const w = OWN_FETCH + '/post?u=' + encodeURIComponent(target) + '&ref=' + encodeURIComponent(referer);
-    return fetchRaw2(w, { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, 12000, 'POST', bodyStr);
+    return fetchRaw2(w, { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, to || 12000, 'POST', bodyStr);
   };
   const ownPost = async () => ownPostTo(url);
   // 'fetch' 铸造通道: 有全局 fetch 时用它; 设备无 fetch 时退化为
@@ -2493,28 +2493,28 @@ async function httpPostForm(url, bodyStr, opts = {}) {
   const aoPost = async () => fetchRaw2('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), {
     'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': UA,
   }, 10000, 'POST', bodyStr);
+  // 注: codetabs POST 已实测挂掉 (VM 与真机均超时, 2026-10-27
+  // 删), 仅 GET 波次保留 codetabs。
   await runWave([['own', ownPost], ['fetch', fetchPost], ['req', reqPost], ['demo', demoPost]]);
-  if (!winner && !outcomes.some((o) => o.sawJson)) {
-    // own 重试做足 (第九轮): own 的上游 403 是站方 CF 对 Workers
-    // 出口的时段/colo 间歇拒绝 (16:07 真机 403、16:10 同请求 200),
-    // 几分钟内常自愈, 重试的价值在时间间隔。前提是没有任何通道
-    // 拿到站方 JSON —— 拿到过 JSON=false 说明令牌本身被拒, 重试
-    // 无益, 跳过。节奏: 隔 1.2s 打第二发 (own2), 再隔 2.5s 打第
-    // 三发 (own3), 均打 www 上游 (apex 主机名实测回 405 不收
-    // POST, 轮换无用, 2026-10-22 curl 直验)。
+  if (!winner && !outcomes.some((o) => o.sawJson) && (Date.now() - t0) < 20000) {
+    // own 单次短重试 (2026-10-27 详情巨慢修复): own 的上游 403
+    // 是站方 CF 对 Workers 出口的时段/colo 间歇拒绝, 但实测自愈
+    // 在分钟级 (16:07 403、16:10 200), 秒级连打两发基本无益,
+    // 却各烧 12s 超时 —— 原 own2+own3 是详情超时的主因之一。
+    // 只留一发 8s 短重试, 20s 后不再重试; aoRaw 也只在 25s
+    // 内才打, 总 POST 封顶约 30s。均打 www 上游 (apex 主机名
+    // 实测回 405 不收 POST, 轮换无用, 2026-10-22 curl 直验)。
+    // 前提不变: 任何通道拿到过 JSON=false 说明令牌本身被拒,
+    // 重试无益, 跳过。
     const tryOwn = async (name, target) => {
       let res;
-      try { res = await ownPostTo(target); } catch (e) { res = { status: 0, body: '' }; }
+      try { res = await ownPostTo(target, 8000); } catch (e) { res = { status: 0, body: '' }; }
       judge(name, res);
     };
     await new Promise((r) => setTimeout(r, 1200));
     await tryOwn('own2', url);
-    if (!winner) {
-      await new Promise((r) => setTimeout(r, 2500));
-      await tryOwn('own3', url);
-    }
   }
-  if (!winner) await runWave([['aoRaw', aoPost]]);
+  if (!winner && (Date.now() - t0) < 25000) await runWave([['aoRaw', aoPost]]);
   if (winner) return { text: winner.text, via: winner.via, outcomes, diag: postDiagOf(outcomes) };
   // 全灭归因: 有通道拿到带 status 字段的 JSON (站方明确回 false) ->
   // post-bad; 连 JSON 都没拿到 -> post-none。
@@ -2728,8 +2728,10 @@ function extractPlaySeed(html) {
 // 形态别名 (2026-10-23 真机坐实): 站方列表/搜索发的 watch 链
 // 接带 /v\d+/ 前缀且会漂移, 入库键多为去前缀 canonical 形 ——
 // 精确一发未命中时, 明明在库的片也照样全灭。候选序: 精确址 ->
-// canonical 形 -> 其余前缀形, 最多 3 发 GET (查库不耗写入预
-// 算), 命中即停; 首发超时沿用 6s, 变体发 3s。
+// canonical 形 -> 其余前缀形, 全部并行查 (查库不耗写入预
+// 算), 按序取首命中; 首发超时沿用 6s, 变体发 3s。
+// 2026-10-27 截图定位修复: 原 slice(0,3) 会截掉别名前缀形
+// 入库键, 造成假性库未命中。
 const CAST_ALIAS_PREFIXES = '/v1,/v2'.split(',');
 function castBankCandidates(watchUrl) {
   const out = [watchUrl];
@@ -2741,7 +2743,7 @@ function castBankCandidates(watchUrl) {
     const u = m[1] + p + m[2];
     if (!out.includes(u)) out.push(u);
   }
-  return out.slice(0, 3);
+  return out;
 }
 
 async function castBankGet(watchUrl, timeoutMs) {
@@ -2768,18 +2770,18 @@ async function castBankGet(watchUrl, timeoutMs) {
 
 async function castBankLookup(watchUrl) {
   const cands = castBankCandidates(watchUrl);
-  for (let i = 0; i < cands.length; i++) {
-    const hit = await castBankGet(cands[i], i === 0 ? 6000 : 3000);
-    if (hit) return hit;
-  }
+  const results = await Promise.all(cands.map((c, i) => castBankGet(c, i === 0 ? 6000 : 3000)));
+  for (const hit of results) if (hit) return hit;
   return { hit: false };
 }
 
 // 调 /api/play/ 并解出全部线路的 embed 路径: {paths, stage, via}
 async function fetchEmbedPaths(postId, mpu, referer) {
-  // 铸造库优先: 命中直接用库内路径集, 不打铸造 POST 竞速。
-  const bank = await castBankLookup(referer);
-  if (bank.hit) return { paths: bank.paths, stage: 'ok', via: 'cast-bank', postDiag: '', bank: 'hit' };
+  // 2026-10-27 详情巨慢+播不了修复: 库直出已由 resolveLines
+  // 先做 (命中且有线直接返回); 走到这里说明库未命中或库内
+  // 路径已死 (embed 全灭), 必须现铸拿新路径 —— 原先这里又
+  // 查一次库、命中即原样返回同一批死路径, POST 永不执行,
+  // 还白跑第二遍 embed 全波次, 是详情巨慢的主因之一。
   const token = dex(postId, mpu);
   const body = 'sources=' + encodeURIComponent(token) + '&ver=2';
   const r = await httpPostForm(HOST + '/api/play/', body, { referer, timeout: 18000 });
@@ -2838,9 +2840,9 @@ const DIRECT_CHANNELS = new Set(['fetch', 'req', 'https']);
 // embed 页 -> {sources, direct} (单条硬顶 20s, 防慢 embed 拖死详情)。
 // direct=true 表示 embed 由直连栈取回, 文件令牌绑设备 IP, 与播放器
 // 自洽; direct=false 为借代理出口解出, 仅对非绑定宿主可用。
-async function resolveEmbed(embedUrl, referer) {
+async function resolveEmbed(embedUrl, referer, directOnly) {
   const r = await Promise.race([
-    fetchPage(embedUrl, { kind: 'embed', referer, profile: 'embed', deadlineMs: 20000 }),
+    fetchPage(embedUrl, { kind: 'embed', referer, profile: 'embed', deadlineMs: 20000, directOnly }),
     new Promise((res) => setTimeout(() => res(null), 20000)),
   ]);
   if (!r || !r.html) return null;
@@ -2863,6 +2865,44 @@ function lineGroup(ln) {
   if (ln.direct) return 0;
   if (/master\.txt(\?|$)/i.test(ln.parentFile || ln.file || '')) return 1;
   return 2;
+}
+
+// ---------------- 详情线路缓存 (2026-10-25 能解析不能播修复) ----------------
+// 真机症结: detail 时解出的线 (用户眼前所见) 与 play 时现场重解的线
+// 常不是同一批 —— play 时直连 embed 偶发超时/抖动, 重解结果丢直连
+// 线、甚至全空落嗅探, 用户点的线根本没被播。令牌 12h 有效、同机
+// IP 不变, 详情 10 分钟内的线直接复用最稳: play 先用缓存 (含所点
+// 的线才算命中), 缓存过期或无所点的线才重解, 重解有线则刷新缓存。
+const LINE_CACHE_TTL = 10 * 60 * 1000;
+const lineCache = new Map(); // durl -> {lines, ts}
+function cacheLines(durl, lines) {
+  if (!durl || !lines || !lines.length) return;
+  lineCache.set(durl, { lines, ts: Date.now() });
+  if (lineCache.size > 100) lineCache.delete(lineCache.keys().next().value);
+}
+function cachedLines(durl, wantIdx, wantV) {
+  const hit = lineCache.get(durl);
+  if (!hit || (Date.now() - hit.ts) > LINE_CACHE_TTL) return null;
+  if (wantIdx >= 0 && !hit.lines.some((l) => l.idx === wantIdx && (l.v || 0) === (wantV || 0)) && !hit.lines.some((l) => l.idx === wantIdx)) return null;
+  return hit.lines;
+}
+// MP4 判定: 非 HLS (type 非 hls 且文件非 m3u8/txt)。播放器不把 play
+// header 转给 HLS 分片, 分片缺 Referer 会 302/403 (CloudCDN MP4
+// 实测: 有 Referer 206、无 Referer 302); MP4 单请求、header 直达,
+// 同组内优先 MP4 最稳 (CloudCDN MP4 本就是 1080p, 不降清晰度)。
+function isMp4Line(l) {
+  if (!l) return false;
+  if (/hls/i.test(l.type || '')) return false;
+  if (/\.m3u8(\?|$)/i.test(l.file || '') || /\.txt(\?|$)/i.test(l.file || '')) return false;
+  return true;
+}
+function pickPlayLine(lines, tapped) {
+  const best = lines[0];
+  const playable = lines.filter((l) => lineGroup(l) <= lineGroup(best));
+  if (tapped && lineGroup(tapped) <= lineGroup(best) && isMp4Line(tapped)) return tapped;
+  const mp4s = playable.filter(isMp4Line).sort((a, b) => ((b.q || 0) - (a.q || 0)) || (hostRank(a.host) - hostRank(b.host)) || (a.idx - b.idx) || ((a.v || 0) - (b.v || 0)));
+  if (mp4s.length) return mp4s[0];
+  return (tapped && lineGroup(tapped) <= lineGroup(best)) ? tapped : best;
 }
 
 // ---------------- 清晰度展开 (2026-10-22 高清修复) ----------------
@@ -2958,28 +2998,56 @@ function displayHost(file, embedUrl) {
 // 全链解析: {html, lines, stage, via, postDiag, pageDiag, pathsN}
 // stage: ok / page(详情未取到) / seed(无种子) / post-none(铸造通道
 // 不通) / post-bad(铸造被站方拒) / embed(铸出路径但 embed 未解出)
-async function resolveLines(durl) {
-  const { html, res } = await getDetailRes(durl);
-  if (!html) return { html: '', lines: [], stage: 'page', via: '', pageDiag: pageDiagOf(res ? res.outcomes : []) };
-  const { postId, mpu } = extractPlaySeed(html);
-  if (!postId || !mpu) return { html, lines: [], stage: 'seed', via: '' };
-  const { paths, stage, via, postDiag, bank } = await fetchEmbedPaths(postId, mpu, durl);
-  if (!paths.length) return { html, lines: [], stage, via, postDiag, bank };
-  const lines = [];
-  await Promise.all(paths.slice(0, 8).map(async (p, idx) => {
-    const embedUrl = 'https:' + p.path;
-    const r = await resolveEmbed(embedUrl, durl);
-    if (!r) return;
-    const expanded = await expandSources(r.sources, embedUrl);
-    for (const e of expanded) {
-      lines.push({ idx, v: e.v, lo: p.lo, embedUrl, file: e.file, parentFile: e.parent, type: e.type, host: displayHost(e.file, embedUrl), q: e.q, direct: !!r.direct });
-    }
-  }));
+// 路径集 -> 线路表 (embed 解出 + 清晰度展开 + 全局排序), 供库直出
+// 与常规流程共用。
+async function linesFromPaths(paths, durl) {
+  // 2026-10-27 截图定位修复: 首发 0 线时只用直连三栈再打一发
+  // (直连失败多为间歇 403/抖动, 第二发常能成; 借线对绑定型
+  // 宿主必 403, 重试不走代理波, 成功路径零额外耗时)。
+  const run = async (directOnly) => {
+    const out = [];
+    await Promise.all(paths.slice(0, 8).map(async (p, idx) => {
+      const embedUrl = 'https:' + p.path;
+      const r = await resolveEmbed(embedUrl, durl, directOnly);
+      if (!r) return;
+      const expanded = await expandSources(r.sources, embedUrl);
+      for (const e of expanded) {
+        out.push({ idx, v: e.v, lo: p.lo, embedUrl, file: e.file, parentFile: e.parent, type: e.type, host: displayHost(e.file, embedUrl), q: e.q, direct: !!r.direct });
+      }
+    }));
+    return out;
+  };
+  let lines = await run(false);
+  if (!lines.length && paths.length) lines = await run(true);
   // 排序: 直连解出 (令牌绑设备 IP, 与播放器自洽) 最前; 借线解出的
   // hugstream 前置 (master.txt, 实测不绑 IP、只认 Referer) 次之;
   // 借线解出的绑定型宿主 (令牌绑代理出口, 设备必 403) 末位。组内
   // 先比清晰度 (高清在前), 再比宿主可靠性与原序。
   lines.sort((a, b) => (lineGroup(a) - lineGroup(b)) || ((b.q || 0) - (a.q || 0)) || (hostRank(a.host) - hostRank(b.host)) || (a.idx - b.idx) || ((a.v || 0) - (b.v || 0)));
+  return lines;
+}
+
+async function resolveLines(durl) {
+  // 库直出 (2026-10-25, 同 javhdporn): 详情取页常被站方墙挡, 但库
+  // 内路径只凭 watch URL 即可查 —— 先查库, 命中且 embed 解出线则
+  // 直接用, 不必等详情页。未命中或 embed 全灭才走原流程。
+  // 2026-10-27 详情巨慢修复: 查库与详情取页并行 (getDetailRes
+  // 内有 5 分钟详情缓存, 并行不影响缓存语义); 库命中且有线
+  // 仍优先, 未命中时直接用已在跑的详情结果。
+  const detailP = getDetailRes(durl);
+  const bank0 = await castBankLookup(durl);
+  if (bank0.hit) {
+    const lines0 = await linesFromPaths(bank0.paths, durl);
+    if (lines0.length) return { html: '', lines: lines0, stage: 'ok', via: 'cast-bank', postDiag: '', bank: 'hit' };
+  }
+  const { html, res } = await detailP;
+  if (!html) return { html: '', lines: [], stage: 'page', via: '', pageDiag: pageDiagOf(res ? res.outcomes : []) };
+  const { postId, mpu } = extractPlaySeed(html);
+  if (!postId || !mpu) return { html, lines: [], stage: 'seed', via: '' };
+  const { paths, stage, via, postDiag, bank: postBank } = await fetchEmbedPaths(postId, mpu, durl);
+  const bank = bank0.hit ? 'hit' : postBank;
+  if (!paths.length) return { html, lines: [], stage, via, postDiag, bank };
+  const lines = await linesFromPaths(paths, durl);
   if (!lines.length) return { html, lines: [], stage: 'embed', via, postDiag, pathsN: paths.length, bank };
   return { html, lines, stage: 'ok', via, postDiag, bank };
 }
@@ -3409,9 +3477,9 @@ async function detail(reqIn) {
   try { rl = await resolveLines(durl); }
   catch (e) { rl = { html: '', lines: [], stage: 'error', via: '', pageDiag: '', postDiag: '' }; }
   const { html, lines, stage, via } = rl;
-  if (!html) {
-    // 取页全灭保底 (第九轮): 旧版在此直接 {list: []}, 兜底嗅探线被
-    // 短路, 真机详情全空。改为永不返回空 —— 名字从 URL slug 派生,
+  if (lines.length) cacheLines(durl, lines); // 供 play 复用 (见详情线路缓存节)
+  if (!html && !lines.length) {
+    // 取页全灭且无库直出线: 永不返回空 —— 名字从 URL slug 派生,
     // 分集名带取页通道逐个结论, 点播落 watch 页嗅探 (重开详情或
     // 点这一集都会整链重试)。
     const slug = (durl.match(/\/video\/([^/]+)\//) || [])[1] || '';
@@ -3431,7 +3499,15 @@ async function detail(reqIn) {
       }],
     };
   }
-  let name = og(html, 'title').replace(/\s*-\s*BestJavPorn\s*$/i, '');
+  // 库直出 (详情页被墙、但库内有线): 片名从 slug 派生, 封面空缺,
+  // 线路照常出 —— 有线可播远胜取页全灭仅嗅探。
+  let name = '';
+  if (!html) {
+    const slug = (durl.match(/\/video\/([^/]+)\//) || [])[1] || '';
+    name = slug ? clean(slug.replace(/[-_]+/g, ' ')) : 'BestJavPorn';
+  } else {
+    name = og(html, 'title').replace(/\s*-\s*BestJavPorn\s*$/i, '');
+  }
   if (name) subCacheName(durl, name); // 字幕搜索键优先用真片名 (见字幕聚合节)
   const pic = og(html, 'image') || (html.match(/<meta name="twitter:image" content="([^"]*)"/) || [])[1] || '';
   const code = (html.match(/<h4 class="entry-title">([^<]*)<\/h4>/) || [])[1] || '';
@@ -3540,18 +3616,20 @@ async function play(reqIn) {
   const durl = mm ? mm[1] : absUrl(id);
   const wantIdx = mm ? parseInt(mm[2], 10) : -1;
   const wantV = mm && mm[3] !== undefined ? parseInt(mm[3], 10) : 0;
-  // 现场重铸整链 (令牌时效 + IP 绑定的双重要求), 线路已按出口一致
-  // 性排序 (见 resolveLines): 用户点的线若与最优线同组则尊重其选
-  // 择, 否则回最优线 —— 借线解出的绑定型令牌在设备上必 403, 点了
-  // 也播不了, 不如直接给能播的那条。
+  // 详情缓存优先 (见详情线路缓存节): 10 分钟内且含所点的线, 直接
+  // 用详情时那批线, 不重解; 否则现场重解 (令牌时效 + IP 绑定的要
+  // 求仍在, 重解有线则刷新缓存)。选线: 可播组内优先 MP4 (见
+  // pickPlayLine), 否则沿用旧规则 (同组尊重所点、异组回最优线)。
   // 字幕搜索与铸造链并行发起 (不串行叠加延迟; 见字幕聚合节)
   const subsP = subSearchAll(durl).catch(() => []);
-  let lines = [];
-  try { ({ lines } = await resolveLines(durl)); } catch (e) { lines = []; }
+  let lines = cachedLines(durl, wantIdx, wantV);
+  if (!lines) {
+    try { ({ lines } = await resolveLines(durl)); } catch (e) { lines = []; }
+    if (lines.length) cacheLines(durl, lines);
+  }
   if (!lines.length) return sniffResult(durl);
   const tapped = lines.find((l) => l.idx === wantIdx && (l.v || 0) === wantV) || lines.find((l) => l.idx === wantIdx);
-  const best = lines[0];
-  const pick = (tapped && lineGroup(tapped) <= lineGroup(best)) ? tapped : best;
+  const pick = pickPlayLine(lines, tapped);
   const result = { parse: 0, url: pick.file, header: { 'User-Agent': UA, 'Referer': pick.embedUrl } };
   const subs = await subsP;
   if (subs && subs.length) result.subs = subs; // 无字幕命中时不带此键, 返回与接入前逐字段一致
