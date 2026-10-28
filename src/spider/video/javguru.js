@@ -53,6 +53,7 @@ import https from 'node:https';
 import zlib from 'node:zlib';
 
 const META = { key: 'javguru', name: '🌸JAV.GURU', type: 3 };
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 const DEFAULT_BASE = 'https://jav.guru';
 const UA =
@@ -889,44 +890,17 @@ function protocolOf(request) {
     return 'https';
 }
 
-/** 播放器能打开的本插件前缀。子路由上拿不到根实例的 address().dynamic,必须写死 js2p */
-function spiderPublicBase(inReq) {
-    if (cfg.proxyBase) return cfg.proxyBase.replace(/\/+$/, '');
-    const srv = inReq?.server;
-    let prefix = '';
-    try {
-        prefix = String(srv?.prefix || '');
-    } catch {
-        prefix = '';
-    }
-    if (!prefix || prefix === '/') prefix = `/spider/${META.key}/${META.type}`;
-    prefix = prefix.replace(/\/+$/, '');
-    let dynamic = '';
-    try {
-        dynamic = String(srv?.address?.()?.dynamic || '');
-    } catch {
-        dynamic = '';
-    }
-    if (!dynamic) dynamic = 'js2p://_WEB_';
-    return `${dynamic}${prefix}`;
+/** 和 movieffm 一样:播放器只打开本机 HTTP,由 /proxy 去拉上游 */
+function localProxyUrl(target, referer) {
+    const base = cfg.proxyBase
+        ? String(cfg.proxyBase).replace(/\/+$/, '')
+        : `http://127.0.0.1:${PORT}/spider/${META.key}/${META.type}`;
+    let u = `${base}/proxy?url=${encodeURIComponent(target)}`;
+    if (referer) u += `&ref=${encodeURIComponent(referer)}`;
+    return u;
 }
 
-function selfBase(request) {
-    const hit = spiderPublicBase(request);
-    if (hit) return hit;
-    const proto = protocolOf(request);
-    const h = (request && request.headers) || {};
-    const host = String(h['x-forwarded-host'] || h.host || '');
-    const raw = String((request && request.raw && request.raw.url) || (request && request.url) || '/proxy/stream');
-    const prefix = raw.split('/proxy/stream')[0];
-    return `${proto}://${host}${prefix}`;
-}
-
-function proxyUrl(base, target, referer) {
-    return `${base}/proxy/stream?u=${b64encode(target)}&ref=${b64encode(referer || `${cfg.base}/`)}`;
-}
-
-function rewriteM3u8(raw, playlistUrl, base, referer) {
+function rewriteM3u8(raw, playlistUrl, referer) {
     const toAbs = (s) => {
         try {
             return new URL(s, playlistUrl).href;
@@ -940,10 +914,10 @@ function rewriteM3u8(raw, playlistUrl, base, referer) {
             const t = line.trim();
             if (!t) return line;
             if (t.startsWith('#')) {
-                return t.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxyUrl(base, toAbs(uri), referer)}"`);
+                return t.replace(/URI="([^"]+)"/g, (_, uri) => `URI="${localProxyUrl(toAbs(uri), referer)}"`);
             }
             if (/^https?:\/\//i.test(t) || /\.(ts|m3u8|mp4|aac|key|jpg|png|webp)(\?|$)/i.test(t)) {
-                return proxyUrl(base, toAbs(t), referer);
+                return localProxyUrl(toAbs(t), referer);
             }
             return line;
         })
@@ -1052,7 +1026,7 @@ async function pipeThrough(target, headers, reply) {
 
 async function streamProxy(request, reply) {
     const q = request.query || {};
-    const target = safeUrlParam(q.u || '');
+    const target = safeUrlParam(q.url || q.u || '');
     if (!target || !/^https?:\/\//i.test(target)) {
         reply.code(400).send('missing u');
         return;
@@ -1072,7 +1046,7 @@ async function streamProxy(request, reply) {
         reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
         reply.header('Access-Control-Allow-Origin', '*');
         reply.header('Cache-Control', 'no-cache');
-        reply.send(rewriteM3u8(text, finalUrl || target, spiderPublicBase(request), referer));
+        reply.send(rewriteM3u8(text, finalUrl || target, referer));
     };
 
     if (looksList) {
@@ -1269,13 +1243,14 @@ async function detail(inReq) {
     };
 }
 
-/* 线路解析结果 → 交给播放器的响应。一律走本地中转,播放器不用自己带 Referer,伪装分片也能剥壳 */
-async function buildPlayResult(inReq, r) {
+/* 线路解析结果 → 本机 HTTP 代理,播放器不用自己带 Referer */
+async function buildPlayResult(_inReq, r) {
     const ref = r.referer || r.landedAt || `${cfg.base}/`;
-    const pub = spiderPublicBase(inReq);
-    const hdr = { 'User-Agent': UA, Referer: ref };
-    if (pub && r.url) return { parse: 0, url: proxyUrl(pub, r.url, ref), header: hdr };
-    return { parse: 0, url: r.url, header: hdr };
+    return {
+        parse: 0,
+        url: localProxyUrl(r.url, ref),
+        header: { 'User-Agent': UA },
+    };
 }
 
 async function play(inReq) {
@@ -1367,6 +1342,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
-        fastify.get('/proxy/stream', streamProxy);
+        fastify.get('/proxy', streamProxy);
     },
 };
