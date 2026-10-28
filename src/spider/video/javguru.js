@@ -344,6 +344,29 @@ function b64encode(s) {
     return Buffer.from(String(s || ''), 'utf8').toString('base64url');
 }
 
+function decodeIframeUrl(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^https?:\/\//i.test(s)) return s;
+    try {
+        const d = Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+        if (/^https?:\/\//i.test(d)) return d;
+    } catch {
+        /* ignore */
+    }
+    return s;
+}
+
+/** 这些 CDN 的分片常带 PNG 头,直连会黑屏,应走 /proxy/stream */
+function likelyWrappedPlaylist(url) {
+    try {
+        const h = new URL(String(url)).hostname.toLowerCase();
+        return /javclan|surrit|tiktok|byteoversea|tiktokcdn|muscdn|cdninstagram/i.test(h);
+    } catch {
+        return false;
+    }
+}
+
 /* --------------------------------------------------------------------------
  *  列表解析
  * ------------------------------------------------------------------------ */
@@ -504,7 +527,7 @@ function parseLines(html) {
         const slice = String(html).slice(at, at + 4000);
         const um = slice.match(/"iframe_url"\s*:\s*"([^"]*)"/);
         if (!um || !um[1]) return;
-        const url = b64decode(um[1]);
+        const url = decodeIframeUrl(um[1]);
         if (!/^https?:\/\//i.test(url)) return;
         if (seen.has(url)) return;
         seen.add(url);
@@ -860,7 +883,36 @@ function protocolOf(request) {
     return 'https';
 }
 
+/** 播放器能访问到的本插件前缀(含 js2p 与 /spider/javguru/3) */
+function spiderPublicBase(inReq) {
+    if (cfg.proxyBase) return cfg.proxyBase.replace(/\/+$/, '');
+    const srv = inReq?.server;
+    const dynamic = srv?.address?.()?.dynamic;
+    const prefix = srv?.prefix || `/spider/${META.key}/${META.type}`;
+    if (dynamic) return `${dynamic}${prefix}`;
+    const addr = srv?.address?.();
+    if (addr?.url) return `${String(addr.url).replace(/\/+$/, '')}${prefix}`;
+    try {
+        const h = (inReq && inReq.headers) || {};
+        const proto = protocolOf(inReq);
+        const host = String(h['x-forwarded-host'] || h.host || '');
+        if (host) return `${proto}://${host}${prefix}`;
+    } catch {
+        /* ignore */
+    }
+    const raw = String((inReq && inReq.raw && inReq.raw.url) || (inReq && inReq.url) || '');
+    const fromPath = raw.split('/proxy/stream')[0];
+    if (fromPath && fromPath !== raw) {
+        const proto = protocolOf(inReq);
+        const host = String((inReq && inReq.headers && inReq.headers.host) || '');
+        if (host) return `${proto}://${host}${fromPath}`;
+    }
+    return '';
+}
+
 function selfBase(request) {
+    const hit = spiderPublicBase(request);
+    if (hit) return hit;
     const proto = protocolOf(request);
     const h = (request && request.headers) || {};
     const host = String(h['x-forwarded-host'] || h.host || '');
@@ -1197,24 +1249,18 @@ async function detail(inReq) {
     };
 }
 
-function selfBaseFromReq(req) {
-    if (cfg.proxyBase) return cfg.proxyBase.replace(/\/+$/, '');
-    try {
-        const headers = (req && req.headers) || {};
-        const proto = protocolOf(req);
-        const host = String(headers['x-forwarded-host'] || headers.host || '');
-        if (!host) return cfg.base;
-        return `${proto}://${host}`;
-    } catch {
-        return cfg.base;
-    }
-}
-
 /* 线路解析结果 → 交给播放器的响应。伪装分片必须走中转剥壳,否则播放器黑屏 */
 async function buildPlayResult(inReq, r) {
     const ref = r.referer || `${cfg.base}/`;
-    if (cfg.streamProxy) {
-        return { parse: 0, url: proxyUrl(selfBaseFromReq(inReq), r.url, ref), header: { 'User-Agent': UA } };
+    const pub = spiderPublicBase(inReq);
+    const hdr = { 'User-Agent': UA, Referer: ref };
+    const toProxy = (mediaUrl) => (pub ? proxyUrl(pub, mediaUrl, ref) : mediaUrl);
+
+    if (cfg.streamProxy && pub) {
+        return { parse: 0, url: toProxy(r.url), header: hdr };
+    }
+    if (likelyWrappedPlaylist(r.url) && pub) {
+        return { parse: 0, url: toProxy(r.url), header: hdr };
     }
     let kind = 'direct';
     try {
@@ -1222,10 +1268,10 @@ async function buildPlayResult(inReq, r) {
     } catch {
         kind = 'direct';
     }
-    if (kind === 'wrapped') {
-        return { parse: 0, url: proxyUrl(selfBaseFromReq(inReq), r.url, ref), header: { 'User-Agent': UA } };
+    if (kind === 'wrapped' && pub) {
+        return { parse: 0, url: toProxy(r.url), header: hdr };
     }
-    return { parse: 0, url: r.url, header: { 'User-Agent': UA } };
+    return { parse: 0, url: r.url, header: hdr };
 }
 
 async function play(inReq) {
