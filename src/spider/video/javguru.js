@@ -685,10 +685,15 @@ function collectMedia(html, origin) {
         .map((x) => x[0]);
 }
 
-async function probeMedia(url) {
+async function probeMedia(url, referer) {
     try {
         const res = await httpRequest(url, {
-            headers: { Range: 'bytes=0-1023', Accept: '*/*' },
+            headers: {
+                Range: 'bytes=0-1023',
+                Accept: '*/*',
+                'Accept-Encoding': 'identity',
+                Referer: referer || `${cfg.base}/`,
+            },
             timeout: Math.min(cfg.timeout, 9000),
         });
         if (res.status !== 200 && res.status !== 206) return false;
@@ -696,6 +701,7 @@ async function probeMedia(url) {
         const ct = String(res.headers['content-type'] || '');
         if (/^\s*#EXTM3U/.test(head) || /mpegurl/i.test(ct)) return true;
         if (/\.mp4(\?|$)/i.test(url) && /video\/|octet-stream/i.test(ct)) return true;
+        if (res.body.length >= 8 && (res.body[4] === 0x66 || /ftyp|moov|mdat/.test(head))) return true;
         return false;
     } catch {
         return false;
@@ -850,7 +856,7 @@ async function resolveLine(lineUrl) {
     const origin = (String(landedAt).match(/^(https?:\/\/[^/]+)/) || [])[1] || '';
     const cands = collectMedia(landHtml, origin);
     for (const u of cands) {
-        if (await probeMedia(u)) return { url: u, referer: gateway, landedAt };
+        if (await probeMedia(u, landedAt || gateway)) return { url: u, referer: landedAt || gateway, landedAt };
     }
     return null;
 }
@@ -883,31 +889,26 @@ function protocolOf(request) {
     return 'https';
 }
 
-/** 播放器能访问到的本插件前缀(含 js2p 与 /spider/javguru/3) */
+/** 播放器能打开的本插件前缀。子路由上拿不到根实例的 address().dynamic,必须写死 js2p */
 function spiderPublicBase(inReq) {
     if (cfg.proxyBase) return cfg.proxyBase.replace(/\/+$/, '');
     const srv = inReq?.server;
-    const dynamic = srv?.address?.()?.dynamic;
-    const prefix = srv?.prefix || `/spider/${META.key}/${META.type}`;
-    if (dynamic) return `${dynamic}${prefix}`;
-    const addr = srv?.address?.();
-    if (addr?.url) return `${String(addr.url).replace(/\/+$/, '')}${prefix}`;
+    let prefix = '';
     try {
-        const h = (inReq && inReq.headers) || {};
-        const proto = protocolOf(inReq);
-        const host = String(h['x-forwarded-host'] || h.host || '');
-        if (host) return `${proto}://${host}${prefix}`;
+        prefix = String(srv?.prefix || '');
     } catch {
-        /* ignore */
+        prefix = '';
     }
-    const raw = String((inReq && inReq.raw && inReq.raw.url) || (inReq && inReq.url) || '');
-    const fromPath = raw.split('/proxy/stream')[0];
-    if (fromPath && fromPath !== raw) {
-        const proto = protocolOf(inReq);
-        const host = String((inReq && inReq.headers && inReq.headers.host) || '');
-        if (host) return `${proto}://${host}${fromPath}`;
+    if (!prefix || prefix === '/') prefix = `/spider/${META.key}/${META.type}`;
+    prefix = prefix.replace(/\/+$/, '');
+    let dynamic = '';
+    try {
+        dynamic = String(srv?.address?.()?.dynamic || '');
+    } catch {
+        dynamic = '';
     }
-    return '';
+    if (!dynamic) dynamic = 'js2p://_WEB_';
+    return `${dynamic}${prefix}`;
 }
 
 function selfBase(request) {
@@ -1000,26 +1001,46 @@ function segCacheSet(u, body) {
     }
 }
 
-/* 大文件(mp4/超出缓冲上限)走流式直通 */
-function pipeThrough(target, headers, request, reply) {
+/* 大文件(mp4)走流式直通,带上出网代理 */
+async function pipeThrough(target, headers, reply) {
+    const agent = await getAgent();
     return new Promise((resolve) => {
-        const lib = target.startsWith('https://') ? https : http;
-        const req = lib.request(target, { method: 'GET', headers, timeout: 30000 }, (res) => {
-            reply.code(res.statusCode || 200);
-            for (const h of [
-                'content-type',
-                'content-length',
-                'accept-ranges',
-                'content-range',
-                'last-modified',
-                'etag',
-            ]) {
-                if (res.headers[h]) reply.header(h, res.headers[h]);
-            }
-            reply.header('Access-Control-Allow-Origin', '*');
-            reply.send(res);
+        let u;
+        try {
+            u = new URL(target);
+        } catch {
+            reply.code(400).send('bad u');
             resolve();
-        });
+            return;
+        }
+        const lib = u.protocol === 'https:' ? https : http;
+        const req = lib.request(
+            {
+                protocol: u.protocol,
+                hostname: u.hostname,
+                port: u.port || (u.protocol === 'https:' ? 443 : 80),
+                path: `${u.pathname}${u.search}`,
+                method: 'GET',
+                headers,
+                agent,
+                timeout: 30000,
+            },
+            (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    res.resume();
+                    const next = new URL(res.headers.location, u).href;
+                    resolve(pipeThrough(next, headers, reply));
+                    return;
+                }
+                reply.code(res.statusCode || 200);
+                for (const h of ['content-type', 'content-length', 'accept-ranges', 'content-range', 'last-modified', 'etag']) {
+                    if (res.headers[h]) reply.header(h, res.headers[h]);
+                }
+                reply.header('Access-Control-Allow-Origin', '*');
+                reply.send(res);
+                resolve();
+            },
+        );
         req.on('timeout', () => req.destroy(new Error('upstream timeout')));
         req.on('error', (e) => {
             reply.code(502).send(String((e && e.message) || e));
@@ -1037,76 +1058,75 @@ async function streamProxy(request, reply) {
         return;
     }
     const referer = safeUrlParam(q.ref || '') || `${cfg.base}/`;
-    const headers = { 'User-Agent': UA, Referer: referer, Accept: '*/*' };
+    const headers = {
+        'User-Agent': UA,
+        Referer: referer,
+        Accept: '*/*',
+        'Accept-Encoding': 'identity',
+    };
     if (cfg.cookie) headers.Cookie = cfg.cookie;
     const clientRange = request.headers && request.headers.range;
+    const looksList = /\.m3u8(\?|$)|master\.txt(\?|$)/i.test(target);
 
-    /* ---- 1) 播放列表:整份拉下来改写,分片地址全部指向本中转 ---- */
-    if (/\.m3u8(\?|$)/i.test(target)) {
-        const chunks = [];
-        await new Promise((resolve) => {
-            const lib = target.startsWith('https://') ? https : http;
-            const req = lib.request(target, { method: 'GET', headers, timeout: 30000 }, (res) => {
-                res.on('data', (c) => chunks.push(c));
-                res.on('end', () => {
-                    const text = Buffer.concat(chunks).toString('utf8');
-                    reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
-                    reply.header('Access-Control-Allow-Origin', '*');
-                    reply.header('Cache-Control', 'no-cache');
-                    reply.send(rewriteM3u8(text, target, selfBase(request), referer));
-                    resolve();
-                });
-                res.on('error', () => {
-                    reply.code(502).send('upstream error');
-                    resolve();
-                });
-            });
-            req.on('timeout', () => req.destroy(new Error('upstream timeout')));
-            req.on('error', (e) => {
-                reply.code(502).send(String((e && e.message) || e));
-                resolve();
-            });
-            req.end();
-        });
+    const sendPlaylist = (text, finalUrl) => {
+        reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+        reply.header('Access-Control-Allow-Origin', '*');
+        reply.header('Cache-Control', 'no-cache');
+        reply.send(rewriteM3u8(text, finalUrl || target, spiderPublicBase(request), referer));
+    };
+
+    if (looksList) {
+        try {
+            const res = await httpRequest(target, { headers, timeout: 30000 });
+            const text = res.body.toString('utf8');
+            if (!text.includes('#EXTM3U')) {
+                reply.code(res.status || 502).send(text.slice(0, 300));
+                return;
+            }
+            sendPlaylist(text, res.url || target);
+        } catch (e) {
+            reply.code(502).send(String((e && e.message) || e));
+        }
         return;
     }
 
-    /* ---- 2) 分片 / 媒体文件 ---- */
-    const cached = segCacheGet(target);
-    let res;
+    if (/\.mp4(\?|$)/i.test(target)) {
+        const h2 = { ...headers };
+        if (clientRange) h2.Range = clientRange;
+        await pipeThrough(target, h2, reply);
+        return;
+    }
+
+    const cached = segCacheGet(`${target}|${clientRange || ''}`);
     if (cached) {
         sendSliced(reply, cached, clientRange);
         return;
-    } else {
-        try {
-            res = await httpRequest(target, { headers, timeout: 30000 });
-        } catch (e) {
-            reply.code(502).send(String((e && e.message) || e));
-            return;
-        }
     }
 
-    const ct = String(res.headers['content-type'] || '');
-    const len = parseInt(String(res.headers['content-length'] || '0'), 10) || 0;
-    const big = /video\/mp4/i.test(ct) || len > 80 * 1024 * 1024;
-    if (big) {
-        /* 大文件别塞内存,带 Range 重新走流式 */
+    let res;
+    try {
         const h2 = { ...headers };
         if (clientRange) h2.Range = clientRange;
-        await pipeThrough(target, h2, request, reply);
+        res = await httpRequest(target, { headers: h2, timeout: 30000 });
+    } catch (e) {
+        reply.code(502).send(String((e && e.message) || e));
+        return;
+    }
+
+    const headTxt = res.body.slice(0, 16).toString('utf8');
+    if (headTxt.includes('#EXTM3U') || /mpegurl/i.test(String(res.headers['content-type'] || ''))) {
+        sendPlaylist(res.body.toString('utf8'), res.url || target);
         return;
     }
 
     const off = tsOffset(res.body);
     if (off > 0 && off < res.body.length) {
-        /* PNG/JPEG 伪装的 TS 分片:剥掉外壳再发,播放器才认 */
         const clean = res.body.slice(off);
-        segCacheSet(target, clean);
-        sendSliced(reply, clean, clientRange);
+        segCacheSet(`${target}|${clientRange || ''}`, clean);
+        sendSliced(reply, clean, null);
         return;
     }
 
-    /* 正常分片:原样转发 */
     reply.code(res.status || 200);
     for (const h of ['content-type', 'content-length', 'accept-ranges', 'content-range', 'last-modified', 'etag']) {
         if (res.headers[h]) reply.header(h, res.headers[h]);
@@ -1249,28 +1269,12 @@ async function detail(inReq) {
     };
 }
 
-/* 线路解析结果 → 交给播放器的响应。伪装分片必须走中转剥壳,否则播放器黑屏 */
+/* 线路解析结果 → 交给播放器的响应。一律走本地中转,播放器不用自己带 Referer,伪装分片也能剥壳 */
 async function buildPlayResult(inReq, r) {
-    const ref = r.referer || `${cfg.base}/`;
+    const ref = r.referer || r.landedAt || `${cfg.base}/`;
     const pub = spiderPublicBase(inReq);
     const hdr = { 'User-Agent': UA, Referer: ref };
-    const toProxy = (mediaUrl) => (pub ? proxyUrl(pub, mediaUrl, ref) : mediaUrl);
-
-    if (cfg.streamProxy && pub) {
-        return { parse: 0, url: toProxy(r.url), header: hdr };
-    }
-    if (likelyWrappedPlaylist(r.url) && pub) {
-        return { parse: 0, url: toProxy(r.url), header: hdr };
-    }
-    let kind = 'direct';
-    try {
-        kind = await detectContainer(r.url);
-    } catch {
-        kind = 'direct';
-    }
-    if (kind === 'wrapped' && pub) {
-        return { parse: 0, url: toProxy(r.url), header: hdr };
-    }
+    if (pub && r.url) return { parse: 0, url: proxyUrl(pub, r.url, ref), header: hdr };
     return { parse: 0, url: r.url, header: hdr };
 }
 
