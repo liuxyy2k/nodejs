@@ -2,13 +2,13 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-const site = 'https://advise.phpyramb.com';
+const site = 'https://51sptv.com';
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
@@ -33,16 +33,36 @@ function aesDecrypt(buf) {
     return Buffer.concat([decipher.update(buf), decipher.final()]);
 }
 
+function sniffImage(buf) {
+    if (!buf || buf.length < 4) return '';
+    if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
+    if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+    if (buf.slice(0, 4).toString() === 'GIF8') return 'image/gif';
+    if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') return 'image/webp';
+    return '';
+}
+
 function proxyImgUrl(raw) {
     return `http://127.0.0.1:${PORT}/spider/sp51/3/img?url=${encodeURIComponent(e64(raw))}`;
 }
 
 
+function pickRawPic($el) {
+    const img = $el.find('img').first();
+    const fromAttr = String(
+        img.attr('z-image-loader-url') || img.attr('data-xkrkllgl') || img.attr('data-src') || '',
+    ).trim();
+    if (/^https?:\/\//i.test(fromAttr) || /loadBannerDirect\(/.test(fromAttr)) return fromAttr;
+    const fromScript = $el.find('script').first().text().trim();
+    if (fromScript) return fromScript;
+    return fromAttr;
+}
+
 async function parseVods($) {
     const items = [];
 
     $('article').each((_, element) => {
-        const rawPic = $(element).find('img').attr('z-image-loader-url').text().trim();
+        const rawPic = pickRawPic($(element));
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.post-card-title').text().trim();
         const date  = $(element).find('span[itemprop="datePublished"]').text().trim();
@@ -54,7 +74,8 @@ async function parseVods($) {
                     vod_id: id, 
                     vod_name: name, 
                     vod_pic: rawPic ? proxyImgUrl(rawPic) : '',
-                    vod_remarks: date.replace(/\s*年\s*|\s*月\s*/g, '-').replace(/\s*日/, '')
+                    vod_remarks: date.replace(/\s*年\s*|\s*月\s*/g, '-').replace(/\s*日/, ''),
+                    style: { ratio: 1.77, type: 'rect' },
                 }
             );
         }
@@ -125,7 +146,7 @@ async function detail(inReq, _outResp) {
         list: [{
             vod_id: id,
             vod_name: name,
-            vod_pic: pic,
+            vod_pic: pic ? proxyImgUrl(pic) : '',
             vod_year: year,
             vod_play_from: 'Cg51',
             vod_play_url: playParts.join('#'),
@@ -163,16 +184,23 @@ async function imgProxy(inReq, reply) {
                 'Referer':    `${site}/`,
                 'Origin':     site,
             },
+            // httpsAgent: agent,
             responseType: 'arraybuffer',
-            timeout:      10000,
+            timeout:      15000,
+            validateStatus: () => true,
         });
+        if (resp.status < 200 || resp.status >= 300 || !resp.data) {
+            return reply.code(resp.status || 502).send('');
+        }
 
-        const decrypted = aesDecrypt(Buffer.from(resp.data));
-        let   ct        = 'image/jpeg';
-        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
-        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
-
-        reply.header('Content-Type', ct).send(decrypted);
+        const buf = Buffer.from(resp.data);
+        let out = buf;
+        let ct = sniffImage(buf);
+        if (!ct) {
+            out = aesDecrypt(buf);
+            ct = sniffImage(out) || 'image/jpeg';
+        }
+        reply.header('Content-Type', ct).header('Cache-Control', 'public, max-age=86400').send(out);
     } catch (e) {
         console.error('imgProxy error:', e.message);
         reply.code(500).send('');
