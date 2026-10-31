@@ -318,6 +318,9 @@ import javsiri from "./spider/video/javsiri.js";
 import xhongyan from "./spider/video/xhongyan.js";
 import javhdporn from "./spider/video/javhdporn.js";
 import javneon from "./spider/video/javneon.js";
+import javcc from "./spider/video/javcc.js";
+import ero from "./spider/video/ero.js";
+import tojav from "./spider/video/tojav.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -350,14 +353,14 @@ export const getSpiders = async (server) => {
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty, myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
-        miss, missav, missavXptv, thisavfull, dsys, sevenmmtv, javverse, javdone, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
+        miss, missav, missavXptv, thisavfull, dsys, sevenmmtv, javverse, javdone, javcc, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, javgg, missav02, missavt, 
         javdino, javgogogo, javhd, jav36, jav91wm, javday, manko, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
-        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung,
+        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
         jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
