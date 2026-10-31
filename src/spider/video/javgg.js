@@ -16,11 +16,7 @@
  */
 
 import axios from 'axios';
-import https from 'https';
 import { load } from 'cheerio';
-import { createRequire } from 'module';
-
-const nodeRequire = createRequire(import.meta.url);
 
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
@@ -112,36 +108,19 @@ function buildHeaders(referer) {
     return h;
 }
 
-function agentOf() {
-    if (!cfg.proxy) return undefined;
-    if (agentOf._c && agentOf._p === cfg.proxy) return agentOf._c;
-    try {
-        // 只有配置了 proxy 才需要这个依赖，没装也不影响直连
-        const { HttpsProxyAgent } = nodeRequire('https-proxy-agent');
-        agentOf._c = new HttpsProxyAgent(cfg.proxy);
-        agentOf._p = cfg.proxy;
-        return agentOf._c;
-    } catch {
-        return undefined;
-    }
-}
-
 async function httpGet(url, opt = {}) {
-    const useAgent = agentOf();
     const resp = await axios.get(url, {
         headers: { ...buildHeaders(opt.referer), ...(opt.headers || {}) },
         timeout: opt.timeout || cfg.timeout,
         responseType: opt.responseType || 'text',
         maxRedirects: 5,
         validateStatus: () => true,
-        ...(useAgent ? { httpsAgent: useAgent, httpAgent: useAgent, proxy: false } : {}),
         transformResponse: opt.responseType === 'text' ? [(d) => d] : undefined,
     });
     return resp;
 }
 
 async function httpPost(url, body, opt = {}) {
-    const useAgent = agentOf();
     return axios.post(url, body, {
         headers: {
             ...buildHeaders(opt.referer),
@@ -151,7 +130,6 @@ async function httpPost(url, body, opt = {}) {
         timeout: opt.timeout || cfg.timeout,
         responseType: opt.responseType || 'json',
         validateStatus: () => true,
-        ...(useAgent ? { httpsAgent: useAgent, httpAgent: useAgent, proxy: false } : {}),
     });
 }
 
@@ -1117,7 +1095,6 @@ async function seg(inReq, reply) {
             timeout: 25000,
             validateStatus: () => true,
             maxRedirects: 5,
-            ...(agentOf() ? { httpsAgent: agentOf(), httpAgent: agentOf(), proxy: false } : {}),
         });
     } catch {
         reply.code(502);
