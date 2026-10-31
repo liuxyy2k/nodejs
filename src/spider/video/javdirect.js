@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const SITE = 'https://jav.direct';
-const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const PACKER_FN = String.raw`function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*d\s*\)`;
 const PACKED_EVAL_RE = new RegExp(
@@ -129,7 +127,6 @@ async function pickBestM3u8(m3u8, referer) {
   try {
     const resp = await axios.get(m3u8, {
       headers: { 'User-Agent': UA, Referer: referer },
-      httpsAgent: agent,
       timeout: 15000,
       validateStatus: () => true,
     });
@@ -166,7 +163,6 @@ async function resolveStreamtape(embedUrl) {
   try {
     const resp = await axios.get(getUrl, {
       headers: { 'User-Agent': UA, Referer: embedUrl },
-      httpsAgent: agent,
       maxRedirects: 5,
       timeout: 15000,
       validateStatus: () => true,
