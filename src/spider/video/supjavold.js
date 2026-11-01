@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/6
 const SITE_ROOT = 'https://supjav.com';
 const site = `${SITE_ROOT}/zh`;
 const LK_BASE = 'https://lk1.supremejav.com/supjav.php';
-const META_KEY = 'supjav';
+const META_KEY = 'supjavold';
 const LINE_ORDER = { VOE: 0, FST: 10, ST: 20, TV: 90 };
 const PLAY_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const FETCH_WORKER = 'https://supjav-fetch.li768435813.workers.dev';
@@ -746,7 +746,7 @@ async function search(inReq) {
 }
 
 export default {
-    meta: { key: 'supjav', name: '🌸SupjAv', type: 3 },
+    meta: { key: 'supjavold', name: '🌸SupjAvOld', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);
