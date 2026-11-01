@@ -25,14 +25,11 @@
  *       哪条能出 m3u8/mp4 就用哪条，失败自动落到下一家。
  */
 
-import axios from 'axios';
 import { load } from 'cheerio';
-import { createRequire } from 'module';
+import req from '../../util/req.js';
 
-const nodeRequire = createRequire(import.meta.url);
 
-const UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 
 const HOSTS = ['https://supjav.com'];
 const ROUTE = 'spider/supjav/1';
@@ -120,35 +117,19 @@ function buildHeaders(referer) {
     return h;
 }
 
-function agentOf() {
-    if (!cfg.proxy) return undefined;
-    if (agentOf._c && agentOf._p === cfg.proxy) return agentOf._c;
-    try {
-        const { HttpsProxyAgent } = nodeRequire('https-proxy-agent');
-        agentOf._c = new HttpsProxyAgent(cfg.proxy);
-        agentOf._p = cfg.proxy;
-        return agentOf._c;
-    } catch {
-        return undefined;
-    }
-}
-
 async function httpGet(url, opt = {}) {
-    const useAgent = agentOf();
-    return axios.get(url, {
+    return req.get(url, {
         headers: { ...buildHeaders(opt.referer), ...(opt.headers || {}) },
         timeout: opt.timeout || cfg.timeout,
         responseType: opt.responseType || 'text',
         maxRedirects: 6,
         validateStatus: () => true,
-        ...(useAgent ? { httpsAgent: useAgent, httpAgent: useAgent, proxy: false } : {}),
         transformResponse: (opt.responseType || 'text') === 'text' ? [(d) => d] : undefined,
     });
 }
 
 async function httpPost(url, body, opt = {}) {
-    const useAgent = agentOf();
-    return axios.post(url, body, {
+    return req.post(url, body, {
         headers: {
             ...buildHeaders(opt.referer),
             'Content-Type': opt.contentType || 'application/x-www-form-urlencoded',
@@ -158,7 +139,6 @@ async function httpPost(url, body, opt = {}) {
         responseType: opt.responseType || 'text',
         maxRedirects: 6,
         validateStatus: () => true,
-        ...(useAgent ? { httpsAgent: useAgent, httpAgent: useAgent, proxy: false } : {}),
         transformResponse: [(d) => d],
     });
 }
