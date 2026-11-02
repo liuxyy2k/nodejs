@@ -54,8 +54,8 @@ const SB_COOKIE = `sb-${SB_REF}-auth-token`;
 // 登录配置(init 时从 ext 读入)
 const cfg = {
     cookie: '',
-    email: 'liuxy01999@gmail.com',
-    password: '12345678',
+    email: '',
+    password: '',
     captchaToken: '',
     accessToken: '',
     refreshToken: 'base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdjaU9pSkZVekkxTmlJc0ltdHBaQ0k2SW1SalpUa3dabU15TFRsa1lqRXRORE01TmkwNVlqVmtMVEk1TVdRMU0ySmlNbUl3T0NJc0luUjVjQ0k2SWtwWFZDSjkuZXlKcGMzTWlPaUpvZEhSd2N6b3ZMM2wzWVhCNmIyeHBabVJyZFdWamVHdDBiR2x2TG5OMWNHRmlZWE5sTG1OdkwyRjFkR2d2ZGpFaUxDSnpkV0lpT2lJME5tWmpZekF4WmkwME9USmtMVFEyWTJRdE9ERmlOQzB4WlRCa05qVXpZakk1TVRRaUxDSmhkV1FpT2lKaGRYUm9aVzUwYVdOaGRHVmtJaXdpWlhod0lqb3hOemt4T1RjNU9UTTNMQ0pwWVhRaU9qRTNPVEU1TnpZek16Y3NJbVZ0WVdsc0lqb2liR2wxZUhrd01UazVPVUJuYldGcGJDNWpiMjBpTENKd2FHOXVaU0k2SWlJc0ltRndjRjl0WlhSaFpHRjBZU0k2ZXlKd2NtOTJhV1JsY2lJNkltVnRZV2xzSWl3aWNISnZkbWxrWlhKeklqcGJJbVZ0WVdsc0lsMTlMQ0oxYzJWeVgyMWxkR0ZrWVhSaElqcDdJbVZ0WVdsc0lqb2liR2wxZUhrd01UazVPVUJuYldGcGJDNWpiMjBpTENKbGJXRnBiRjkyWlhKcFptbGxaQ0k2ZEhKMVpTd2ljR2h2Ym1WZmRtVnlhV1pwWldRaU9tWmhiSE5sTENKemRXSWlPaUkwTm1aall6QXhaaTAwT1RKa0xUUTJZMlF0T0RGaU5DMHhaVEJrTmpVellqSTVNVFFpZlN3aWNtOXNaU0k2SW1GMWRHaGxiblJwWTJGMFpXUWlMQ0poWVd3aU9pSmhZV3d4SWl3aVlXMXlJanBiZXlKdFpYUm9iMlFpT2lKd1lYTnpkMjl5WkNJc0luUnBiV1Z6ZEdGdGNDSTZNVGM1TVRrM05qTXpOMzFkTENKelpYTnphVzl1WDJsa0lqb2lNbUZoTWpka1lqWXRPVEl4TVMwME5EUTRMV0V5WkdFdE1UazFObU5sT0Rnek1USTNJaXdpYVhOZllXNXZibmx0YjNWeklqcG1ZV3h6WlgwLjF6Rkc0aFhYOE5fMFpDUUswVnhJN3lxLS1XV1Ztem94dzAwUGlHaHdaRlY3MFY4S2hJeF8zSnB3X1FaVEJUM1hkMnhGS0JOcUlRM05yNFhra0J6QV9RIiwidG9rZW5fdHlwZSI6ImJlYXJlciIsImV4cGlyZXNfaW4iOjM2MDAsImV4cGlyZXNfYXQiOjE3OTE5Nzk5MzcsInJlZnJlc2hfdG9rZW4iOiJkZjd3bWJkejM1eHgiLCJ1c2VyIjp7ImlkIjoiNDZmY2MwMWYtNDkyZC00NmNkLTgxYjQtMWUwZDY1M2IyOTE0IiwiYXVkIjoiYXV0aGVudGljYXRlZCIsInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiZW1haWwiOiJsaXV4eTAxOTk5QGdtYWlsLmNvbSIsImVtYWlsX2NvbmZpcm1lZF9hdCI6IjIwMjYtMTAtMTFUMDY6MzY6MjYuMDIzNzA1WiIsInBob25lIjoiIiwiY29uZmlybWF0aW9uX3NlbnRfYXQiOiIyMDI2LTEwLTExVDA2OjM2OjA4LjUzMTAyNFoiLCJjb25maXJtZWRfYXQiOiIyMDI2LTEwLTExVDA2OjM2OjI2LjAyMzcwNVoiLCJsYXN0X3NpZ25faW5fYXQiOiIyMDI2LTEwLTE0VDExOjEyOjE3LjI1MTI3MDM1MloiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6ImxpdXh5MDE5OTlAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNDZmY2MwMWYtNDkyZC00NmNkLTgxYjQtMWUwZDY1M2IyOTE0In0sImlkZW50aXRpZXMiOlt7ImlkZW50aXR5X2lkIjoiMDViMjYwNWEtZjUyOS00NDAxLTkzM2UtYWU5Yjc1ZjEwMTllIiwiaWQiOiI0NmZjYzAxZi00OTJkLTQ2Y2QtODFiNC0xZTBkNjUzYjI5MTQiLCJ1c2VyX2lkIjoiNDZmY2MwMWYtNDkyZC00NmNkLTgxYjQtMWUwZDY1M2IyOTE0IiwiaWRlbnRpdHlfZGF0YSI6eyJlbWFpbCI6ImxpdXh5MDE5OTlAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNDZmY2MwMWYtNDkyZC00NmNkLTgxYjQtMWUwZDY1M2IyOTE0In0sInByb3ZpZGVyIjoiZW1haWwiLCJsYXN0X3NpZ25faW5fYXQiOiIyMDI2LTEwLTExVDA2OjM2OjA4LjUxMTM3NFoiLCJjcmVhdGVkX2F0IjoiMjAyNi0xMC0xMVQwNjozNjowOC41MTE0NDNaIiwidXBkYXRlZF9hdCI6IjIwMjYtMTAtMTFUMDY6MzY6MDguNTExNDQzWiIsImVtYWlsIjoibGl1eHkwMTk5OUBnbWFpbC5jb20ifV0sImNyZWF0ZWRfYXQiOiIyMDI2LTEwLTExVDA2OjM2OjA4LjQ2MDc5WiIsInVwZGF0ZWRfYXQiOiIyMDI2LTEwLTE0VDExOjEyOjE3LjMwNTQwOVoiLCJpc19hbm9ueW1vdXMiOmZhbHNlfSwid2Vha19wYXNzd29yZCI6bnVsbH0',
@@ -227,7 +227,49 @@ function copyUpstreamHeaders(reply, hdrs, extra = {}) {
     for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag']) {
         if (hdrs?.[key] !== undefined) reply.header(key, hdrs[key]);
     }
-    Object.entries(extra).forEach(([k, v]) => reply.header(k, v));
+    Object.entries(extra).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        reply.header(k, v);
+    });
+}
+
+/**
+ * 站点票(ticket)是 base64url(payload).签名,payload 里自带:
+ *   { sid, wid, src, exp, target, isPlaylist, bk }
+ * isPlaylist 才是判断「这条是播放列表还是视频分片」的唯一可靠依据。
+ * 返回 true/false,拿不到就返回 null(交给上层嗅探)。
+ */
+function ticketIsPlaylist(url) {
+    try {
+        const raw = String(url || '');
+        const qs = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
+        let ticket = '';
+        for (const part of qs.split('&')) {
+            if (part.startsWith('ticket=')) ticket = decodeURIComponent(part.slice(7));
+        }
+        if (!ticket) return null;
+        const payload = JSON.parse(Buffer.from(ticket.split('.')[0], 'base64url').toString('utf8'));
+        return typeof payload.isPlaylist === 'boolean' ? payload.isPlaylist : null;
+    } catch {
+        return null;
+    }
+}
+
+/** 从票里取出 workId(取票失败时给详情页兜底用) */
+function ticketWorkId(url) {
+    try {
+        const raw = String(url || '');
+        const qs = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
+        let ticket = '';
+        for (const part of qs.split('&')) {
+            if (part.startsWith('ticket=')) ticket = decodeURIComponent(part.slice(7));
+        }
+        if (!ticket) return '';
+        const payload = JSON.parse(Buffer.from(ticket.split('.')[0], 'base64url').toString('utf8'));
+        return payload.wid ? String(payload.wid) : '';
+    } catch {
+        return '';
+    }
 }
 
 function playlistSelfBase(request) {
@@ -274,14 +316,26 @@ async function streamProxy(request, reply) {
     if (range) headers.Range = range;
     if (request.headers?.['if-range']) headers['If-Range'] = String(request.headers['if-range']);
 
-    const likelyPlaylist = /\.m3u8(\?|#|$)/i.test(target)
-        || /\/api\/video\/media\/stream\?/i.test(target);
+    // 关键:站点把「播放列表」和「视频分片」挂在同一个路径下
+    //   /api/video/media/stream?ticket=...
+    // 光看 URL 根本分不出来。以前拿路径判断 → 每个分片都被当文本抓、
+    // 再 slice 一段发下去,播放器收到一堆残缺数据 → 必然黑屏。
+    // 这里改成:票里自带 isPlaylist 标记,按标记分流;标记缺失时才嗅探内容。
+    const hint = ticketIsPlaylist(target);
+    const urlIsM3u8 = /\.m3u8(\?|#|$)/i.test(target);
+    const asPlaylist = hint === null ? urlIsM3u8 : hint;
 
-    if (likelyPlaylist) {
+    if (asPlaylist) {
+        // 播放器(ffmpeg / ExoPlayer)对 m3u8 也会发 Range,原样转上去上游会回 206
+        // 只给一段,播放列表就被截断了 —— 表现就是「有的分片拿到、有的直接 403/播不动」。
+        // 播放列表必须整份取,Range 一律剥掉。
+        const plHeaders = { ...headers };
+        delete plHeaders.Range;
+        delete plHeaders['If-Range'];
         let pl;
         try {
             pl = await req.get(target, {
-                headers,
+                headers: plHeaders,
                 timeout: 120000,
                 validateStatus: () => true,
                 responseType: 'text',
@@ -302,11 +356,13 @@ async function streamProxy(request, reply) {
             return;
         }
         reply.code(200);
-        copyUpstreamHeaders(reply, pl.headers, {
-            'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
-            'Cache-Control': 'no-cache',
-        });
-        reply.send(rewriteJvM3u8(raw, target, selfBase, referer, token));
+        // 重写后长度变了,绝不能沿用上游的 content-length / content-range,
+        // 否则响应会被截断(这是旧版黑屏的第二个原因)。
+        reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+        reply.header('Cache-Control', 'no-cache');
+        const body = rewriteJvM3u8(raw, target, selfBase, referer, token);
+        reply.header('Content-Length', Buffer.byteLength(body));
+        reply.send(body);
         return;
     }
 
@@ -598,14 +654,35 @@ async function getHtml(url, referer) {
 }
 
 async function getDetailHtml(url) {
-    return getHtml(url, url);
+    const looksOk = (h) => {
+        const s = String(h || '');
+        if (!s || isCfBlock(s) || isBrowseGatePage(s)) return false;
+        return s.includes('og:title') || s.includes('"workId"') || s.includes('work-detail');
+    };
+    let html = await getHtml(url, url);
+    if (!looksOk(html)) {
+        // 站点的浏览门/人机校验偶尔会抖一下,返回一张空壳页。
+        // 这里强制刷一次通行证再取一遍,避免标题/番号整块解析成空。
+        await ensureBrowseGate(true);
+        const retry = await getHtml(url, url);
+        if (looksOk(retry) || String(retry || '').length > String(html || '').length) html = retry;
+    }
+    return html;
 }
 
 function captureVideoKey(setCookie) {
+    const key = parseVideoKey(setCookie);
+    if (key) videoKeyCookie = key;
+    return key;
+}
+
+/** 只解析,不写全局 —— 并发取票时各用各的,避免互相覆盖 */
+function parseVideoKey(setCookie) {
     for (const raw of toArray(setCookie)) {
         const pair = String(raw).split(';')[0].trim();
-        if (/^jav_verse_video_key=/i.test(pair)) videoKeyCookie = pair;
+        if (/^jav_verse_video_key=/i.test(pair)) return pair;
     }
+    return '';
 }
 
 async function postGuestJson(path, body, referer = `${site}/`) {
@@ -624,7 +701,7 @@ async function postGuestJson(path, body, referer = `${site}/`) {
             validateStatus: () => true,
             responseType: 'text',
         });
-        captureVideoKey(r.headers['set-cookie']);
+        const videoKey = captureVideoKey(r.headers['set-cookie']);
         let data = r.data;
         if (typeof data === 'string') {
             const trimmed = data.trim();
@@ -634,7 +711,7 @@ async function postGuestJson(path, body, referer = `${site}/`) {
                 data = trimmed;
             }
         }
-        return { status: r.status, data };
+        return { status: r.status, data, videoKey };
     } catch (e) {
         return { status: e.response?.status || 0, data: e.response?.data || { error: e.message } };
     }
@@ -655,7 +732,7 @@ async function postJsonOnce(path, body, referer) {
         validateStatus: () => true,
         responseType: 'text',
     });
-    captureVideoKey(r.headers['set-cookie']);
+    const videoKey = captureVideoKey(r.headers['set-cookie']);
     let data = r.data;
     if (typeof data === 'string') {
         const trimmed = data.trim();
@@ -665,7 +742,7 @@ async function postJsonOnce(path, body, referer) {
             data = trimmed;
         }
     }
-    return { status: r.status, data };
+    return { status: r.status, data, videoKey };
 }
 
 async function postJson(path, body, referer = `${site}/`) {
@@ -943,6 +1020,28 @@ function mergeCookieHeader(h) {
     return h;
 }
 
+/**
+ * 用「指定那把」video key 组 cookie。
+ * 全局 videoKeyCookie 会被并发取票覆盖,票一旦配错 key 就 403,
+ * 所以播放时必须拿取票那一瞬间的快照来组。
+ */
+function cookieHeaderWith(snapshotKey) {
+    const bag = new Map();
+    const push = (str) => {
+        for (const part of String(str || '').split(';')) {
+            const pair = part.trim();
+            if (!pair) continue;
+            const i = pair.indexOf('=');
+            if (i > 0) bag.set(pair.slice(0, i), pair);
+        }
+    };
+    push(cfg.cookie);
+    push(browseCookie);
+    push(snapshotKey || videoKeyCookie);
+    if (sessionLive()) push(buildSupabaseCookie(session));
+    return Array.from(bag.values()).join('; ');
+}
+
 function authHeaders(referer) {
     const h = baseHeaders(referer);
     if (sessionLive()) h.Authorization = `Bearer ${session.access_token}`;
@@ -1084,10 +1183,12 @@ function parsePageInfo(html, page) {
     const pages = text.match(/"pages":(\d+)/);
     const hasNext = /"hasNext":true/.test(text);
     if (pages || hasNext) {
-        let pagecount = pages ? parseInt(pages[1], 10) : page + 1;
-        // 发现页总页上万,手机端按页码铺按钮会卡死,有下一页就只报当前+1
-        if (!pagecount || pagecount > 200) pagecount = hasNext ? page + 1 : Math.min(pagecount || page, 200);
-        return { page, pagecount: pagecount || page, limit: 48, total: (pagecount || page) * 48 };
+        let pagecount = pages ? parseInt(pages[1], 10) : 0;
+        // 站点有些栏目页数上万(实测 /discover 是 9781 页)。以前只要 >200 就被
+        // 砍成「当前页+1」,结果只能翻一页 —— 这里改成照实报,只做一个防溢出的上限。
+        if (!pagecount) pagecount = hasNext ? page + 50 : Math.max(page, 1);
+        if (pagecount > 9999) pagecount = 9999;
+        return { page, pagecount, limit: 48, total: pagecount * 48 };
     }
     const $ = load(String(html || ''));
     const box = $('.catalog-pagination').first();
@@ -1195,62 +1296,82 @@ function pickVariant(list, want) {
     return hit || list[0];
 }
 
-// 解析片源:线路1 = sessions(m3u8) 线路2 = line2(直链)
+/**
+ * 取票(播放凭证)
+ * 站点 /api/video/sessions 是「游客也能调」的,不需要登录。
+ * 登录只影响 /api/video/prepare(档位元数据),跟取票没关系 ——
+ * 旧版把登录当门票,没登录直接返回空地址,这是黑屏的头号原因。
+ *
+ * 另外两个必须遵守的事实(都实测过):
+ *  1) 票和「签发那一刻返回的 jav_verse_video_key cookie」一对一绑定,
+ *     换一把 key 就 403 "Media ticket is not for this browser";
+ *  2) 票有效期约 4 小时,过期同样 403。
+ * 所以每次播放都要重新取票,并把当时那把 cookie 一起带走。
+ */
+async function fetchTicket(workId, code, variant, referer) {
+    const wid = parseInt(workId, 10) || workId;
+    const body = { workId: wid, code: code || '' };
+    if (variant) body.variant = String(variant);
+    const r = await postGuestJson('/api/video/sessions', body, referer);
+    const data = (r.data && typeof r.data === 'object') ? r.data : {};
+    const playlistUrl = pickPlaylist(data);
+    const variants = Array.isArray(data.variants) ? data.variants.map(String) : [];
+    const errText = typeof r.data === 'string'
+        ? r.data.slice(0, 200)
+        : (data.error || data.msg || data.message || '');
+    return {
+        ok: r.status >= 200 && r.status < 300 && !!playlistUrl,
+        status: r.status,
+        url: playlistUrl ? abs(playlistUrl) : '',
+        variants,
+        variant: data.variant ? String(data.variant) : '',
+        // 用「本次响应下发的那把」key,而不是全局变量 —— 并发取票时全局会被别的请求覆盖
+        cookie: r.videoKey || videoKeyCookie,
+        err: errText,
+        cf: isCloudflarePayload(r.data),
+    };
+}
+
+// 解析片源:线路1 = sessions(m3u8) 线路2 = line2(站点已下线,仅在需要时兜底)
 async function resolvePlay(workId, code, variant, opts = {}) {
     const lines = [];
     const notes = [];
     if (!workId) return { lines, notes };
-    if (!session || !session.access_token) {
-        await ensureSession();
-    }
-    if (!session || !session.access_token) {
-        notes.push(authMsg || '本站片源需登录后观看,请在插件配置里填 refreshToken(推荐)或账号密码');
-        return { lines, notes };
-    }
-
     const pageRef = `${site}/work/${workId}`;
-    const prep = await preparePlay(workId, code, pageRef);
-    if (prep.err) notes.push(String(prep.err));
-    const v1 = pickVariant(prep.variants, variant);
-    const v2 = pickVariant(prep.line2Variants, variant);
 
-    const wid = parseInt(workId, 10) || workId;
+    let t = await fetchTicket(workId, code, variant, pageRef);
+    // 指定的档位取不到(改版 / 该片没这档)就退回默认档位再取一次
+    if (!t.ok && variant) t = await fetchTicket(workId, code, '', pageRef);
 
-    if (!opts.skipLine2) {
+    if (t.cf) {
+        notes.push('播放接口被 Cloudflare 拦截,请在 ext 里补充浏览器 Cookie(含 cf_clearance)');
+    } else if (!t.ok) {
+        notes.push(t.err || `取票失败(${t.status})`);
+    }
+
+    if (t.ok) {
+        const tag = t.variant || variant || 'standard';
+        lines.push({ name: `线路1 ${tag}`, url: t.url, cookie: t.cookie });
+        t.variants.filter((v) => v !== tag).forEach((v) => {
+            lines.push({
+                name: `线路1 ${v}`,
+                url: `jv://${workId}|${encodeURIComponent(code || '')}|1|${encodeURIComponent(v)}`,
+                cookie: '',
+            });
+        });
+    }
+
+    // 线路2 已被站点下线(固定回 line2_off),只有线路1 全挂时才白跑这一趟
+    if (!t.ok && !opts.skipLine2) {
         try {
-            const s2 = await postGuestJson('/api/video/line2', { workId: wid, code }, pageRef);
+            const s2 = await postGuestJson('/api/video/line2', { workId: parseInt(workId, 10) || workId, code }, pageRef);
             const fileUrl = pickLine2File(s2.data);
             if (s2.status >= 200 && s2.status < 300 && fileUrl) {
-                const tag = s2.data.variant || v2;
-                lines.push({ name: `线路2${tag ? ` ${tag}` : ''}`, url: abs(fileUrl) });
+                lines.push({ name: '线路2', url: abs(fileUrl), cookie: s2.videoKey || videoKeyCookie });
             }
         } catch {
             /* line2 optional */
         }
-    }
-
-    const variantTag = v1 || variant || 'standard';
-    const body1 = { workId: wid, code, variant: variantTag };
-    try {
-        const s = await postJson('/api/video/sessions', body1, pageRef);
-        const playlistUrl = pickPlaylist(s.data);
-        if (isCloudflarePayload(s.data)) {
-            notes.push('播放接口被 Cloudflare 拦截,请在 ext 里补充浏览器 Cookie(含 cf_clearance)');
-        } else if (s.status === 401) {
-            notes.push(authMsg || (s.data && s.data.error) || '请先登录后再观看视频');
-        } else if (s.status >= 200 && s.status < 300 && playlistUrl) {
-            const variants = Array.isArray(s.data.variants) && s.data.variants.length ? s.data.variants : prep.variants;
-            const tag = s.data.variant || v1;
-            lines.push({ name: `线路1${tag ? ` ${tag}` : ''}`, url: abs(playlistUrl) });
-            variants.filter((v) => String(v) !== String(tag)).forEach((v) => {
-                lines.push({ name: `线路1 ${v}`, url: `jv://${workId}|${encodeURIComponent(code || '')}|1|${encodeURIComponent(v)}` });
-            });
-        } else {
-            const hint = (s.data && (s.data.error || s.data.msg || s.data.message)) || '';
-            notes.push(hint || `线路 1 片源暂时无法获取(${s.status})`);
-        }
-    } catch (e) {
-        notes.push('线路 1 请求失败');
     }
 
     return { lines, notes };
@@ -1436,20 +1557,25 @@ async function detail(inReq) {
         while ((x = re.exec(sm[1]))) stills.push(x[1]);
     }
 
-    // 片源:已登录就当场解析出真实地址,没登录就留 jv:// 占位,点播时再解析
+    // 片源:取票接口游客就能调,拿到票即代表有源(不再依赖需要登录的 prepare)
     const playCode = srcCode || codeText || '';
     const notes = [];
     let canPlay = false;
-    if (hasAuth() && workId) {
-        await ensureSession();
-        const prep = await preparePlay(workId, playCode, `${site}/work/${workId}`);
-        if (prep.err) notes.push(prep.err);
-        else if (prep.variants.length || prep.line2Variants.length) canPlay = true;
+    let playVariants = [];
+    if (workId) {
+        const t = await fetchTicket(workId, playCode, '', `${site}/work/${workId}`);
+        canPlay = t.ok;
+        playVariants = t.variants;
+        if (!t.ok && t.err) notes.push(t.err);
     }
-    if (hasAuth() && (!session || !session.access_token) && authMsg) notes.push(authMsg);
-    const playUrl = workId
-        ? `线路1$jv://${workId}|${encodeURIComponent(playCode)}|1#线路2$jv://${workId}|${encodeURIComponent(playCode)}|2`
-        : '';
+    const lineList = [];
+    if (workId && canPlay) {
+        const tags = playVariants.length ? playVariants : ['standard'];
+        tags.forEach((v) => {
+            lineList.push(`线路1·${v}$jv://${workId}|${encodeURIComponent(playCode)}|1|${encodeURIComponent(v)}`);
+        });
+    }
+    const playUrl = lineList.length ? lineList.join('#') : '';
     const playFrom = playUrl ? 'javverse' : '';
     const contentLines = [];
     if (ogDesc) contentLines.push(ogDesc);
@@ -1479,7 +1605,7 @@ async function detail(inReq) {
                 vod_actor: actresses.join(','),
                 // 站上没有播放量,这里用社区评分人数当热度
                 vod_hits: ratingCount > 0 ? String(ratingCount) : '',
-                vod_remarks: canPlay ? (codeText || '有资源') : (hasAuth() ? '片源暂不可用' : '需登录观看'),
+                vod_remarks: canPlay ? (codeText || '有资源') : '暂无片源',
                 vod_play_from: playFrom,
                 vod_play_url: playUrl,
                 vod_pic_screenshot: stills.join('$$$'),
@@ -1494,61 +1620,71 @@ async function play(inReq) {
     if (url.includes('$')) url = url.split('$').pop().trim();
 
     let pageRef = `${site}/`;
-    const needResolve = url.startsWith('jv://') || /\/api\/video\/media\/stream\?ticket=/.test(url);
+    let cookieSnapshot = '';
+    const isJv = url.startsWith('jv://');
+    const isSiteStream = /javverse\.com\/api\/video\/|^\/api\/video\//i.test(url);
 
-    if (needResolve) {
+    if (isJv || isSiteStream) {
         await ensureBrowseGate();
         // 不要每次播放都强制换 token:Supabase 轮换制,强制刷新等于每次都作废旧 token,
         // 一旦落盘失败或并发就会把登录态烧掉。按需刷新就够了。
         await ensureSession();
+
         let workId = '';
         let code = '';
         let variant = '';
-        if (url.startsWith('jv://')) {
+        if (isJv) {
             const seg = url.slice(5).split('|');
             workId = seg[0];
             code = decodeURIComponent(seg[1] || '');
-            // seg[2] 是线路号。两条线路都先走线路2 直链(MP4 对电视端兼容最好),
-            // 拿不到再回落线路1 的 m3u8
             variant = seg[3] ? decodeURIComponent(seg[3]) : '';
         } else {
-            const m = url.match(/[?&]ticket=([^&]+)/);
-            if (m) {
-                try {
-                    const payload = JSON.parse(Buffer.from(m[1].split('.')[0], 'base64url').toString('utf8'));
-                    workId = String(payload.wid || payload.workId || '');
-                } catch { /* ignore */ }
+            workId = ticketWorkId(url);
+            if (!workId) {
+                const m = url.match(/[?&]ticket=([^&]+)/);
+                if (m) {
+                    try {
+                        const payload = JSON.parse(Buffer.from(m[1].split('.')[0], 'base64url').toString('utf8'));
+                        workId = String(payload.wid || payload.workId || '');
+                    } catch { /* ignore */ }
+                }
             }
         }
         if (!code && workId) code = await lookupCodeByWorkId(workId);
         pageRef = workId ? `${site}/work/${workId}` : `${site}/`;
-        videoKeyCookie = '';
-        const wid = parseInt(workId, 10) || workId;
-        const tryLine2 = async () => {
-            const body2 = variant ? { workId: wid, code, variant } : { workId: wid, code };
-            const s = await postGuestJson('/api/video/line2', body2, pageRef);
-            const fileUrl = pickLine2File(s.data);
-            if (s.status >= 200 && s.status < 300 && fileUrl) return abs(fileUrl);
-            return '';
-        };
 
-        url = await tryLine2();
-        if (!url) {
-            // 线路 2 拿不到就回落线路 1。原来这里失败会把 jv:// 伪协议原样
-            // 丢给播放器 —— 播放器不认识这个协议,必然黑屏/报错。
-            const r = await resolvePlay(workId, code, variant || null, { skipLine2: true });
-            const hit = r.lines.find((l) => l.url && !String(l.url).startsWith('jv://'));
-            if (hit) url = hit.url;
+        // 每次播放都重新取票:票约 4 小时有效,而且和签发那把 cookie 死绑,
+        // 复用详情页那张票过一会儿就 403。
+        let t = await fetchTicket(workId, code, variant, pageRef);
+        if (!t.ok && variant) t = await fetchTicket(workId, code, '', pageRef);
+        if (t.ok) {
+            url = t.url;
+            cookieSnapshot = t.cookie;
+        } else {
+            // 线路1 拿不到,最后再试一次线路2(站点基本已下线,聊胜于无)
+            url = '';
+            const s2 = await postGuestJson('/api/video/line2', { workId: parseInt(workId, 10) || workId, code }, pageRef);
+            const fileUrl = pickLine2File(s2.data);
+            if (s2.status >= 200 && s2.status < 300 && fileUrl) {
+                url = abs(fileUrl);
+                cookieSnapshot = videoKeyCookie;
+            }
         }
     }
 
     if (!url || url.startsWith('jv://')) {
-        return { parse: 0, url: url || '', header: { 'User-Agent': UA, Referer: pageRef } };
+        return { parse: 0, url: '', header: { 'User-Agent': UA, Referer: pageRef } };
     }
 
-    const header = authHeaders(pageRef);
+    const header = baseHeaders(pageRef);
+    if (sessionLive()) header.Authorization = `Bearer ${session.access_token}`;
+    const cookieLine = cookieHeaderWith(cookieSnapshot);
+    if (cookieLine) header.Cookie = cookieLine;
+
     const fullUrl = abs(url);
     if (needsStreamProxy(fullUrl)) {
+        // 票和 cookie 一起存进代理凭据:分片请求不会带 play.header,
+        // 代理必须自己把这一对原样带上去,否则就是 403。
         const token = storePlayAuth(header);
         const proxied = proxyStreamPath(inReq, fullUrl, pageRef, token);
         if (proxied) {
