@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import http from 'http';
+import https from 'https';
 import os from 'os';
 import path from 'path';
 import { load } from 'cheerio';
@@ -14,29 +16,30 @@ function toArray(v) {
  *  JAV Verse  ·  https://javverse.com
  *  日本成人影片资料库(番号 / 女优 / 片商 / 类别 / 发售时间线)
  *  ---------------------------------------------------------------------
- *  【登录说明】站点用 Supabase Auth,片源接口(/api/video/*)必须登录态。
- *  三选一填进插件配置 ext 里(优先级从上到下):
+ *  【播放说明 · 重要】
+ *  站点 GET 页面有人机校验(机房 IP 经常被挡),但播放走的是 POST 接口,
+ *  游客就能取到片源:/api/video/sessions 直接返回 m3u8,不需要登录。
+ *  登录只影响 /api/video/prepare(档位元数据),不影响播放。
  *
- *   1) refreshToken —— 最省事,一次搞定长期有效
- *      浏览器登录 javverse.com → F12 → Application → Local Storage →
- *      找键名 sb-ywapzolifdkuecxktlio-auth-token → 复制整段 JSON 里的
- *      refresh_token 值填进来。插件会用它在后台自动换新登录态。
+ *  【代理写法】ext.proxy 四选一:
+ *    auto   本地 HTTP 代理优先 → 壳子路由 → 直连(默认,推荐)
+ *    local  只用本地 HTTP 代理
+ *    router 只用壳子自带路由(壳子必须能给出真实 http 地址)
+ *    direct 不代理,上游地址 + header 直接交给播放器
  *
- *   2) email + password —— 直连账号密码
- *      注意:站点登录挂了一道 Cloudflare 人机校验,纯后台请求过不去,
- *      除非站点把校验关掉,或者你把一次性的 captchaToken 一起传进来。
- *      所以这条路能填,但失败时请改用上面第 1 条。
+ *  为什么默认自己起 HTTP 代理:片源要带 Cookie(票和 Cookie 一对一绑定),
+ *  而播放器不会替分片带 play.header。插件内置的代理服务监听一个真实
+ *  HTTP 端口,播放器拿到的是普通 http:// 地址,列表和分片都在这里回源,
+ *  Cookie / Range / CORS 全部由代理处理。
  *
- *   3) cookie —— 从浏览器 F12 直接复制整串 Cookie 贴进来(含 sb-xxx-auth-token)
+ *  额外可填(一般不用):
+ *    proxyHost  播放器访问不到壳子给的 Host 时,手动指定局域网 IP
+ *    proxyPort  固定代理端口(壳子防火墙只放行特定端口时用)
  *
- *  没填任何登录信息时:番号 / 封面 / 出演者 / 类别 / 时长 / 片商 / 剧照
- *  全部照常浏览,只是点播时提示「需登录观看」。
- *
- *  【播放入口】站点真实链路(照站点前端代码 1:1 复刻):
- *   POST /api/video/prepare  { workId, code, includeLine2 } -> 档位列表
- *   POST /api/video/sessions { workId, code, variant }      -> 线路1 m3u8
- *   POST /api/video/line2    { workId, code, variant }      -> 线路2 直链
- *   POST /api/video/sessions/refresh { sessionId, ... }     -> 续期播放会话
+ *  【站点真实播放链路】
+ *   POST /api/video/sessions { workId, code, variant } -> m3u8(游客可用)
+ *   POST /api/video/line2    { workId, code, variant } -> 线路2 直链(站点已下线)
+ *   GET  /api/video/media/stream?ticket=...            -> 列表与分片同路径
  * ========================================================================== */
 
 const META_KEY = 'javverse';
@@ -53,6 +56,16 @@ const SB_COOKIE = `sb-${SB_REF}-auth-token`;
 
 // 登录配置(init 时从 ext 读入)
 const cfg = {
+    // 播放代理模式:
+    //   auto   本地 HTTP 代理 → 壳子路由 → 直连(默认,推荐)
+    //   local  只用本地 HTTP 代理
+    //   router 只用壳子自带路由(必须能给出真实 http 地址)
+    //   direct 不代理,直接给上游地址 + header 让播放器自己拉
+    proxy: 'auto',
+    // 手动指定播放器能访问到的主机/端口(容器部署、或壳子给的 Host 不对时用)
+    //   proxyHost: '192.168.1.20'   proxyPort: 39001
+    proxyHost: '',
+    proxyPort: 0,
     cookie: '',
     email: '',
     password: '',
@@ -65,6 +78,8 @@ const cfg = {
 let session = null; // { access_token, refresh_token, expires_at, user }
 let authMsg = '';
 let refreshFailAt = 0;
+/** 最近一次播放的关键信息(给 /debug 用,排查播放不了时一眼看出断在哪) */
+let lastPlayDebug = {};
 /** /api/video/sessions 下发的 HttpOnly 密钥,拉 m3u8 必须带上 */
 let videoKeyCookie = '';
 const playAuthStore = new Map();
@@ -139,6 +154,364 @@ function unb64url(s) {
     return Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 }
 
+/* ==========================================================================
+ *  播放代理 · 本地 HTTP 服务(核心)
+ *  ---------------------------------------------------------------------
+ *  【为什么要换写法】
+ *  上一版把播放地址拼成 `js2p://_WEB_/spider/javverse/3/proxy/stream?...`。
+ *  js2p:// 是壳子内部的 RPC 协议,只有壳子自己的 JS 层认;播放器(ExoPlayer /
+ *  IJK / ffmpeg)拿到这个地址只会当成无法识别的链接,直接黑屏 —— 跟片源、
+ *  票、Cookie 一点关系都没有,是地址写法本身播不了。
+ *
+ *  【现在的写法】
+ *  插件自己起一个真实的 HTTP 服务(0.0.0.0:随机端口),返回给播放器的永远是
+ *  一个普通 `http://<host>:<port>/jv/<sid>/<n>`:
+ *    - 播放列表在这里重写,列表里的分片地址同样指向这个 HTTP 服务
+ *    - 每条播放会话单独保存 Cookie / UA / Referer,多人并发不串号
+ *    - Range、HEAD、CORS、206 全部照常处理
+ *    - 路径只有短编号,不带超长参数,老播放器也吃得下
+ * ========================================================================== */
+const LOCAL_PROXY_TTL_MS = 6 * 60 * 60 * 1000;
+const LOCAL_MAX_ITEMS = 20000;
+let localProxy = null; // { server, port }
+let localProxyTask = null;
+const localSessions = new Map(); // sid -> { headers, urls, rev, kinds, next, expires }
+
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
+    'Access-Control-Allow-Headers': 'Range,Content-Type,Origin,Accept',
+    'Access-Control-Expose-Headers': 'Content-Length,Content-Range,Accept-Ranges,Content-Type',
+};
+
+function pruneLocalSessions() {
+    const now = Date.now();
+    for (const [k, v] of localSessions) {
+        if (!v || v.expires < now) localSessions.delete(k);
+    }
+}
+
+function newLocalSession(headers) {
+    pruneLocalSessions();
+    const sid = crypto.randomBytes(8).toString('hex');
+    localSessions.set(sid, {
+        headers: { ...(headers || {}) },
+        urls: new Map(), // n -> 上游地址
+        rev: new Map(), // 上游地址 -> n
+        kinds: new Map(), // n -> 'pl' | 'seg'
+        next: 1,
+        expires: Date.now() + LOCAL_PROXY_TTL_MS,
+    });
+    return sid;
+}
+
+/**
+ * 把一个上游地址登记进会话,返回短编号。
+ * 同一个地址(播放器会反复请求同一分片)复用同一个编号,避免 Map 无限膨胀。
+ */
+function registerLocalUrl(sess, url, kind) {
+    if (!sess || !url) return 0;
+    const target = String(url);
+    const prev = sess.rev.get(target);
+    if (prev) {
+        if (kind === 'pl') sess.kinds.set(prev, 'pl');
+        return prev;
+    }
+    const n = sess.next++;
+    sess.urls.set(n, target);
+    sess.rev.set(target, n);
+    sess.kinds.set(n, kind === 'pl' ? 'pl' : 'seg');
+    if (sess.urls.size > LOCAL_MAX_ITEMS) {
+        const oldest = sess.urls.keys().next().value;
+        const oldUrl = sess.urls.get(oldest);
+        sess.urls.delete(oldest);
+        sess.rev.delete(oldUrl);
+        sess.kinds.delete(oldest);
+    }
+    return n;
+}
+
+/** 起本地代理(只起一次),返回端口;失败返回 0 交给上层兜底 */
+function ensureLocalProxy() {
+    // 配置里改了固定端口 → 把旧的重开,别让新配置形同虚设
+    if (localProxy && cfg.proxyPort > 0 && localProxy.port !== cfg.proxyPort) {
+        try {
+            localProxy.server.close();
+        } catch {
+            /* ignore */
+        }
+        localProxy = null;
+    }
+    if (localProxy && localProxy.port) return Promise.resolve(localProxy.port);
+    if (localProxyTask) return localProxyTask;
+    localProxyTask = new Promise((resolve) => {
+        let settled = false;
+        const done = (port) => {
+            if (settled) return;
+            settled = true;
+            resolve(port);
+        };
+        try {
+            const server = http.createServer((cReq, cRes) => {
+                handleLocalProxy(cReq, cRes).catch(() => {
+                    try {
+                        if (!cRes.headersSent) cRes.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+                        cRes.end('jv proxy error');
+                    } catch {
+                        /* ignore */
+                    }
+                });
+            });
+            server.on('clientError', (_e, sock) => {
+                try {
+                    sock.destroy();
+                } catch {
+                    /* ignore */
+                }
+            });
+            const onListening = () => {
+                const addr = server.address();
+                const port = (addr && typeof addr === 'object' && addr.port) || 0;
+                if (!port) {
+                    try {
+                        server.close();
+                    } catch {
+                        /* ignore */
+                    }
+                    done(0);
+                    return;
+                }
+                // 别让这个监听口把壳子的进程吊住退出
+                server.unref?.();
+                localProxy = { server, port };
+                done(port);
+            };
+            const startListen = (p) => {
+                try {
+                    server.listen(p, '0.0.0.0', onListening);
+                } catch {
+                    done(0);
+                }
+            };
+            const wantPort = cfg.proxyPort > 0 ? cfg.proxyPort : 0;
+            let retried = false;
+            server.on('error', () => {
+                // 指定端口被占就退回随机端口,不要因此让播放整个挂掉
+                if (wantPort && !retried) {
+                    retried = true;
+                    startListen(0);
+                    return;
+                }
+                done(0);
+            });
+            startListen(wantPort);
+        } catch {
+            done(0);
+        }
+    }).finally(() => {
+        localProxyTask = null;
+    });
+    return localProxyTask;
+}
+
+/**
+ * 拼出播放器能访问的地址。
+ * 用客户端请求插件 API 时带的 Host(那正是播放器所在网络能到达的地址),
+ * 只把端口换成我们的代理端口 —— 不写死 127.0.0.1,免得壳子跑在别的机器上。
+ */
+function localProxyHost(inReq, port) {
+    // 手动指定的优先(容器 / 壳子给的 Host 不可达时靠这个)
+    if (cfg.proxyHost) return `${cfg.proxyHost}:${port}`;
+    let hostname = '';
+    try {
+        const raw = String(inReq?.headers?.host || inReq?.headers?.Host || '');
+        hostname = raw.split(':')[0].trim();
+    } catch {
+        hostname = '';
+    }
+    if (!hostname || hostname === '0.0.0.0') hostname = '127.0.0.1';
+    return `${hostname}:${port}`;
+}
+
+function readAll(stream) {
+    return new Promise((resolve, reject) => {
+        const chunks = [];
+        stream.on('data', (c) => chunks.push(c));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+    });
+}
+
+function openUpstream(target, headers) {
+    return new Promise((resolve, reject) => {
+        let u;
+        try {
+            u = new URL(target);
+        } catch {
+            reject(new Error('bad url'));
+            return;
+        }
+        const mod = u.protocol === 'http:' ? http : https;
+        const rq = mod.request(
+            {
+                protocol: u.protocol,
+                hostname: u.hostname,
+                port: u.port || (u.protocol === 'http:' ? 80 : 443),
+                path: `${u.pathname}${u.search}`,
+                method: 'GET',
+                headers,
+            },
+            resolve,
+        );
+        rq.setTimeout(120000, () => rq.destroy(new Error('upstream timeout')));
+        rq.on('error', reject);
+        rq.end();
+    });
+}
+
+function isPlaylistTarget(url, fallback) {
+    const hint = ticketIsPlaylist(url);
+    if (hint === true) return true;
+    if (hint === false) return false;
+    return !!fallback;
+}
+
+async function handleLocalProxy(cReq, cRes) {
+    if (String(cReq.method || '').toUpperCase() === 'OPTIONS') {
+        cRes.writeHead(204, CORS_HEADERS);
+        cRes.end();
+        return;
+    }
+    const pathOnly = String(cReq.url || '').split('?')[0];
+    const m = pathOnly.match(/^\/jv\/([0-9a-f]{16})\/(\d+)(?:\.[a-z0-9]+)?$/i);
+    if (!m) {
+        cRes.writeHead(404, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+        cRes.end('jv proxy: bad path');
+        return;
+    }
+    const sid = m[1];
+    const sess = localSessions.get(sid);
+    if (!sess || sess.expires < Date.now()) {
+        cRes.writeHead(410, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+        cRes.end('jv proxy: session expired, replay');
+        return;
+    }
+    const n = Number(m[2]);
+    const target = sess.urls.get(n);
+    if (!target) {
+        cRes.writeHead(404, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+        cRes.end('jv proxy: unknown item');
+        return;
+    }
+    const kind = sess.kinds.get(n) || 'seg';
+    const host = String(cReq.headers?.host || `127.0.0.1:${localProxy?.port || 0}`);
+    const mkUrl = (u, k) => `http://${host}/jv/${sid}/${registerLocalUrl(sess, u, k)}`;
+    await proxyItem(cReq, cRes, sess, target, kind, mkUrl);
+}
+
+async function proxyItem(cReq, cRes, sess, target, kind, mkUrl) {
+    const baseHeaders = { ...(sess.headers || {}), 'Accept-Encoding': 'identity', Accept: '*/*' };
+    const wantRange = !!cReq.headers?.range;
+    const isHead = String(cReq.method || 'GET').toUpperCase() === 'HEAD';
+    const asPlaylist = isPlaylistTarget(target, kind === 'pl');
+
+    const fetchUp = async (withRange) => {
+        const h = { ...baseHeaders };
+        if (withRange && wantRange) h.Range = String(cReq.headers.range);
+        return openUpstream(target, h);
+    };
+
+    let up;
+    try {
+        // 播放列表一律整份取:播放器对 m3u8 也会发 Range,原样转上去上游回 206
+        // 只给一段,列表就被截断 —— 这是「有的分片能拿、有的直接 403」的根。
+        up = await fetchUp(!asPlaylist);
+    } catch (e) {
+        cRes.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+        cRes.end(`upstream: ${String(e.message || e)}`);
+        return;
+    }
+
+    const status = up.statusCode && up.statusCode >= 200 && up.statusCode < 600 ? up.statusCode : 502;
+    const ctype = String(up.headers['content-type'] || '');
+
+    // 内容嗅探兜底:站点哪天改版,分片路径上冒出播放列表也能兜住
+    if (asPlaylist || /mpegurl/i.test(ctype)) {
+        let buf;
+        try {
+            buf = await readAll(up);
+        } catch (e) {
+            cRes.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'text/plain' });
+            cRes.end(`upstream: ${String(e.message || e)}`);
+            return;
+        }
+        const text = buf.toString('utf8');
+        if (text.includes('#EXTM3U')) {
+            const body = Buffer.from(rewriteM3u8(text, target, mkUrl), 'utf8');
+            cRes.writeHead(200, {
+                ...CORS_HEADERS,
+                'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
+                // 重写后长度一定变了,不能沿用上游的 Content-Length / Content-Range
+                'Content-Length': body.length,
+                'Cache-Control': 'no-cache',
+            });
+            cRes.end(isHead ? undefined : body);
+            return;
+        }
+        // 不是列表(初始化片段之类)就原样回
+        cRes.writeHead(status, {
+            ...CORS_HEADERS,
+            'Content-Type': ctype || 'application/octet-stream',
+            'Content-Length': buf.length,
+            'Cache-Control': 'no-cache',
+        });
+        cRes.end(isHead ? undefined : buf);
+        return;
+    }
+
+    const pass = {};
+    for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag', 'cache-control']) {
+        if (up.headers[k] !== undefined) pass[k] = up.headers[k];
+    }
+    Object.assign(pass, CORS_HEADERS);
+    if (!pass['cache-control']) pass['cache-control'] = 'no-cache';
+
+    try {
+        cRes.writeHead(status, pass);
+    } catch {
+        try {
+            up.destroy();
+        } catch {
+            /* ignore */
+        }
+        return;
+    }
+    if (isHead) {
+        try {
+            up.destroy();
+        } catch {
+            /* ignore */
+        }
+        cRes.end();
+        return;
+    }
+    up.on('error', () => {
+        try {
+            cRes.destroy();
+        } catch {
+            /* ignore */
+        }
+    });
+    cReq.on('close', () => {
+        try {
+            up.destroy();
+        } catch {
+            /* ignore */
+        }
+    });
+    up.pipe(cRes);
+}
+
 function prunePlayAuthStore() {
     const now = Date.now();
     for (const [k, v] of playAuthStore) {
@@ -180,11 +553,14 @@ function proxyStreamPath(inReq, targetUrl, referer, token) {
     try {
         const srv = inReq?.server;
         const addr = srv?.address?.();
-        const dynamic = addr?.dynamic || 'js2p://_WEB_';
         const prefix = pluginPrefixOf(inReq);
         const qs = `t=${token}&u=${b64url(targetUrl)}&r=${b64url(referer || '')}`;
-        if (dynamic) return `${dynamic}${prefix}/proxy/stream?${qs}`;
-        if (addr?.url) return `${addr.url}${prefix}/proxy/stream?${qs}`;
+        // 只用真实 http 地址。js2p:// 是壳子内部 RPC 协议,播放器打不开 ——
+        // 上一版黑屏就是栽在这:地址本身就不是给播放器用的。
+        if (addr?.url && /^https?:\/\//i.test(String(addr.url))) return `${addr.url}${prefix}/proxy/stream?${qs}`;
+        const host = inReq?.headers?.host || inReq?.headers?.Host;
+        if (host) return `http://${host}${prefix}/proxy/stream?${qs}`;
+        if (addr?.port) return `http://127.0.0.1:${addr.port}${prefix}/proxy/stream?${qs}`;
         return '';
     } catch {
         return '';
@@ -196,26 +572,27 @@ function needsStreamProxy(url) {
     return /javverse\.com\/api\/video\//i.test(u) || u.startsWith('/api/video/');
 }
 
-function rewriteJvM3u8(raw, playlistUrl, selfBase, referer, token) {
+function rewriteM3u8(raw, playlistUrl, mkUrl) {
     const lines = String(raw).split(/\r?\n/);
     const mapLine = (line) => {
         const s = line.trim();
-        if (!s || s.startsWith('#')) {
-            if (s.includes('URI="')) {
-                return line.replace(/URI="([^"]+)"/g, (_, uri) => {
-                    try {
-                        const absUri = new URL(uri, playlistUrl).href;
-                        return `URI="${selfBase}/proxy/stream?t=${token}&u=${b64url(absUri)}&r=${b64url(referer || '')}"`;
-                    } catch {
-                        return line;
-                    }
-                });
-            }
-            return line;
+        if (!s) return line;
+        if (s.startsWith('#')) {
+            if (!s.includes('URI="')) return line;
+            return line.replace(/URI="([^"]*)"/g, (whole, uri) => {
+                if (!uri || uri.startsWith('data:')) return whole;
+                try {
+                    return `URI="${mkUrl(new URL(uri, playlistUrl).href, 'seg')}"`;
+                } catch {
+                    return whole;
+                }
+            });
         }
         try {
             const absUri = new URL(s, playlistUrl).href;
-            return `${selfBase}/proxy/stream?t=${token}&u=${b64url(absUri)}&r=${b64url(referer || '')}`;
+            const hint = ticketIsPlaylist(absUri);
+            const kind = hint === true ? 'pl' : hint === false ? 'seg' : /\.m3u8(\?|#|$)/i.test(absUri) ? 'pl' : 'seg';
+            return mkUrl(absUri, kind);
         } catch {
             return line;
         }
@@ -275,13 +652,14 @@ function ticketWorkId(url) {
 function playlistSelfBase(request) {
     const urlPath = String(request.url || '').split('?')[0];
     const prefix = urlPath.replace(/\/proxy\/stream\/?$/i, '') || `/spider/${META_KEY}/3`;
-    const srv = request.server;
-    const dynamic = srv?.address?.()?.dynamic || '';
     const host = request.headers?.host;
-    if (dynamic) return `${dynamic}${prefix}`;
+    // 注意:这里只认真实 http 地址。壳子的 js2p:// 动态地址不能出现在
+    // 播放列表里 —— 播放器只会把它当坏链。
     if (host) return `http://${host}${prefix}`;
-    const port = srv?.address?.()?.port;
+    const port = request.server?.address?.()?.port;
     if (port) return `http://127.0.0.1:${port}${prefix}`;
+    const addrUrl = request.server?.address?.()?.url;
+    if (addrUrl && /^https?:\/\//i.test(String(addrUrl))) return `${addrUrl}${prefix}`;
     return '';
 }
 
@@ -360,7 +738,9 @@ async function streamProxy(request, reply) {
         // 否则响应会被截断(这是旧版黑屏的第二个原因)。
         reply.header('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
         reply.header('Cache-Control', 'no-cache');
-        const body = rewriteJvM3u8(raw, target, selfBase, referer, token);
+        reply.header('Access-Control-Allow-Origin', '*');
+        const mkUrl = (u, _k) => `${selfBase}/proxy/stream?t=${token}&u=${b64url(u)}&r=${b64url(referer || '')}`;
+        const body = rewriteM3u8(raw, target, mkUrl);
         reply.header('Content-Length', Buffer.byteLength(body));
         reply.send(body);
         return;
@@ -1383,6 +1763,10 @@ async function resolvePlay(workId, code, variant, opts = {}) {
 async function init(inReq) {
     const ext = (inReq && inReq.body && inReq.body.ext) || {};
     cfg.cookie = ext.cookie || ext.cookieJavverse || cfg.cookie || '';
+    // 播放代理模式,不填就是 auto(本地 HTTP 代理优先)
+    if (ext.proxy) cfg.proxy = String(ext.proxy).trim().toLowerCase();
+    if (ext.proxyHost) cfg.proxyHost = String(ext.proxyHost).trim();
+    if (ext.proxyPort) cfg.proxyPort = parseInt(ext.proxyPort, 10) || 0;
     cfg.email = ext.email || ext.username || cfg.email || '';
     cfg.password = ext.password || cfg.password || '';
     cfg.captchaToken = ext.captchaToken || cfg.captchaToken || '';
@@ -1682,16 +2066,102 @@ async function play(inReq) {
     if (cookieLine) header.Cookie = cookieLine;
 
     const fullUrl = abs(url);
-    if (needsStreamProxy(fullUrl)) {
-        // 票和 cookie 一起存进代理凭据:分片请求不会带 play.header,
-        // 代理必须自己把这一对原样带上去,否则就是 403。
+    const mode = String(cfg.proxy || 'auto').toLowerCase();
+    const dbg = {
+        at: new Date().toISOString(),
+        mode,
+        upstream: fullUrl ? `${fullUrl.slice(0, 90)}...` : '',
+        kind: ticketIsPlaylist(fullUrl) === true ? 'playlist' : 'segment',
+        hasCookie: !!header.Cookie,
+    };
+    lastPlayDebug = dbg;
+
+    if (!fullUrl || !needsStreamProxy(fullUrl)) {
+        // 不是站点私有片源(线路2 直链等),播放器能直接拉
+        return { parse: 0, url: fullUrl, header };
+    }
+
+    // ---------- 1)本地 HTTP 代理(默认)----------
+    // 给播放器一个普通 http:// 地址,插件自己带 Cookie/Referer 回源。
+    if (mode === 'auto' || mode === 'local') {
+        const port = await ensureLocalProxy();
+        dbg.localPort = port;
+        if (port) {
+            const sid = newLocalSession(header);
+            const sess = localSessions.get(sid);
+            const n = registerLocalUrl(sess, fullUrl, 'pl');
+            const host = localProxyHost(inReq, port);
+            const proxiedUrl = `http://${host}/jv/${sid}/${n}`;
+            dbg.picked = 'local';
+            dbg.playUrl = proxiedUrl;
+            return { parse: 0, url: proxiedUrl, header: { 'User-Agent': UA, Referer: pageRef } };
+        }
+        dbg.localError = '本地代理起不来(端口被占/环境不允许监听)';
+        if (mode === 'local') {
+            // 明确只走 local 但起不来,退回直连,至少别返回空地址
+            dbg.picked = 'direct(fallback)';
+            return { parse: 0, url: fullUrl, header };
+        }
+    }
+
+    // ---------- 2)壳子自带路由(必须是真实 http 地址)----------
+    if (mode !== 'direct') {
         const token = storePlayAuth(header);
         const proxied = proxyStreamPath(inReq, fullUrl, pageRef, token);
         if (proxied) {
+            dbg.picked = 'router';
+            dbg.playUrl = proxied;
             return { parse: 0, url: proxied, header: { 'User-Agent': UA, Referer: pageRef } };
         }
+        dbg.routerError = '壳子没给出可用的 http 地址';
     }
+
+    // ---------- 3)兜底:直连上游,让播放器自己带 header 拉 ----------
+    dbg.picked = 'direct';
     return { parse: 0, url: fullUrl, header };
+}
+
+/** 播放链路自检:以后播不了,先打这个看断在哪一步 */
+async function debugInfo(inReq) {
+    const body = (inReq && inReq.body) || {};
+    const port = localProxy?.port || 0;
+    let local = { running: !!port, port };
+    if (!port) {
+        const p = await ensureLocalProxy();
+        local = { running: !!p, port: p, error: p ? '' : '无法监听本地端口' };
+    }
+    const out = {
+        proxyMode: cfg.proxy,
+        localProxy: local,
+        localSessions: localSessions.size,
+        routerProxySessions: playAuthStore.size,
+        login: sessionLive(),
+        lastPlay: lastPlayDebug,
+    };
+    // 带了地址就顺手活着探一次,直接看到上游到底回什么
+    const id = String(body.id || body.url || '').trim();
+    if (id) {
+        const target = /^https?:\/\//.test(id) ? id : `jv://${id}`;
+        try {
+            const r = await play({ body: { id: target }, headers: (inReq && inReq.headers) || {}, server: inReq?.server });
+            out.resolved = { url: String(r?.url || '').slice(0, 200), picked: lastPlayDebug?.picked || '' };
+            const u = String(r?.url || '');
+            if (u.startsWith('http://')) {
+                const up = await openUpstream(u, { 'User-Agent': UA, ...(r?.header || {}) });
+                const probe = await readAll(up).catch(() => Buffer.alloc(0));
+                out.probe = {
+                    status: up.statusCode,
+                    contentType: String(up.headers['content-type'] || ''),
+                    bytes: probe.length,
+                    isPlaylist: probe.toString('utf8', 0, 200).includes('#EXTM3U'),
+                    head: probe.toString('utf8', 0, 120).replace(/\s+/g, ' '),
+                };
+            }
+        } catch (e) {
+            out.error = String(e && e.message ? e.message : e);
+        }
+    }
+    return out;
 }
 
 async function search(inReq) {
@@ -1712,6 +2182,7 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.post('/debug', debugInfo);
         fastify.get('/proxy/stream', streamProxy);
     },
 };
