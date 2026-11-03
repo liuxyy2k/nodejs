@@ -342,6 +342,9 @@ function readAll(stream) {
     });
 }
 
+/** 与 util/req.js 一致:上游 CDN 偶发链不完整时 Node 默认校验会报 unable to verify the first certificate */
+const upstreamHttpsAgent = new https.Agent({ keepAlive: true, rejectUnauthorized: false });
+
 function openUpstream(target, headers) {
     return new Promise((resolve, reject) => {
         let u;
@@ -360,6 +363,7 @@ function openUpstream(target, headers) {
                 path: `${u.pathname}${u.search}`,
                 method: 'GET',
                 headers,
+                ...(u.protocol === 'https:' ? { agent: upstreamHttpsAgent, rejectUnauthorized: false } : {}),
             },
             resolve,
         );
