@@ -593,8 +593,7 @@ async function play(reqIn) {
   return result;
 }
 
-export default function createSpider() {
-  return {
+export default {
     meta: { key: 'py_javmit', name: '🌸JavMit', type: 3 },
     api: async (fastify) => {
       fastify.post('/init', async () => ({}));
@@ -604,5 +603,4 @@ export default function createSpider() {
       fastify.post('/play', play);
       fastify.post('/search', search);
     },
-  };
 }
