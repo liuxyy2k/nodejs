@@ -148,29 +148,41 @@ function proxyPic(url, inReq) {
     return `${getProxyBase(inReq)}/img?url=${encodeURIComponent(e64(fixed))}`;
 }
 
+function aesDecrypt(buf) {
+    const key = Buffer.from('f5d965df75336270');
+    const iv = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
+}
+
 async function imgProxy(inReq, reply) {
     try {
-        let raw = d64(inReq.query && inReq.query.url);
-        const m = raw.match(/loadBannerDirect\('([^']*)'/);
-        if (m) raw = m[1];
-        if (!raw || !/^https?:\/\//i.test(raw)) return reply.code(404).send('');
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
 
-        const r = await request(raw, { referer: site + '/', binary: true, retries: 1 });
-        if (r.status !== 200 || !r.data) return reply.code(r.status >= 400 ? r.status : 502).send('');
+        const resp = await req.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                Referer: `${site}/`,
+                Origin: site,
+            },
+            timeout: 10000,
+            responseType: 'arraybuffer',
+            validateStatus: () => true,
+        });
+        if (resp.status !== 200 || !resp.data?.byteLength) return reply.code(resp.status || 502).send('');
 
-        const buf = Buffer.isBuffer(r.data) ? r.data : Buffer.from(r.data);
-        if (!buf.length) return reply.code(502).send('');
-
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
         let ct = 'image/jpeg';
-        if (buf[0] === 0x89 && buf[1] === 0x50) ct = 'image/png';
-        else if (buf.slice(0, 4).toString() === 'GIF8') ct = 'image/gif';
-        else if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') ct = 'image/webp';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8') ct = 'image/gif';
 
         reply.header('Access-Control-Allow-Origin', '*');
-        reply.header('Cache-Control', 'public, max-age=86400');
-        return reply.header('Content-Type', ct).send(buf);
+        return reply.header('Content-Type', ct).send(decrypted);
     } catch (e) {
-        console.error('haosetv imgProxy error:', e && e.message);
+        console.error('seqinghub imgProxy error:', e.message);
         return reply.code(500).send('');
     }
 }
