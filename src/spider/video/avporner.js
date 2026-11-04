@@ -1,21 +1,8 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
-import axios from 'axios';  
-import { config } from './config.js';
-
-const FLARE_URL = config.FLARE_URL;
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 const site = 'https://avporner.com';
-
-// async function request(url) {
-//     const resp = await axios.post(FLARE_URL, {
-//         cmd: 'request.get',
-//         url: url,
-//         maxTimeout: 60000,
-//     });
-//     return resp.data.solution.response;
-// }
 
 async function request(targetUrl, referer = '') {
     const headers = {
