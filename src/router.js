@@ -326,6 +326,9 @@ import hornjav from "./spider/video/hornjav.js";
 import supjavold from "./spider/video/supjavold.js";
 import mogu from "./spider/video/mogu.js";
 import xhy from "./spider/video/xhy.js";
+import javportals from "./spider/video/javportals.js";
+import jasex from "./spider/video/jasex.js";
+import javhey from "./spider/video/javhey.js";
 import nine1pornpp from "./spider/video/91pornpp.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
@@ -359,7 +362,7 @@ export const getSpiders = async (server) => {
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty, myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
-        miss, missav, missavXptv, thisavfull, dsys, sevenmmtv, javverse, javdone, javcc, javfeed, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavold, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
+        miss, missav, missavXptv, thisavfull, dsys, sevenmmtv, javverse, javdone, javcc, javfeed, javportals, javhey, jasex, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavold, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, missav02, missavt, 
         javdino, javgogogo, javhd, jav36, jav91wm, javday, manko, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
