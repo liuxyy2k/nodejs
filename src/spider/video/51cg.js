@@ -25,7 +25,7 @@ let headers = { ...DEFAULT_HEADERS, Origin: site, Referer: `${site}/` };
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
-        httpsAgent: agent
+        // httpsAgent: agent
     });
     return resp.data;
 }
