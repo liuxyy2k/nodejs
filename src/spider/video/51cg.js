@@ -2,9 +2,9 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import crypto from 'crypto';
 
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
-// const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
 
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
@@ -25,7 +25,7 @@ let headers = { ...DEFAULT_HEADERS, Origin: site, Referer: `${site}/` };
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, ...headers },
-        // httpsAgent: agent
+        httpsAgent: agent
     });
     return resp.data;
 }
@@ -54,7 +54,7 @@ async function parseVods($) {
     const items = [];
 
     $('article').each((_, element) => {
-        const rawPic = $(element).find('script').text().trim();
+        const rawPic = $(element).find('.blog-background').attr('x-bg-loader-url') || $(element).find('.blog-background').attr('z-bg-loader-url') || '';
         const url = $(element).find('a').attr('href') || '';
         const name = $(element).find('.post-card-title').text().trim();
         const date  = $(element).find('span[itemprop="datePublished"]').text().trim();
