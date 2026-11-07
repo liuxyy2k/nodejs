@@ -1,7 +1,7 @@
 /**
  * 红裹视频（p1zw.hgyng.com）解析插件  meta.type = 3
  *
- * 零依赖：只用 Node 内置 http / https / zlib / crypto，不引 cheerio、不引 req.js。
+ * 出网走项目 req.js（Cookie 罐）；内置播放代理仍用 Node http。
  *
  * 站点结构（实测）
  *   首页        /                        三个分区：正在点播 / 每日热播 / 最近更新
@@ -41,10 +41,9 @@
  */
 
 import http from 'http';
-import https from 'https';
-import zlib from 'zlib';
 import crypto from 'crypto';
 import { URL } from 'url';
+import req from '../../util/req.js';
 
 const VERSION = '1.0.0';
 const DEFAULT_SITE = 'https://p1zw.hgyng.com';
@@ -94,51 +93,28 @@ function applyExt(inReq) {
     if (ext.timeout) cfg.timeout = Math.max(3000, parseInt(ext.timeout, 10) || 15000);
 }
 
-/* ────────────────────────────── HTTP 客户端 ────────────────────────────── */
+/* ────────────────────────────── HTTP 客户端（req.js） ────────────────────────────── */
 
-function httpGet(url, opt = {}) {
-    const { headers = {}, timeout = cfg.timeout, redirect = 4, method = 'GET' } = opt;
-    return new Promise((resolve, reject) => {
-        let u;
-        try { u = new URL(url); } catch (e) { return reject(e); }
-        const mod = u.protocol === 'https:' ? https : http;
-        const req = mod.request({
-            protocol: u.protocol,
-            hostname: u.hostname,
-            port: u.port || undefined,
-            path: u.pathname + u.search,
-            method,
-            headers: Object.assign({
-                'User-Agent': UA,
-                'Accept': '*/*',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'close',
-            }, headers),
-        }, (res) => {
-            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirect > 0) {
-                res.resume();
-                let next = res.headers.location;
-                if (next.startsWith('/')) next = u.origin + next;
-                return httpGet(next, { ...opt, redirect: redirect - 1 }).then(resolve, reject);
-            }
-            const chunks = [];
-            res.on('data', (c) => chunks.push(c));
-            res.on('end', () => {
-                let buf = Buffer.concat(chunks);
-                const enc = String(res.headers['content-encoding'] || '').toLowerCase();
-                try {
-                    if (enc === 'gzip') buf = zlib.gunzipSync(buf);
-                    else if (enc === 'deflate') buf = zlib.inflateSync(buf);
-                    else if (enc === 'br') buf = zlib.brotliDecompressSync(buf);
-                } catch { /* 解压失败就用原始字节 */ }
-                resolve({ status: res.statusCode || 0, headers: res.headers, body: buf });
-            });
-        });
-        req.setTimeout(timeout, () => req.destroy(new Error('ETIMEDOUT')));
-        req.on('error', reject);
-        req.end();
+async function httpGet(url, opt = {}) {
+    const { headers = {}, timeout = cfg.timeout, method = 'GET' } = opt;
+    const r = await req({
+        method,
+        url,
+        headers: Object.assign({
+            'User-Agent': UA,
+            Accept: '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        }, headers),
+        timeout,
+        validateStatus: () => true,
+        responseType: 'arraybuffer',
+        maxRedirects: 5,
     });
+    return {
+        status: r.status,
+        headers: r.headers,
+        body: Buffer.from(r.data || []),
+    };
 }
 
 async function getText(url, opt = {}, tries = 3) {
