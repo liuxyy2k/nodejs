@@ -39,6 +39,61 @@ import req from '../../util/req.js';
 //       SW 在 Worker 不通时留蜘蛛内 hls3 直链作最后手段（手机住宅
 //       出口可能过 hls3 的 ASN 门禁，不探活、交播放器试）；详情页无
 //       播放器标记时换镜像再抓一次（防 DDoS 拦截页毒死整条链）。
+// 播放 (v7, 2026-11-07): 上轮（蜘蛛 v6 + Worker v2）已部署仍全线转圈后
+//       复查坐实的两处真机执行缺陷（链路本身已逐跳验通，见下）：
+//       (1) 字幕预热键与点播键对不上：detail 预热用 eps[0]（形如
+//       F4$<durl>@F4），play 侧先剥 $ 前缀与 @hint 再查，键永远
+//       对不上 → 预热白做，每次点播都重跑最多 6s 的字幕搜索；
+//       play() 在 App 超时内回不来，表现为一直转圈。v7 改用裸
+//       详情 URL（vod_id）预热，与 play 侧键一致，共用同一趟。
+//       (2) 探活全是 fetch-only：timedFetchBytes 只走原生 fetch，
+//       而 App 蜘蛛运行时里全局 fetch 不存在（2026-10-22 JAVSB
+//       诊断卡实证：fetch 通道在设备上 0-4ms 秒死）→ SW /v 探活、
+//       通用 m3u8/mp4 探活在真机上永远失败，SW 线永不直返 /v、
+//       FL/DD 等通用线永不返回直链，最终只剩 hls3 直链/嗅探兜底。
+//       v7 探活改走框架 req，fetch 仅作有 fetch 环境的第二通道。
+//       F4 默认线仍直返 Worker /f4、不探活；Worker v2 本体零改动。
+// 播放 (v8, 2026-11-08): 站方改版导致 v7 全线仍转圈（实测坐实，见 REPORT）：
+//       (1) 详情页 #sextb-player 里不再有 iframe（播放器改由 JS 经
+//       POST /ajax/player 注入），extractDefaultEmbed 恒为空；(2) ajax
+//       须带 pt（详情页 window.__pt，32 hex）+ 与该页同会话的
+//       PHPSESSID Cookie，回包 {player_enc, next_pt, next_pk}，player
+//       明文须用 __pk 做 XOR 解密；无 pt → E_TOK_LEN，无/错 Cookie →
+//       E_SID，旧 pt 重用 → E_TOK_MISS；每次成功轮换 next_pt/next_pk。
+//       v7 的 ajax 不带 pt，借线全灭、默认线为空 → play 恒回空地址。
+//       v8：详情页同源抓取令牌+Cookie（一次 GET 的响应即令牌会话，
+//       另起 GET 取 Cookie 会拿到另一会话、必 E_SID——实测坐实），
+//       默认线走 ajax episode=0（站方 player_default 同款），借线
+//       共用令牌链，失效时重取详情页换新令牌重试一次。Worker v2 与
+//       播放地址形态（parse:0 + Worker 直返）一字未动——Worker 腿
+//       已用新解密出的 embed 实测全链通（/f4→/p 1879 片→首分片纯 TS）。
+//       另评估过的换思路方案：本地字节代理（24JAV/蘑菇 v2）解不了
+//       令牌墙（仍须先拿到 embed）、Worker 侧全解（javcc/chaturbate
+//       形态）须用户先部署 v3 且 CF 出口过站方 WAF 未验证、site-fetch
+//       腿白名单无 sextb 且同样解不了令牌墙——均不及 v8 直接。
+// 播放 (v9, 2026-11-08): v8 VM 全绿、真机仍全线转圈；用户两项鉴别已
+//       排除 Worker 腿与站方在手机上的可达性（Safari 直开 Worker /f4
+//       可播、.cc/.net 详情页都打得开），断点只剩蜘蛛侧。实测坐实：
+//       令牌一次一用——任何一次 ajax（无 Cookie/错 Cookie/正确）都会
+//       烧掉该 pt（无 Cookie 发一次再补正确 Cookie 即 E_TOK_MISS）。
+//       故 v9 收紧会话配对：(1) 响应无 set-cookie 时清空旧会话，不让
+//       上一页的 Cookie 配新令牌；(2) 显式 Cookie 只发与令牌同一响应
+//       的那一份，否则不显式带、让 App 的共享 Cookie jar（若有）自己
+//       处理——显式发错会话 Cookie 会覆盖 jar 的正确值并烧令牌；
+//       (3) refreshTok 只认刷新响应的新会话，无新会话则删掉旧 Cookie
+//       头，不拿旧 Cookie 撞新 pt；(4) play 取详情页改 getHtmlPlay：
+//       每域名 10s、不走 jina（jina 页无 __pt/__pk、无播放器标记，
+//       实测 35,966B 页内 __pt 0 次），直连双域名都失败即早回空。
+//       Worker 侧全解（v4）另见 sextb-hls-worker-v4.js，未部署。
+// 播放 (v10, 2026-11-08): v9 VM 全绿、真机仍转圈后坐实：App 既不回吐
+//       响应头 set-cookie、也不给蜘蛛共享 Cookie jar，蜘蛛侧令牌流在
+//       手机上无解（无 Cookie 的 ajax 恒 E_SID、且每次尝试都烧掉 pt）。
+//       v4 已部署、/diag 回 ajax:"ok"（CF 出口 POST 腿通）、/resolve
+//       真链已逐跳验通。v10 把令牌流整个搬到 Worker 侧：play() 只调
+//       /resolve（传详情页地址 + 线路 ep），拿回 Worker 给的地址直接
+//       出线；蜘蛛侧 pt/pk/XOR/ajax/Cookie、逐宿主直解、探活全部删除。
+//       F4/SW 回 Worker 播放地址（parse:0）；其他宿主回原 embed +
+//       sniff:true（parse:1 交播放器嗅探）。分类/列表/搜索/字幕芯未动。
 // 实测根因 (2026-10-20 VM 验证): f4 CDN 的 playlist、子列表、每个分片
 //       请求都必须带 Origin: https://f4scdn.com 才能 200（UA-only 403、
 //       Referer 403）。其官方 api/play?ab=0 能拿签名 src，但 src 的列表与
@@ -163,28 +218,15 @@ async function timedFetchText(url, headers, timeoutMs) {
   }
 }
 
-// 带超时的原生 fetch POST 取文本
-async function timedFetchPost(url, data, headers, timeoutMs) {
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), timeoutMs || 8000);
-  try {
-    const r = await fetch(url, { method: 'POST', headers, body: data, signal: ctl.signal });
-    if (!r.ok) return '';
-    return await r.text();
-  } catch (e) {
-    return '';
-  } finally {
-    clearTimeout(to);
-  }
-}
-
 // 单次取页面 (req 通道 + fetch 通道)，命中拦截页视为失败
 async function rawGet(url, headers, timeoutMs) {
   const to = timeoutMs || 25000;
   // 通道1: 框架 req
   try {
     const { data, status } = await req.get(url, { headers, timeout: to });
-    if (status === 200 && typeof data === 'string' && !isBlockedPage(data)) return data;
+    if (status === 200 && typeof data === 'string' && !isBlockedPage(data)) {
+      return data;
+    }
   } catch (e) { /* 换通道2 */ }
   // 通道2: 原生 fetch
   const txt = await timedFetchText(url, headers, to);
@@ -241,336 +283,6 @@ async function getHtml(url, extraHeaders) {
     const html = await fetchViaJina(h, path);
     if (html) return html;
   }
-  return '';
-}
-
-// play 专用快速 POST /ajax/player: 只打详情页同域名，8s 超时，
-// req -> fetch 两通道各一次，失败立即放弃 (不做旧 postJson 的多域名多轮串行)
-async function postJsonFast(durl, body) {
-  let ajaxUrl = '';
-  try {
-    ajaxUrl = new URL(durl).origin + '/ajax/player';
-  } catch (e) { return ''; }
-  const data = new URLSearchParams(body).toString();
-  const headers = {
-    'User-Agent': UA,
-    'Referer': durl,
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'Accept': 'application/json, text/javascript, */*; q=0.01',
-    'X-Requested-With': 'XMLHttpRequest',
-  };
-  // 通道1: 框架 req
-  try {
-    const { data: res, status } = await req.post(ajaxUrl, data, { headers, timeout: 8000 });
-    if (status === 200 && res != null) {
-      const s = typeof res === 'string' ? res : JSON.stringify(res);
-      if (s && !/Your request was blocked/i.test(s)) return s;
-    }
-  } catch (e) { /* 换通道2 */ }
-  // 通道2: 原生 fetch
-  const txt = await timedFetchPost(ajaxUrl, data, headers, 8000);
-  if (txt && !/Your request was blocked/i.test(txt)) return txt;
-  return '';
-}
-
-
-// ================= v4 播放解析层（逐宿主直解） =================
-
-// 纯字符串 Dean Edwards packer 解包（XFS 系 embed 页通用，禁 vm/eval）
-function jsUnescapeSingle(s) {
-  return s.replace(/\\(.)/g, (m, c) => {
-    if (c === 'n') return '\n';
-    if (c === 'r') return '\r';
-    if (c === 't') return '\t';
-    return c;
-  });
-}
-
-function unpackDeanEdwards(html) {
-  const m = String(html || '').match(/eval\(function\(p,a,c,k,e,d\)[\s\S]*?\}\s*\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*'((?:[^'\\]|\\.)*)'\.split\('\|'\)/);
-  if (!m) return '';
-  let p = jsUnescapeSingle(m[1]);
-  const a = parseInt(m[2], 10);
-  const c = parseInt(m[3], 10);
-  const k = jsUnescapeSingle(m[4]).split('|');
-  const enc = (n) => (n < a ? '' : enc(Math.floor(n / a))) + ((n % a) > 35 ? String.fromCharCode((n % a) + 29) : (n % a).toString(36));
-  let i = c;
-  while (i--) {
-    if (k[i]) {
-      const word = k[i];
-      p = p.replace(new RegExp('\\b' + enc(i) + '\\b', 'g'), () => word);
-    }
-  }
-  return p;
-}
-
-// 从解包文本提取 StreamHG links{hls2,hls3,hls4}
-function extractHgLinks(text) {
-  const links = {};
-  for (const m of String(text || '').matchAll(/"hls(\d+)"\s*:\s*"([^"]+)"/g)) {
-    links['hls' + m[1]] = m[2];
-  }
-  return links;
-}
-
-// 从解包文本/页面提取通用 file: m3u8 或 mp4（filemoon/streamwish/voe 等）
-function extractGenericFile(text) {
-  const s = String(text || '');
-  let m = s.match(/"file"\s*:\s*"(https?:[^"]+?\.m3u8[^"]*)"/) || s.match(/file\s*:\s*"(https?:[^"]+?\.m3u8[^"]*)"/);
-  if (m) return m[1];
-  m = s.match(/(https?:\/\/[^\s"'\\]+\.m3u8(?:\?[^\s"'\\]*)?)/);
-  if (m) return m[1];
-  m = s.match(/"file"\s*:\s*"(https?:[^"]+?\.mp4[^"]*)"/);
-  if (m) return m[1];
-  return '';
-}
-
-// 带超时的二进制 GET 探活（只关心状态码与前几个字节）
-async function timedFetchBytes(url, headers, timeoutMs, range) {
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), timeoutMs || 7000);
-  try {
-    const h = { ...(headers || {}) };
-    if (range) h['Range'] = range;
-    const r = await fetch(url, { headers: h, signal: ctl.signal });
-    const buf = await r.arrayBuffer().catch(() => new ArrayBuffer(0));
-    return { status: r.status, text: new TextDecoder().decode(buf.slice(0, 4096)), size: buf.byteLength };
-  } catch (e) {
-    return { status: 0, text: '', size: 0 };
-  } finally {
-    clearTimeout(to);
-  }
-}
-
-// 探活: 是真播放列表才认（#EXTM3U 开头）
-async function probePlaylist(url, headers, timeoutMs) {
-  const r = await timedFetchBytes(url, headers, timeoutMs || 7000);
-  return r.status === 200 && r.text.includes('#EXTM3U');
-}
-
-// 通用 GET 文本（embed 页解析用：req 通道 + fetch 通道，不做本站拦截页判定）
-async function fetchEmbedText(url, referer, timeoutMs) {
-  const headers = pageHeaders(referer || REFERER);
-  const to = timeoutMs || 12000;
-  try {
-    const { data, status } = await req.get(url, { headers, timeout: to });
-    if (status === 200 && typeof data === 'string' && data.length > 200) return data;
-  } catch (e) { /* 换通道2 */ }
-  const txt = await timedFetchText(url, headers, to);
-  return txt && txt.length > 200 ? txt : '';
-}
-
-// JSON POST（playmate/vidara 的 api 用）: req 通道 + fetch 通道
-async function postJsonBody(url, obj, headers, timeoutMs) {
-  const to = timeoutMs || 10000;
-  const h = {
-    'User-Agent': UA,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(headers || {}),
-  };
-  const payload = JSON.stringify(obj);
-  try {
-    const { data, status } = await req.post(url, payload, { headers: h, timeout: to });
-    if (status === 200 && data) return typeof data === 'string' ? JSON.parse(data) : data;
-  } catch (e) { /* 换通道2 */ }
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), to);
-  try {
-    const r = await fetch(url, { method: 'POST', headers: h, body: payload, signal: ctl.signal });
-    if (r.ok) return await r.json();
-  } catch (e) { /* ignore */ } finally {
-    clearTimeout(timer);
-  }
-  return null;
-}
-
-function hostOf(u) {
-  try { return new URL(u).hostname.toLowerCase(); } catch (e) { return ''; }
-}
-
-function codeOf(u) {
-  try {
-    const parts = new URL(u).pathname.split('/').filter(Boolean);
-    return parts[parts.length - 1] || '';
-  } catch (e) { return ''; }
-}
-
-// SW / StreamHG 系（hglink.to、streamhg、trailerhg、earnvid、vidhide 等）
-// v5 实测结论（2026-10-20 晚，对已部署 Worker 跑真实链）:
-//   - hls4 (/stream/): token 与抓 embed 页的网络身份绑定，铸/拉同出口才
-//     200 → Worker 全链可通（实测样本全链到分片）；跨身份 403。
-//   - hls3: CDN 按 ASN 拦机房/CF 出口（VM 直拉、jina、Worker /p 三方均
-//     403 "Website Access Blocked"），只有住宅/移动出口（手机）有机会
-//     → 蜘蛛内直解作最后手段时不探活门控（探活在机房出口必死、会误杀）。
-//   - hls2: asn 绑定 token，CF/VM 出口实测均 403，不作主力。
-// 因此 SW 主路径 = Worker /v（与 JavGG 已真机验证的形态一致: 直返地址）。
-function workerVUrl(embedUrl, durl) {
-  if (!SEXTB_WORKER) return '';
-  return SEXTB_WORKER + '/v?u=' + encodeURIComponent(embedUrl) + '&r=' + encodeURIComponent(durl);
-}
-
-function workerF4Url(embedUrl, durl) {
-  if (!SEXTB_WORKER) return '';
-  return SEXTB_WORKER + '/f4?u=' + encodeURIComponent(embedUrl) + '&r=' + encodeURIComponent(durl);
-}
-
-function isF4HostName(host) { return /f4scdn\.com|f4jav\.xyz/.test(host || ''); }
-function isSwHostName(host) { return /hglink\.to|streamhg|trailerhg|earnvid|vidhide/.test(host || ''); }
-
-// SW 蜘蛛内解包: hglink 换 trailerhg 同代码 XFS 页 → 解包 links。
-// 相对地址（hls4 的 /stream/...）按解包页（trailerhg）的域名补全。
-// 只解包、不探活，返回原始链接表（可能为空对象）。
-async function decodeStreamHgLinks(embedUrl, durl) {
-  const host = hostOf(embedUrl);
-  const code = codeOf(embedUrl);
-  if (!code) return {};
-  let pageUrl = embedUrl;
-  if (/(^|\.)hglink\.to$/.test(host)) pageUrl = 'https://trailerhg.xyz/e/' + code;
-  const html = await fetchEmbedText(pageUrl, durl, 12000);
-  if (!html) return {};
-  const unpacked = unpackDeanEdwards(html) || html;
-  const links = extractHgLinks(unpacked);
-  for (const k of Object.keys(links)) {
-    if (links[k].startsWith('/')) {
-      try { links[k] = new URL(links[k], pageUrl).href; } catch (e) { /* ignore */ }
-    }
-  }
-  return links;
-}
-
-// SW 蜘蛛内直解: hls3（无 token）优先、hls4 次之、hls2 末选。
-// withProbe=true 时逐个探活（无 Worker 时的主路径）；false 时拿到第一条
-// 就返回（最后手段: 探活出口与播放器出口未必一致，不让探活误杀）。
-async function resolveStreamHgInSpider(embedUrl, durl, withProbe) {
-  const links = await decodeStreamHgLinks(embedUrl, durl);
-  const heads = { 'User-Agent': UA };
-  for (const key of ['hls3', 'hls4', 'hls2']) {
-    const u = links[key];
-    if (!u || !/^https?:\/\//.test(u)) continue;
-    if (withProbe && !(await probePlaylist(u, heads, 5000))) continue;
-    return { parse: 0, url: u, header: heads };
-  }
-  return null;
-}
-
-// PM / playmate 系（playmate.to /embed/{code}）:
-// POST /api/s {c:code, d:'web'} → sx 直链，列表/分片无特殊头要求
-async function resolvePlaymate(embedUrl) {
-  try {
-    const u = new URL(embedUrl);
-    const code = codeOf(embedUrl);
-    if (!code) return null;
-    const resp = await postJsonBody(u.origin + '/api/s', { c: code, d: 'web' }, { 'Referer': embedUrl }, 10000);
-    const src = resp && t(resp.sx || resp.src || resp.url);
-    if (!src || !/^https?:\/\//.test(src)) return null;
-    return { parse: 0, url: src, header: { 'User-Agent': UA, 'Referer': embedUrl } };
-  } catch (e) {
-    return null;
-  }
-}
-
-// vidara 系（shadowbyte.site / dstyladsg.com / vidara*）:
-// POST /api/stream {filecode, device:'ios', codecs:['h265']} → streaming_url
-async function resolveVidara(embedUrl) {
-  try {
-    const u = new URL(embedUrl);
-    const code = codeOf(embedUrl);
-    if (!code) return null;
-    const resp = await postJsonBody(u.origin + '/api/stream',
-      { filecode: code, device: 'ios', codecs: ['h265'] },
-      { 'Referer': embedUrl, 'Origin': u.origin }, 10000);
-    const src = resp && t(resp.streaming_url || resp.src || resp.url);
-    if (!src || !/^https?:\/\//.test(src)) return null;
-    return { parse: 0, url: src, header: { 'User-Agent': UA, 'Referer': embedUrl } };
-  } catch (e) {
-    return null;
-  }
-}
-
-// dood 系（doodstream 及克隆域名）: embed 页取 /pass_md5/ 路径 → GET 得
-// CDN 前缀 → 拼 token 参数。构造后必须 Range 探活通过才返回（防假成功）。
-async function resolveDood(embedUrl) {
-  try {
-    const u = new URL(embedUrl);
-    const html = await fetchEmbedText(embedUrl, embedUrl, 12000);
-    if (!html) return null;
-    const pm = html.match(/(\/pass_md5\/[A-Za-z0-9_\-\/]+)/);
-    if (!pm) return null;
-    const passUrl = u.origin + pm[1];
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 8000);
-    let prefix = '';
-    try {
-      const r = await fetch(passUrl, { headers: { 'User-Agent': UA, 'Referer': embedUrl }, signal: ctl.signal });
-      if (r.ok) prefix = t(await r.text());
-    } catch (e) { /* ignore */ } finally {
-      clearTimeout(timer);
-    }
-    if (!/^https?:\/\//.test(prefix)) return null;
-    const tokM = html.match(/[?&]token=([A-Za-z0-9_\-]+)/) || html.match(/token\s*[:=]\s*["']([A-Za-z0-9_\-]+)["']/);
-    const expM = html.match(/expiry\s*[:=]\s*["']?(\d{9,})/);
-    let finalUrl = prefix;
-    if (tokM) finalUrl += '?token=' + tokM[1] + (expM ? '&expiry=' + expM[1] : '');
-    const probe = await timedFetchBytes(finalUrl, { 'User-Agent': UA, 'Referer': embedUrl }, 7000, 'bytes=0-0');
-    if (probe.status === 200 || probe.status === 206) {
-      return { parse: 0, url: finalUrl, header: { 'User-Agent': UA, 'Referer': embedUrl } };
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// 通用 XFS 系（filemoon / streamwish / voe / filelions 等）:
-// 抓 embed 页 → 解包 → 提取 file: m3u8/mp4 → 探活通过才返回
-async function resolveGeneric(embedUrl, durl) {
-  const html = await fetchEmbedText(embedUrl, durl, 12000);
-  if (!html) return null;
-  const unpacked = unpackDeanEdwards(html);
-  const file = extractGenericFile(unpacked) || extractGenericFile(html);
-  if (!file || !/^https?:\/\//.test(file)) return null;
-  const heads = { 'User-Agent': UA, 'Referer': embedUrl };
-  if (/\.m3u8(\?|$)/i.test(file)) {
-    if (await probePlaylist(file, heads)) return { parse: 0, url: file, header: heads };
-    return null;
-  }
-  const probe = await timedFetchBytes(file, heads, 7000, 'bytes=0-0');
-  if (probe.status === 200 || probe.status === 206) return { parse: 0, url: file, header: heads };
-  return null;
-}
-
-// 按 embed 宿主分流解析；解不出返回 null（交给下一条线路）
-async function resolveEmbed(embedUrl, durl) {
-  const host = hostOf(embedUrl);
-  if (!host) return null;
-  if (isF4HostName(host)) {
-    // F4 在 play() 里优先处理（Worker /f4 直返、不探活）；走到这里说明
-    // play 的优先路径已放弃这条线，直接判负。
-    return null;
-  }
-  if (isSwHostName(host)) {
-    // SW 同样在 play() 里优先处理；这里只作兜底: 蜘蛛内解包 + 探活
-    return resolveStreamHgInSpider(embedUrl, durl, true);
-  }
-  if (/playmate/.test(host)) return resolvePlaymate(embedUrl);
-  if (/shadowbyte|dstyladsg|vidara/.test(host)) return resolveVidara(embedUrl);
-  if (/dood|d000d|do7go|playmogo/.test(host)) return resolveDood(embedUrl);
-  // 其余（filemoon/streamwish/voe/未知宿主）走通用解包提取
-  return resolveGeneric(embedUrl, durl);
-}
-
-// POST /ajax/player 取某条线路的 embed URL
-async function ajaxEmbed(durl, ep, filmId) {
-  const resp = await postJsonFast(durl, { episode: ep.episode, filmId });
-  if (!resp) return '';
-  try {
-    const json = JSON.parse(resp);
-    const playerHtml = t(json.player);
-    const em = playerHtml.match(/<iframe[^>]+src="(https?:\/\/[^"]+)"/) ||
-               playerHtml.match(/<iframe[^>]+src="(\/\/[^"]+)"/);
-    if (em) return fixUrl(em[1]);
-  } catch (e) { /* ignore */ }
   return '';
 }
 
@@ -677,11 +389,23 @@ function extractPlayerInfo(html) {
   return { filmId, episodes };
 }
 
-// 从详情页提取默认 player iframe
-function extractDefaultEmbed(html) {
-  const m = html.match(/id="sextb-player"[\s\S]{0,500}?<iframe[^>]+src="(https?:\/\/[^"]+)"/) ||
-            html.match(/id="sextb-player"[\s\S]{0,500}?<iframe[^>]+src="(\/\/[^"]+)"/);
-  return m ? fixUrl(m[1]) : '';
+// 线路多集：详情页按钮已含 F4/SW/DD/FL/US 等线路名，按优先级出集
+// （F4 > SW > PM > FL > DD > US > ST > PP，其余最后）；无按钮时回落正片。
+// 集 id 形如 F4$<durl>@F4，play 剥离 @ 后缀作优先线路提示。
+function lineEpisodes(html, durl) {
+  const { episodes } = extractPlayerInfo(html);
+  const ORDER = { F4: 0, SW: 1, PM: 2, FL: 3, DD: 4, US: 5, ST: 6, PP: 7 };
+  const seen = new Set();
+  const names = [];
+  for (const ep of episodes) {
+    const nm = t(ep.name).toUpperCase();
+    if (!nm || seen.has(nm)) continue;
+    seen.add(nm);
+    names.push(nm);
+  }
+  names.sort((a, b) => (ORDER[a] ?? 90) - (ORDER[b] ?? 90));
+  if (!names.length) return `正片$${durl}`;
+  return names.map(nm => `${nm}$${durl}@${nm}`).join('#');
 }
 
 async function detail(reqIn) {
@@ -718,10 +442,36 @@ async function detail(reqIn) {
     vod_remarks: '',
     vod_content: name,
     vod_play_from: 'SexTB',
-    vod_play_url: `正片$${durl}`,
+    vod_play_url: lineEpisodes(html, durl),
   };
   subRegister(id, vod);
   return { list: [vod] };
+}
+
+// v10: play 只调 Worker /resolve（令牌流整个搬到 Worker 侧）。
+// req 通道优先（App 蜘蛛运行时无全局 fetch），fetch 仅作第二通道。
+// /resolve 回包：{ok:true, url, host:'f4'|'sw'|'other', line, sniff?}
+//   F4/SW → Worker 播放地址；其他宿主 → 原 embed + sniff:true。
+// 失败回包：{ok:false, error:'BAD_U'|'FETCH_FAIL'|'NO_PT'|'NO_LINE'|'NO_EMBED'|...}。
+async function resolveViaWorker(durl, ep) {
+  const u = SEXTB_WORKER + '/resolve?u=' + encodeURIComponent(durl) + '&ep=' + encodeURIComponent(ep || '0');
+  const headers = { 'User-Agent': UA, 'Accept': 'application/json' };
+  try {
+    const { data, status } = await req.get(u, { headers, timeout: 10000 });
+    if (status === 200 && data != null) {
+      if (typeof data === 'string') {
+        try { return JSON.parse(data); } catch (e) { return null; }
+      }
+      return data;
+    }
+  } catch (e) { /* 换 fetch 通道 */ }
+  try {
+    const txt = await timedFetchText(u, headers, 10000);
+    if (txt) {
+      try { return JSON.parse(txt); } catch (e) { return null; }
+    }
+  } catch (e) { /* fallthrough */ }
+  return null;
 }
 
 async function play(reqIn) {
@@ -730,128 +480,39 @@ async function play(reqIn) {
   if (!id) return { parse: 0, url: '' };
   // id 可能是 "正片$https://..." 形式，取 $ 后面的完整 URL
   if (id.includes('$')) id = id.split('$').pop().trim();
+  // 线路多集的 @F4/@SW 后缀：先剥离作 /resolve 的 ep 参数，再算 durl
+  let hint = '';
+  const hm = id.match(/@([A-Za-z0-9]+)$/);
+  if (hm) { hint = hm[1].toUpperCase(); id = id.slice(0, -hm[0].length); }
   const subsP = subSearchAll(subNormKey(id)).catch(() => []);
   if (/\.m3u8(\?|$)/i.test(id)) {
     return subAttach({ parse: 0, url: id, header: { 'User-Agent': UA } }, subsP);
   }
   const durl = /^https?:\/\//.test(id) ? id : fixUrl(id);
-
-  // 只抓 1 次详情页: 拿默认 embed + 服务器列表。
-  // 若抓到的页面没有播放器标记（疑似 DDoS 拦截页被当成正常页返回——
-  // isBlockedPage 不认 "DDOS Protection" 标题），换另一个镜像域名再抓
-  // 一次，避免整条 play 链被一张拦截页毒死（返回空=点开必播不了）。
-  let html = await getHtml(durl);
-  const hasPlayer = (h) => !!h && (h.includes('sextb-player') || h.includes('btn-player'));
-  if (html && !hasPlayer(html)) {
-    const alt = durl.replace(/sextb\.(cc|net)/i, (m, g) => 'sextb.' + (g.toLowerCase() === 'cc' ? 'net' : 'cc'));
-    if (alt !== durl) {
-      const h2 = await getHtml(alt);
-      if (hasPlayer(h2)) html = h2;
-    }
-  }
-  if (!html) return { parse: 0, url: '' };
-  const defEmbed = extractDefaultEmbed(html);
-  const { filmId, episodes } = extractPlayerInfo(html);
-
-  const deadline = Date.now() + 30000;
   const uaHead = { 'User-Agent': UA };
-  let firstEmbed = defEmbed || '';
-  let swLastResort = ''; // SW 蜘蛛内解出的 hls3 直链（借线全灭时的最后手段）
 
-  // —— 第一步: 默认线路（embed 已在详情页 HTML 里，零额外请求）——
-  // v4 的教训: 默认线排在借线之后试，每条借线都含 ajax+探活，占 70% 的
-  // 默认 F4 反而最后才轮到，慢且险（探活/超时误杀）。v5 默认线最先。
-  if (defEmbed) {
-    const dhost = hostOf(defEmbed);
-    if (isF4HostName(dhost)) {
-      // F4 默认: Worker /f4 全链已在真实部署上逐跳验通（api/play 收 CF
-      // 出口、列表/分片注入 Origin 后均 200）。学 JavGG 已真机验证的
-      // 形态——直接返回 Worker 地址、不探活（探活是蜘蛛侧多余的一次
-      // 往返，抖动/超时会误杀好线路，JavGG 从不探活且真机可播）。
-      const w = workerF4Url(defEmbed, durl);
-      if (w) return subAttach({ parse: 0, url: w, header: uaHead }, subsP);
-    } else if (isSwHostName(dhost)) {
-      const w = workerVUrl(defEmbed, durl);
-      if (w) {
-        // SW 的 Worker 链有逐视频死链（只有 hls3/hls2 的视频，其 CDN 拦
-        // CF 出口，/v 必 502）→ 只对 SW 做一次快速探活（4s），过不了
-        // 就落到第二步借 F4 线，不在这里判死。
-        if (await probePlaylist(w, uaHead, 4000)) {
-          return subAttach({ parse: 0, url: w, header: uaHead }, subsP);
-        }
-      } else {
-        const r = await resolveStreamHgInSpider(defEmbed, durl, true);
-        if (r) return subAttach(r, subsP);
-      }
-    } else {
-      try {
-        const r = await resolveEmbed(defEmbed, durl);
-        if (r && r.url) return subAttach(r, subsP);
-      } catch (e) { /* 落到借线 */ }
+  // v10: 令牌流整个搬到 Worker 侧（/resolve）：蜘蛛只传详情页地址 +
+  // 线路名，不再自己取详情页、不做 ajax、不碰 pt/pk/Cookie——App 不把
+  // set-cookie 回吐给蜘蛛，蜘蛛侧令牌流在手机上无解（v8/v9 实测坐实）。
+  // /resolve 在 Worker 侧完成：取详情页 → ajax → XOR 解密 → 按宿主出线。
+  // F4/SW 回 Worker 播放地址（parse:0 直返）；其他宿主回原 embed +
+  // sniff:true（parse:1 交播放器嗅探）。
+  async function tryResolve(ep) {
+    const r = await resolveViaWorker(durl, ep);
+    if (!r || !r.ok || !r.url) return null;
+    if (r.sniff) {
+      return subAttach({ parse: 1, jx: 0, url: r.url, header: { 'User-Agent': UA, 'Referer': durl } }, subsP);
     }
+    return subAttach({ parse: 0, url: r.url, header: uaHead }, subsP);
   }
-
-  // —— 第二步: 借线（POST /ajax/player），最多 2 条 ——
-  // 优先级: F4 > SW > PM > FL > DD > US > ST > PP（F4 借线只需一次 ajax
-  // 就能直返 Worker 地址，最快；PM 次之；SW 的 Worker 链需探活确认）
-  const PREF = { F4: 0, SW: 1, PM: 2, FL: 3, DD: 4, US: 5, ST: 6, PP: 7 };
-  const sorted = [...episodes].sort((a, b) => {
-    const pa = PREF[t(a.name).toUpperCase()] ?? 90;
-    const pb = PREF[t(b.name).toUpperCase()] ?? 90;
-    return pa - pb;
-  });
-  const seenName = new Set();
-  let borrowed = 0;
-  for (const ep of sorted) {
-    if (borrowed >= 2 || Date.now() > deadline) break;
-    const nm = t(ep.name).toUpperCase();
-    if (seenName.has(nm)) continue;
-    seenName.add(nm);
-    // 默认线路（episodes[0]）的 embed 已在第一步用过，同线跳过省一次 ajax
-    if (defEmbed && episodes.length && ep.episode === episodes[0].episode) continue;
-    if (!filmId) break;
-    borrowed++;
-    const embed = await ajaxEmbed(durl, ep, filmId);
-    if (!embed) continue;
-    if (!firstEmbed) firstEmbed = embed;
-    const host = hostOf(embed);
-    try {
-      if (isF4HostName(host)) {
-        const w = workerF4Url(embed, durl);
-        if (w) return subAttach({ parse: 0, url: w, header: uaHead }, subsP);
-        continue;
-      }
-      if (isSwHostName(host)) {
-        const w = workerVUrl(embed, durl);
-        if (w && await probePlaylist(w, uaHead, 4000)) {
-          return subAttach({ parse: 0, url: w, header: uaHead }, subsP);
-        }
-        // Worker 链对此视频不通: 蜘蛛内解 hls3 记下作最后手段（手机是
-        // 住宅/移动出口，hls3 的 ASN 门禁可能放行），先继续借其他线
-        if (!swLastResort) {
-          const links = await decodeStreamHgLinks(embed, durl);
-          if (links.hls3) swLastResort = links.hls3;
-        }
-        continue;
-      }
-      const r = await resolveEmbed(embed, durl);
-      if (r && r.url) return subAttach(r, subsP);
-    } catch (e) { /* 换下一条线路 */ }
-  }
-
-  // —— 第三步: SW 最后手段（蜘蛛内 hls3 直链，不探活、交播放器试）——
-  if (!swLastResort && defEmbed && isSwHostName(hostOf(defEmbed))) {
-    const links = await decodeStreamHgLinks(defEmbed, durl);
-    if (links.hls3) swLastResort = links.hls3;
-  }
-  if (swLastResort) {
-    return subAttach({ parse: 0, url: swLastResort, header: uaHead }, subsP);
-  }
-
-  // 全部线路解不出: 回到默认 embed 嗅探兜底（v3 行为）
-  const sniff = defEmbed || firstEmbed;
-  if (sniff && /^https?:\/\//.test(sniff)) {
-    return subAttach({ parse: 1, jx: 0, url: sniff, header: { 'User-Agent': UA, 'Referer': durl } }, subsP);
+  const ep0 = hint || '0';
+  let out = await tryResolve(ep0);
+  if (out) return out;
+  // 指定线路解不出时回落默认线（ep=0）再试一次；已是默认线则不再重试
+  // （同一调用必定同果；Worker 内部已在 E_TOK/E_SID 时重取重试过一次）。
+  if (ep0 !== '0') {
+    out = await tryResolve('0');
+    if (out) return out;
   }
   return { parse: 0, url: '' };
 }
@@ -938,7 +599,11 @@ function subRegister(detailIds, vod) {
       }
     }
     for (const k of keys) subCacheName(k, name);
-    const warmKey = eps[0] || (vod.vod_id ? String(vod.vod_id) : '');
+    // v7: 预热键必须与 play() 的 subSearchAll 键一致（裸详情 URL）。
+    // 旧版用 eps[0]（形如 F4$<durl>@F4），play 侧先剥 $ 前缀与 @hint
+    // 再查，键永远对不上 → 预热白做，每次点播都重跑最多 6s 的字幕
+    // 搜索，play() 在 App 超时内回不来。vod_id 即 play 侧的裸 durl。
+    const warmKey = vod.vod_id ? String(vod.vod_id) : (eps[0] || '');
     if (warmKey) subWarm(warmKey);
   } catch (e) { /* 字幕登记失败不影响详情 */ }
 }
@@ -1064,6 +729,16 @@ function subMatchOf(durl, ctx) {
 // 语言判定: rank 越小越优先 (简中 > 繁中 > 双语 > 英文 > 其他)
 function subLangOf(name, langs) {
   const s = (String(name || '') + ' ' + String(langs || '')).toLowerCase();
+  // 尾码优先 (2026-11-07)：SubtitleCat 文件形如 "<标题>-<语码>.srt"，尾码才是文件实际语言；标题里的"简体中文"是原字幕名，不能覆盖尾码。
+  const tail = String(name || '').match(/[-_.]([a-z]{2,3})\.(?:srt|vtt|ass|ssa)$/i);
+  if (tail) {
+    const c = tail[1].toLowerCase();
+    if (c === 'zh' || c === 'chs' || c === 'cn' || c === 'hans') return { tag: '简中', rank: 0 };
+    if (c === 'cht' || c === 'tw' || c === 'hant') return { tag: '繁中', rank: 1 };
+    if (c === 'en' || c === 'eng') return { tag: '英文', rank: 3 };
+    if (c === 'ja' || c === 'jpn' || c === 'jp') return { tag: '日文', rank: 4 };
+    if (/^(fr|fre|de|ger|es|spa|it|ita|pt|por|ru|rus|nl|dut|sv|swe|da|dan|fi|fin|no|nor|pl|pol|cs|cze|sk|slo|hu|hun|ro|rum|bg|bul|uk|ukr|el|gre|tr|tur|ar|ara|he|heb|hi|hin|id|ind|ms|may|vi|vie|th|tha|km|khm|ko|kor|ak|af|afr|sq|alb|eu|baq|ca|cat|gl|glg|cy|wel|ga|gle|gd|gla|br|bre|co|cos|eo|epo|et|est|lv|lav|lt|lit|mt|mlt|sl|slv|mk|mac|sr|srp|hr|hrv|bs|bos|am|amh|so|som|sw|swa|yo|yor|ig|ibo|ha|hau|zu|zul|xh|xho|st|sot|sn|sna|ka|geo|hy|arm|az|aze|kk|kaz|uz|uzb|mn|mon|ky|kir|tg|tgk|tk|tuk|ti|tir|fa|per|ur|urd|bn|ben|ta|tam|te|tel|ml|mal|mr|mar|pa|pan|gu|guj|kn|kan|as|asm|or|ori|sa|san|ne|nep|si|sin|my|bur|lo|lao)$/.test(c)) return { tag: '', rank: 5 };
+  }
   if (/简体|简中|chs|zh[-_. ]?cn|zh[-_. ]?hans/.test(s)) return { tag: '简中', rank: 0 };
   if (/繁体|繁中|cht|zh[-_. ]?tw|zh[-_. ]?hk|zh[-_. ]?hant/.test(s)) return { tag: '繁中', rank: 1 };
   if (/双语|中英|中日|bilingual/.test(s)) return { tag: '双语', rank: 2 };
@@ -1190,7 +865,7 @@ async function subSlotOracle(keys, src, tier, ctx, match, ocache, bag) {
   const finalItems = items.filter((it) => subRelevant(it, ctx, match));
   for (const it of finalItems) {
     const lang = subLangOf(it.name, it.langs);
-    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match) });
+    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match), dur: it.norm.duration });
   }
 }
 
@@ -1226,20 +901,45 @@ async function subFromSubtitleCat(ctx, match, bag) {
 
 // 合并: 档位 -> 语言 -> 分数; 按 URL 去重 (同条归先到高档位);
 // 全局上限 10、单槽软上限 8 (给 SubtitleCat 留位)。
+// 时长后缀（2026-11-02）：oracle 给毫秒（>100000 视为毫秒除 1000），
+// 秒级原值直接用；无时长不显示、不编造。
+// 去重键用秒（2026-11-02 名字+时长口径）：毫秒值 >100000 除 1000；
+// 无时长记 nodur（沿用名字去重）；同名同时长才算重复。
+function subDurSec(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  return s > 0 ? s : 0;
+}
+function subDurStr(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  if (s <= 0) return '';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+}
 function subMerge(items) {
   const sorted = items.slice().sort((a, b) =>
     (a.tier - b.tier) || (a.langRank - b.langRank) || (b.score - a.score) || String(a.name).localeCompare(String(b.name)));
   const seenUrl = new Set();
+  const seenName = new Set();
   const perTier = {};
   const out = [];
   for (const it of sorted) {
     if (out.length >= 10) break;
     if (seenUrl.has(it.url)) continue;
+    const nameKey = (it.lang || '') + '|' + it.name.toLowerCase().replace(/\.(srt|vtt|ass|ssa)$/i, '') + '|' + (subDurSec(it.dur) || 'nodur');
+    if (seenName.has(nameKey)) continue;
     if ((perTier[it.tier] || 0) >= 8) continue;
     seenUrl.add(it.url);
+    seenName.add(nameKey);
     perTier[it.tier] = (perTier[it.tier] || 0) + 1;
     const cleanName = it.name.replace(/\.(srt|vtt|ass|ssa)$/i, '').slice(0, 60);
-    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName, url: it.url, format: it.fmt });
+    const dur = subDurStr(it.dur);
+    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName + (dur ? '·' + dur : ''), url: it.url, format: it.fmt });
   }
   return out;
 }
@@ -1303,4 +1003,4 @@ export default {
       fastify.post('/play', play);
       fastify.post('/search', search);
     },
-  };
+}

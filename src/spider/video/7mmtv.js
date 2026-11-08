@@ -68,6 +68,9 @@ const CATS = [
   { type_id: 'list:censored', type_name: '有碼AV' },
   { type_id: 'list:reducing-mosaic', type_name: '無碼破解' },
   { type_id: 'list:chinese', type_name: '中字AV' },
+  { type_id: 'tag:censored:50', type_name: "巨尻", arg: "巨尻" },
+  { type_id: 'tag:censored:127', type_name: "巨乳", arg: "巨乳" },
+  { type_id: 'tag:censored:137', type_name: "屁股", arg: "屁股" },
   { type_id: 'list:uncensored', type_name: '無碼AV' },
   { type_id: 'list:amateurjav', type_name: '素人AV' },
   { type_id: 'list:amateur', type_name: '國產影片' },
@@ -138,7 +141,6 @@ const CATS = [
   { type_id: 'tag:censored:46', type_name: "16時間以上作品", arg: "16時間以上作品" },
   { type_id: 'tag:censored:47', type_name: "デカチン・巨根", arg: "デカチン・巨根" },
   { type_id: 'tag:censored:48', type_name: "ファン感謝・訪問", arg: "ファン感謝・訪問" },
-  { type_id: 'tag:censored:50', type_name: "巨尻", arg: "巨尻" },
   { type_id: 'tag:censored:51', type_name: "ハーレム", arg: "ハーレム" },
   { type_id: 'tag:censored:52', type_name: "日焼け", arg: "日焼け" },
   { type_id: 'tag:censored:53', type_name: "早漏", arg: "早漏" },
@@ -214,7 +216,6 @@ const CATS = [
   { type_id: 'tag:censored:123', type_name: "及膝襪", arg: "及膝襪" },
   { type_id: 'tag:censored:124', type_name: "女戰士", arg: "女戰士" },
   { type_id: 'tag:censored:126', type_name: "角色扮演", arg: "角色扮演" },
-  { type_id: 'tag:censored:127', type_name: "巨乳", arg: "巨乳" },
   { type_id: 'tag:censored:128', type_name: "貧乳・微乳", arg: "貧乳・微乳" },
   { type_id: 'tag:censored:249', type_name: "蘿莉", arg: "蘿莉" },
   { type_id: 'tag:censored:130', type_name: "熟女", arg: "熟女" },
@@ -224,7 +225,6 @@ const CATS = [
   { type_id: 'tag:censored:134', type_name: "無毛", arg: "無毛" },
   { type_id: 'tag:censored:135', type_name: "變性者", arg: "變性者" },
   { type_id: 'tag:censored:136', type_name: "高", arg: "高" },
-  { type_id: 'tag:censored:137', type_name: "屁股", arg: "屁股" },
   { type_id: 'tag:censored:250', type_name: "嬌小的", arg: "嬌小的" },
   { type_id: 'tag:censored:139', type_name: "乳房", arg: "乳房" },
   { type_id: 'tag:censored:140', type_name: "肌肉", arg: "肌肉" },
@@ -793,6 +793,19 @@ async function category(reqIn) {
   const tid = t(body.tid || body.id) || 'list:censored';
   const page = Math.max(1, parseInt(body.page, 10) || 1);
   const cat = CATMAP.get(tid) || CATS[0];
+  // 巨尻/巨乳/屁股（有码组）同时并有码与无码破解两版：两区标签 id 通用，并行各取一页拼接
+  const DUAL = ['tag:censored:127', 'tag:censored:50', 'tag:censored:137'];
+  if (DUAL.includes(tid)) {
+    const cat2 = { type_id: 'tag:reducing-mosaic-censored:' + tid.split(':')[2], arg: cat.arg };
+    const [h1, h2] = await Promise.all([getPage(catUrl(cat, page), 60000), getPage(catUrl(cat2, page), 60000)]);
+    const seen = new Set();
+    const list = [];
+    for (const c of (h1 ? parseCards(h1) : []).concat(h2 ? parseCards(h2) : [])) {
+      if (!seen.has(c.vod_id)) { seen.add(c.vod_id); list.push(c); }
+    }
+    const pc = Math.max(h1 ? pagecountOf(h1) : page, h2 ? pagecountOf(h2) : page, page);
+    return { page, pagecount: pc, limit: list.length, total: list.length, list };
+  }
   const html = await getPage(catUrl(cat, page), 60000);
   if (!html) return { page, pagecount: page, limit: 20, total: 0, list: [] };
   const list = parseCards(html);
@@ -1179,6 +1192,16 @@ function subMatchOf(durl, ctx) {
 // 语言判定: rank 越小越优先 (简中 > 繁中 > 双语 > 英文 > 其他)
 function subLangOf(name, langs) {
   const s = (String(name || '') + ' ' + String(langs || '')).toLowerCase();
+  // 尾码优先 (2026-11-07)：SubtitleCat 文件形如 "<标题>-<语码>.srt"，尾码才是文件实际语言；标题里的"简体中文"是原字幕名，不能覆盖尾码。
+  const tail = String(name || '').match(/[-_.]([a-z]{2,3})\.(?:srt|vtt|ass|ssa)$/i);
+  if (tail) {
+    const c = tail[1].toLowerCase();
+    if (c === 'zh' || c === 'chs' || c === 'cn' || c === 'hans') return { tag: '简中', rank: 0 };
+    if (c === 'cht' || c === 'tw' || c === 'hant') return { tag: '繁中', rank: 1 };
+    if (c === 'en' || c === 'eng') return { tag: '英文', rank: 3 };
+    if (c === 'ja' || c === 'jpn' || c === 'jp') return { tag: '日文', rank: 4 };
+    if (/^(fr|fre|de|ger|es|spa|it|ita|pt|por|ru|rus|nl|dut|sv|swe|da|dan|fi|fin|no|nor|pl|pol|cs|cze|sk|slo|hu|hun|ro|rum|bg|bul|uk|ukr|el|gre|tr|tur|ar|ara|he|heb|hi|hin|id|ind|ms|may|vi|vie|th|tha|km|khm|ko|kor|ak|af|afr|sq|alb|eu|baq|ca|cat|gl|glg|cy|wel|ga|gle|gd|gla|br|bre|co|cos|eo|epo|et|est|lv|lav|lt|lit|mt|mlt|sl|slv|mk|mac|sr|srp|hr|hrv|bs|bos|am|amh|so|som|sw|swa|yo|yor|ig|ibo|ha|hau|zu|zul|xh|xho|st|sot|sn|sna|ka|geo|hy|arm|az|aze|kk|kaz|uz|uzb|mn|mon|ky|kir|tg|tgk|tk|tuk|ti|tir|fa|per|ur|urd|bn|ben|ta|tam|te|tel|ml|mal|mr|mar|pa|pan|gu|guj|kn|kan|as|asm|or|ori|sa|san|ne|nep|si|sin|my|bur|lo|lao)$/.test(c)) return { tag: '', rank: 5 };
+  }
   if (/简体|简中|chs|zh[-_. ]?cn|zh[-_. ]?hans/.test(s)) return { tag: '简中', rank: 0 };
   if (/繁体|繁中|cht|zh[-_. ]?tw|zh[-_. ]?hk|zh[-_. ]?hant/.test(s)) return { tag: '繁中', rank: 1 };
   if (/双语|中英|中日|bilingual/.test(s)) return { tag: '双语', rank: 2 };
@@ -1305,7 +1328,7 @@ async function subSlotOracle(keys, src, tier, ctx, match, ocache, bag) {
   const finalItems = items.filter((it) => subRelevant(it, ctx, match));
   for (const it of finalItems) {
     const lang = subLangOf(it.name, it.langs);
-    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match) });
+    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match), dur: it.norm.duration });
   }
 }
 
@@ -1341,20 +1364,45 @@ async function subFromSubtitleCat(ctx, match, bag) {
 
 // 合并: 档位 -> 语言 -> 分数; 按 URL 去重 (同条归先到高档位);
 // 全局上限 10、单槽软上限 8 (给 SubtitleCat 留位)。
+// 时长后缀（2026-11-02）：oracle 给毫秒（>100000 视为毫秒除 1000），
+// 秒级原值直接用；无时长不显示、不编造。
+// 去重键用秒（2026-11-02 名字+时长口径）：毫秒值 >100000 除 1000；
+// 无时长记 nodur（沿用名字去重）；同名同时长才算重复。
+function subDurSec(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  return s > 0 ? s : 0;
+}
+function subDurStr(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  if (s <= 0) return '';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+}
 function subMerge(items) {
   const sorted = items.slice().sort((a, b) =>
     (a.tier - b.tier) || (a.langRank - b.langRank) || (b.score - a.score) || String(a.name).localeCompare(String(b.name)));
   const seenUrl = new Set();
+  const seenName = new Set();
   const perTier = {};
   const out = [];
   for (const it of sorted) {
     if (out.length >= 10) break;
     if (seenUrl.has(it.url)) continue;
+    const nameKey = (it.lang || '') + '|' + it.name.toLowerCase().replace(/\.(srt|vtt|ass|ssa)$/i, '') + '|' + (subDurSec(it.dur) || 'nodur');
+    if (seenName.has(nameKey)) continue;
     if ((perTier[it.tier] || 0) >= 8) continue;
     seenUrl.add(it.url);
+    seenName.add(nameKey);
     perTier[it.tier] = (perTier[it.tier] || 0) + 1;
     const cleanName = it.name.replace(/\.(srt|vtt|ass|ssa)$/i, '').slice(0, 60);
-    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName, url: it.url, format: it.fmt });
+    const dur = subDurStr(it.dur);
+    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName + (dur ? '·' + dur : ''), url: it.url, format: it.fmt });
   }
   return out;
 }
@@ -1417,5 +1465,5 @@ export default {
       fastify.post('/detail', detail);
       fastify.post('/play', play);
       fastify.post('/search', search);
-    },
+    }
 }
