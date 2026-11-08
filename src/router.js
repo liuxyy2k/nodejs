@@ -334,6 +334,7 @@ import javhdicu from "./spider/video/javhdicu.js";
 import nine1pornpp from "./spider/video/91pornpp.js";
 import hgyng from "./spider/video/hgyng.js";
 import xz51 from "./spider/video/51xz.js";
+import pubjav from "./spider/video/pubjav.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -371,7 +372,7 @@ export const getSpiders = async (server) => {
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
-        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav, javgg, hornjav, mythav,
+        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav, javgg, hornjav, mythav, pubjav,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
         jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
