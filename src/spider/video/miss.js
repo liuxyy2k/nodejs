@@ -121,6 +121,12 @@ async function home(inReq) {
     { type_id: 'dm301/cn/today-hot',          type_name: '今日热门' },
     { type_id: 'dm170/cn/weekly-hot',         type_name: '本周热门' },
     { type_id: 'dm270/cn/monthly-hot',        type_name: '本月热门' },
+    { type_id: 'dm36/siro',                   type_name: 'Siro' },
+    { type_id: 'dm34/luxu',                   type_name: 'luxu' },
+    { type_id: 'dm35/gana',                   type_name: 'gana' },
+    { type_id: 'dm1004/maan',                 type_name: 'maan' },
+    { type_id: 'dm38/scute',                  type_name: 'scute' },
+    { type_id: 'dm34/ara',                    type_name: 'ara' },
     { type_id: 'dm541/cn/fc2',                type_name: 'FC2' },
     { type_id: 'dm63/cn/madou',               type_name: '麻豆' },
   ];
