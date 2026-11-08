@@ -805,6 +805,10 @@ async function loadDetail(id, force) {
 
 async function init(inReq) {
     applyExt(inReq);
+}
+
+async function home(inReq) {
+    applyExt(inReq);
     const cats = await loadCats();
     return {
         class: [
@@ -814,32 +818,6 @@ async function init(inReq) {
         ],
         filters: {},
     };
-}
-
-async function home(inReq) {
-    applyExt(inReq);
-    try {
-        const r = await getText(site + '/', { headers: siteHeaders() }, 3);
-        if (r.status !== 200) return { class: [] };
-        const secs = parseSections(r.text);
-        if (!secs.length) {
-            const list = parseCards(r.text);
-            return { class: list.length ? [{ name: '推荐', list }] : [] };
-        }
-        return {
-            class: secs.map((s) => ({
-                name: s.name,
-                list: s.list.map((x) => ({
-                    vod_id: x.vod_id,
-                    vod_name: x.vod_name,
-                    vod_pic: x.vod_pic,
-                    vod_remarks: x.vod_remarks,
-                })),
-            })),
-        };
-    } catch {
-        return { class: [] };
-    }
 }
 
 async function category(inReq) {

@@ -413,17 +413,6 @@ const GENRES = [
 
 async function init(inReq) {
     applyExt(inReq);
-    return {
-        class: [
-            { type_id: '/movies', type_name: '🆕 最近更新' },
-            { type_id: '/movies?sort=hot', type_name: '🔥 最热' },
-            { type_id: '/movies?genre=censored', type_name: '🈶 有码' },
-            { type_id: '/movies?genre=uncensored', type_name: '🈚 无码' },
-            { type_id: '/movies?genre=amateur', type_name: '📱 素人专区' },
-            ...GENRES.map(([slug, name]) => ({ type_id: '/genre/' + slug, type_name: name })),
-        ],
-        filters: {},
-    };
 }
 
 function buildPageUrl(path, page) {
@@ -450,29 +439,17 @@ function parsePageCount(html, page) {
 
 async function home(inReq) {
     applyExt(inReq);
-    try {
-        const r = await getText(site + '/', { headers: siteHeaders() });
-        if (r.status !== 200) return { class: [] };
-        const html = r.text;
-        const secs = [
-            ['movie-featured', '⭐ 精选'],
-            ['most-viewed', '🔥 最多观看'],
-            ['most-popular', '💯 人气最高'],
-        ];
-        const out = [];
-        for (const [id, name] of secs) {
-            const seg = slicePane(html, id);
-            const list = seg ? parseCards(seg) : [];
-            if (list.length) out.push({ name, list: list.slice(0, 24) });
-        }
-        if (!out.length) {
-            const list = parseCards(html);
-            if (list.length) out.push({ name: '推荐', list: list.slice(0, 24) });
-        }
-        return { class: out };
-    } catch {
-        return { class: [] };
-    }
+    return {
+        class: [
+            { type_id: '/movies', type_name: '🆕 最近更新' },
+            { type_id: '/movies?sort=hot', type_name: '🔥 最热' },
+            { type_id: '/movies?genre=censored', type_name: '🈶 有码' },
+            { type_id: '/movies?genre=uncensored', type_name: '🈚 无码' },
+            { type_id: '/movies?genre=amateur', type_name: '📱 素人专区' },
+            ...GENRES.map(([slug, name]) => ({ type_id: '/genre/' + slug, type_name: name })),
+        ],
+        filters: {},
+    };
 }
 
 function slicePane(html, id) {
