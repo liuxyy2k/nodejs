@@ -215,7 +215,7 @@ async function home(_inReq, _outResp) {
     const html = await request(site);
     const list = parseVods(html, _inReq);
 
-    return { class: classes, list, filters: {} };
+    return { class: classes, filters: {} };
 }
 
 async function category(inReq, _outResp) {
