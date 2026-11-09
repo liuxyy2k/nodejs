@@ -11,16 +11,11 @@ const site = 'https://yvy25e.jwigrcjsr.cc';
  *   decryptKey: f5d965df75336270
  *   decryptIV : 97b60394abc2fbe1
  *
- * IMG_MODE 控制 vod_pic 返回什么：
- *   data  （默认）服务端解密后转 data:image/jpeg;base64，一定能显示，但列表 JSON 会变大
- *   raw           直接返回加密地址（前台 <img> 显示不出来，只适合你自己再处理）
- *   empty         不返回封面，只出标题/播放地址
+ * vod_pic 不内嵌 base64，改返回本插件 /img 代理地址，播放器拉图时再解密。
  */
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 const IMG_KEY = Buffer.from('f5d965df75336270');
 const IMG_IV = Buffer.from('97b60394abc2fbe1');
-const IMG_MODE = (process.env.IMG_MODE || 'data').toLowerCase();
-
-const imgCache = new Map();
 
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
@@ -28,15 +23,6 @@ async function request(reqUrl, headers = {}) {
         timeout: 25000,
     });
     return resp.data;
-}
-
-async function fetchBuffer(reqUrl) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, Referer: `${site}/` },
-        responseType: 'arraybuffer',
-        timeout: 25000,
-    });
-    return Buffer.from(resp.data);
 }
 
 /** 解密；不是 16 倍数或解出来不是图片就原样返回（有些图本来就是明文） */
@@ -67,22 +53,53 @@ function mimeOf(buf) {
     return 'image/jpeg';
 }
 
-/** 按 IMG_MODE 生成 vod_pic */
-async function buildPic(url) {
-    if (!url || IMG_MODE === 'empty') return '';
-    if (IMG_MODE === 'raw') return url;
+function e64(s) {
+    return Buffer.from(String(s || ''), 'utf8').toString('base64url');
+}
 
-    if (imgCache.has(url)) return imgCache.get(url);
+function d64(s) {
+    return Buffer.from(String(s || ''), 'base64url').toString('utf8');
+}
 
+function getProxyBase(inReq) {
+    const prefix = (inReq && inReq.server && inReq.server.prefix) || '/spider/chihan/3';
+    const host = String(
+        (inReq && inReq.headers && (inReq.headers['x-forwarded-host'] || inReq.headers.host)) || ''
+    ).split(',')[0].trim();
+    if (host) {
+        const proto = String((inReq && inReq.headers && inReq.headers['x-forwarded-proto']) || 'http').split(',')[0].trim();
+        return `${proto}://${host}${prefix}`;
+    }
+    return `http://127.0.0.1:${PORT}${prefix}`;
+}
+
+/** vod_pic：指向本插件 /img，由代理拉图并解密 */
+function proxyPic(url, inReq) {
+    const u = String(url || '').trim();
+    if (!u || !/^https?:\/\//i.test(u)) return '';
+    return `${getProxyBase(inReq)}/img?url=${encodeURIComponent(e64(u))}`;
+}
+
+async function imgProxy(inReq, reply) {
     try {
-        const raw = await fetchBuffer(url);
-        const out = decryptImage(raw);
-        const data = `data:${mimeOf(out)};base64,${out.toString('base64')}`;
-        if (imgCache.size > 120) imgCache.delete(imgCache.keys().next().value);
-        imgCache.set(url, data);
-        return data;
+        const raw = d64(inReq.query && inReq.query.url);
+        if (!raw || !/^https?:\/\//i.test(raw)) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: { 'User-Agent': UA, Referer: `${site}/` },
+            responseType: 'arraybuffer',
+            timeout: 25000,
+            validateStatus: () => true,
+        });
+        if (resp.status !== 200 || !resp.data) return reply.code(resp.status || 502).send('');
+
+        const out = decryptImage(Buffer.from(resp.data));
+        reply.header('Access-Control-Allow-Origin', '*');
+        reply.header('Cache-Control', 'public, max-age=86400');
+        return reply.header('Content-Type', mimeOf(out)).send(out);
     } catch (e) {
-        return '';
+        console.error('chihan imgProxy error:', e && e.message);
+        return reply.code(500).send('');
     }
 }
 
@@ -146,22 +163,15 @@ function parseNodes(html) {
     return out;
 }
 
-async function parseVods(html) {
-    const nodes = parseNodes(html);
-    const list = [];
-
-    for (const n of nodes) {
-        list.push({
-            vod_id: n.id,
-            vod_name: n.name,
-            vod_pic: await buildPic(n.pic),
-            vod_remarks: n.dur,
-            // 列表里就带 m3u8，直接塞进播放串，play 不用再请求
-            vod_play_url: n.hls ? `正片$${n.hls}` : '',
-        });
-    }
-
-    return list;
+function parseVods(html, inReq) {
+    return parseNodes(html).map((n) => ({
+        vod_id: n.id,
+        vod_name: n.name,
+        vod_pic: proxyPic(n.pic, inReq),
+        vod_remarks: n.dur,
+        // 列表里就带 m3u8，直接塞进播放串，play 不用再请求
+        vod_play_url: n.hls ? `正片$${n.hls}` : '',
+    }));
 }
 
 function parsePageCount(html, page) {
@@ -203,7 +213,7 @@ async function home(_inReq, _outResp) {
     ];
 
     const html = await request(site);
-    const list = await parseVods(html);
+    const list = parseVods(html, _inReq);
 
     return { class: classes, list, filters: {} };
 }
@@ -224,7 +234,7 @@ async function category(inReq, _outResp) {
     }
 
     const html = await request(url);
-    const list = await parseVods(html);
+    const list = parseVods(html, inReq);
 
     return { page, pagecount: parsePageCount(html, page), list };
 }
@@ -290,7 +300,7 @@ async function detail(inReq, _outResp) {
 
     const hls = String(data.videoSrc || '').replace(/&amp;/g, '&');
     const cover = String(data.coverSrc || data.posterSrc || '').replace(/&amp;/g, '&');
-    const pic = await buildPic(cover);
+    const pic = proxyPic(cover, inReq);
 
     return {
         list: [{
@@ -348,7 +358,7 @@ async function search(inReq, _outResp) {
     if (pg > 1) url += `&page=${pg}`;
 
     const html = await request(url);
-    const list = await parseVods(html);
+    const list = parseVods(html, inReq);
 
     return { list, page: pg, pagecount: parsePageCount(html, pg) };
 }
@@ -366,5 +376,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
+        fastify.get('/img', imgProxy);
     },
 };
