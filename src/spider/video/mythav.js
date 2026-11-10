@@ -1076,7 +1076,7 @@ async function debug(inReq) {
 }
 
 export default {
-    meta: { key: 'mythav', name: '🔞MythAV', type: 3 },
+    meta: { key: 'mythav', name: '🌸MythAV', type: 3 },
     api: async (fastify) => {
         fastify.post('/init', init);
         fastify.post('/home', home);
