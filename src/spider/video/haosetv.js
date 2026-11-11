@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
-const siteUrl = 'https://hsex.tv';
+const siteUrl = 'https://hsex.men';
 const cateUrl = siteUrl + '/';
 const detailUrl = siteUrl + '/video-';
 const searchUrl = siteUrl + '/search.htm?search=';
