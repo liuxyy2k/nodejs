@@ -32,12 +32,16 @@ import req from '../../util/req.js';
  *
  * ext 可选配置：
  *   site       换镜像域名，如 https://别的.com
- *   proxy      local(默认) | auto | direct
- *              local  = 走插件内置代理（推荐，补 Origin + 重签 + 透传 Range）
+ *   proxy      local(默认) | port | auto | direct
+ *              local  = 走 Fastify 同端口 /p/ 代理（推荐）
+ *                       地址形如 https://你的域名/<插件前缀>/p/{sid}/index.m3u8
+ *                       与接口同端口同协议，天然兼容 https 和 nginx 反代
+ *              port   = 老行为，另起一个随机端口的 http 服务
+ *                       只有在你确认安全组/GCP 防火墙放行了该端口、且页面不是 https 时才用
  *              direct = 直接把上游地址交给播放器（要求播放器会把 header 带上去）
- *              auto   = 探测上游是否可直接播，能直连就直连，否则走代理
- *   proxyHost  播放器访问不到壳子给的 Host 时手填（如 192.168.1.10）
- *   proxyPort  固定本地代理端口，默认随机
+ *              auto   = 探测上游是否可直接播，能直连就直连，否则走同端口代理
+ *   proxyHost  仅 port 模式用：播放器访问不到自动识别的 Host 时手填（如 192.168.1.10）
+ *   proxyPort  仅 port 模式用：固定本地代理端口，默认随机
  *   ttl        详情/分类缓存秒数，默认 300
  *   timeout    上游超时毫秒，默认 20000
  *   httpProxy  需要经代理出网时填，如 http://127.0.0.1:7890（也认环境变量）
@@ -726,7 +730,8 @@ function upHeaders(sess, extra) {
     }, extra || {});
 }
 
-function localizePlaylist(text, sid, baseDir, upstreamResolved) {
+function localizePlaylist(text, sid, baseDir, upstreamResolved, prefix) {
+    const pre = String(prefix || '').replace(/\/+$/, '');
     const lines = [];
     for (const raw of text.split(/\r?\n/)) {
         const t = raw.trim();
@@ -735,7 +740,7 @@ function localizePlaylist(text, sid, baseDir, upstreamResolved) {
             if (/^#EXT-X-KEY/i.test(t) || /^#EXT-X-MAP/i.test(t) || /^#EXT-X-MEDIA/i.test(t)) {
                 lines.push(t.replace(/URI="([^"]+)"/i, (_, u) => {
                     const abs = absUrl(u, upstreamResolved || baseDir + '/');
-                    return 'URI="/p/' + sid + '/abs?u=' + b64url(abs) + '"';
+                    return 'URI="' + pre + '/p/' + sid + '/abs?u=' + b64url(abs) + '"';
                 }));
                 continue;
             }
@@ -744,12 +749,37 @@ function localizePlaylist(text, sid, baseDir, upstreamResolved) {
         }
         const abs = absUrl(t, upstreamResolved || baseDir + '/');
         if (baseDir && abs.startsWith(baseDir + '/')) {
-            lines.push('/p/' + sid + '/' + abs.slice(baseDir.length + 1));
+            lines.push(pre + '/p/' + sid + '/' + abs.slice(baseDir.length + 1));
         } else {
-            lines.push('/p/' + sid + '/abs?u=' + b64url(abs));
+            lines.push(pre + '/p/' + sid + '/abs?u=' + b64url(abs));
         }
     }
     return lines.join('\n');
+}
+
+/* ── 同端口代理地址推导：修复"随机端口外部打不开 / https 混合内容" ── */
+
+/** 插件挂载前缀，如 /pubjav/play -> /pubjav；根路径 -> '' */
+function reqPrefix(inReq) {
+    const raw = String(
+        (inReq && inReq.raw && inReq.raw.url) ||
+        (inReq && inReq.url) ||
+        ''
+    );
+    const path = raw.split('?')[0].replace(/\/+$/, '');
+    const i = path.lastIndexOf('/');
+    return i > 0 ? path.slice(0, i) : '';
+}
+
+/** 客户端实际访问的 origin，优先取反代头 */
+function reqOrigin(inReq) {
+    const h = (inReq && inReq.headers) || {};
+    const xfHost = String(h['x-forwarded-host'] || '').split(',')[0].trim();
+    const host = xfHost || String(h.host || '').trim();
+    let proto = String(h['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    if (!proto) proto = h['x-forwarded-ssl'] === 'on' || h['x-forwarded-scheme'] === 'https' ? 'https' : 'http';
+    if (!host) return '';
+    return `${proto}://${host}`;
 }
 
 /** 整段 mp4 / 大文件：流式透传，透传 Range 与状态码 */
@@ -794,10 +824,11 @@ async function streamThrough(clientReq, res, sess, url) {
     }
 }
 
-async function handleProxy(req, res) {
+async function handleProxy(req, res, prefix) {
     try {
         const u = new URL(req.url, 'http://localhost');
-        const m = u.pathname.match(/^\/p\/([^/]+)\/(.+)$/);
+        // 兼容挂载前缀：/p/{sid}/... 或 /pubjav/p/{sid}/...
+        const m = u.pathname.match(/(?:^|\/)p\/([^\/]+)\/(.+)$/);
         if (!m) return sendPlain(res, 404, 'bad path');
         const sid = m[1];
         let rest = decodeURIComponent(m[2]);
@@ -822,7 +853,7 @@ async function handleProxy(req, res) {
                 upUrl = sess.master;
             }
             if (!text) return sendPlain(res, 502, 'master fail');
-            const out = localizePlaylist(text, sid, sess.base, sess.master);
+            const out = localizePlaylist(text, sid, sess.base, sess.master, prefix);
             res.writeHead(200, {
                 'Content-Type': 'application/vnd.apple.mpegurl',
                 'Access-Control-Allow-Origin': '*',
@@ -878,7 +909,7 @@ async function handleProxy(req, res) {
         const head = r.body.slice(0, 16).toString('utf8');
         const isPlaylist = /^#EXTM3U/.test(head);
         if (isPlaylist) {
-            const out = localizePlaylist(r.body.toString('utf8'), sid, sess.base, upUrl);
+            const out = localizePlaylist(r.body.toString('utf8'), sid, sess.base, upUrl, prefix);
             res.writeHead(200, {
                 'Content-Type': 'application/vnd.apple.mpegurl',
                 'Access-Control-Allow-Origin': '*',
@@ -977,7 +1008,6 @@ async function play(inReq) {
             } catch { /* 走下面代理 */ }
         }
 
-        await ensureProxy();
         const sid = newSession({
             slug,
             epi: s.epi,
@@ -987,11 +1017,26 @@ async function play(inReq) {
             origin: s.origin,
             expire: s.expire,
         });
-        const host = clientHost(inReq, proxyPort);
         const tail = (s.kind || 'hls') === 'mp4' ? 'video.mp4' : 'index.m3u8';
+
+        // 默认走 Fastify 同端口 /p/ 路由：
+        //   旧实现返回 http://host:随机端口/...，云服务器安全组没开随机端口、且 https 页面会被
+        //   混合内容拦截，表现就是"列表能看，一播放就转圈/黑屏"。
+        if (cfg.proxy === 'port') {
+            await ensureProxy();
+            const host = clientHost(inReq, proxyPort);
+            return {
+                parse: 0,
+                url: `http://${host}:${proxyPort}/p/${sid}/${tail}`,
+                header: { 'User-Agent': UA },
+            };
+        }
+
+        const origin = reqOrigin(inReq);
+        const prefix = reqPrefix(inReq);
         return {
             parse: 0,
-            url: `http://${host}:${proxyPort}/p/${sid}/${tail}`,
+            url: `${origin}${prefix}/p/${sid}/${tail}`,
             header: { 'User-Agent': UA },
         };
     } catch (e) {
@@ -1157,6 +1202,40 @@ async function proxyStream(inReq, reply) {
     return { code: 400, msg: 'bad request' };
 }
 
+/**
+ * 同端口播放代理：GET /p/{sid}/...
+ * 走 Fastify 自身的端口和协议（含反代的 https），解决
+ *   1) 独立随机端口在云安全组/防火墙没开放
+ *   2) https 页面里播放 http 地址被浏览器当混合内容拦掉
+ */
+async function pRoute(inReq, reply) {
+    const nodeReq = inReq && inReq.raw;
+    const res = reply && reply.raw;
+    if (!nodeReq || !res) {
+        if (reply && reply.code) return reply.code(500).send('no raw stream');
+        return;
+    }
+    applyExt(inReq);
+
+    if (inReq.method === 'OPTIONS') {
+        res.writeHead(204, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,HEAD,OPTIONS',
+            'Access-Control-Allow-Headers': 'Range,Origin,Accept,Content-Type',
+            'Access-Control-Max-Age': '86400',
+        });
+        return res.end();
+    }
+
+    // 让 fastify 交出响应控制权，后面全部由 handleProxy 写
+    if (typeof reply.hijack === 'function') reply.hijack();
+
+    const url = String(nodeReq.url || '');
+    const m = url.split('?')[0].match(/^(.*?)\/p\//);
+    const prefix = m ? m[1] : '';
+    return handleProxy(nodeReq, res, prefix);
+}
+
 function handler(req, res) {
     const u = new URL(req.url, 'http://localhost');
     if (u.pathname.startsWith('/p/')) return handleProxy(req, res);
@@ -1201,6 +1280,12 @@ export default {
         fastify.post('/play', play);
         fastify.post('/search', search);
         fastify.get('/proxy/stream', proxyStream);
+        // 同端口播放代理（播放地址默认走这里）
+        fastify.route({
+            method: ['GET', 'HEAD', 'OPTIONS'],
+            url: '/p/*',
+            handler: pRoute,
+        });
         fastify.post('/debug', debug);
     },
 };
