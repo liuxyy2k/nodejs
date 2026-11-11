@@ -335,6 +335,9 @@ import nine1pornpp from "./spider/video/91pornpp.js";
 import hgyng from "./spider/video/hgyng.js";
 import xz51 from "./spider/video/51xz.js";
 import pubjav from "./spider/video/pubjav.js";
+import chineseav from "./spider/video/chineseav.js";
+import madouai from "./spider/video/madouai.js";
+import rdd22 from "./spider/video/rdd22.js";
 import pornxx91 from "./spider/video/91pornxx.js";
 import chihan from "./spider/video/chihan.js";
 import rip17 from "./spider/video/17rip.js";
@@ -375,7 +378,7 @@ export const getSpiders = async (server) => {
         vlxxsex, x3china, hohoj, movie, luoli, j18Tv, theporn, owoav, masexTv,
         youavhub, paradisehill, avporn, dottaia, av3698, avgood, hayav, boxav, kissjav,
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
-        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav, javgg, hornjav, mythav, pubjav, rip17,
+        ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav, javgg, hornjav, mythav, pubjav, rip17, chineseav,
         // ── 吃瓜 / 爆料 ──
         cg51, xigua51, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
         jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua,
@@ -383,7 +386,7 @@ export const getSpiders = async (server) => {
         spx91, video91, sp91, sp91com, pron91, porna91, pinse, rb91, nine1tanhua, av123dsp, theporny, xiaohuangniao, pornxx91, nine1pornpp,
         // ── 国产 / 中文 ──
         wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, xhongyan, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv, bianfu,
-        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi,
+        wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi, madouai, rdd22,
         awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, yunvxinjing,
         ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, vilivili, mogu, xhy, xz51, hgyng, chihan,
         // ── APP ──
