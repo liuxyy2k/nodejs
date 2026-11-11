@@ -1,18 +1,27 @@
-import axios from 'axios';
 import { load } from 'cheerio';
+import req from '../../util/req.js';
 
 const siteUrl = 'https://hsex.men';
 const cateUrl = siteUrl + '/';
 const detailUrl = siteUrl + '/video-';
 const searchUrl = siteUrl + '/search.htm?search=';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)',
 };
 
 async function request(url) {
-    const resp = await axios.get(url, { headers });
-    return resp.data;
+    const resp = await req.get(url, {
+        headers,
+        timeout: 30000,
+        validateStatus: () => true,
+        responseType: 'text',
+    });
+    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
 }
 
 // 解析视频列表（对应 Java 的 parseVods）
@@ -110,8 +119,7 @@ async function detail(inReq, _outResp) {
     const name = $('meta[property="og:title"]').attr('content') || '';
     const pic = $('meta[property="og:image"]').attr('content') || '';
     const year = $('meta[property="video:release_date"]').attr('content') || '';
-    const playUrl = $('source#video-source').attr('src') || '';
-
+    const playUrl = $('#video-source').attr('src') || '';
     return {
         list: [{
             vod_id: id,

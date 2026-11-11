@@ -142,6 +142,17 @@
       "creation": "2026-10-20T10:47:54.993Z",
       "lastAccessed": "2026-10-20T10:51:34.418Z",
       "sameSite": "lax"
+    },
+    {
+      "key": "hid",
+      "value": "vlhnqllbtsb06q5bjklusr4q9s",
+      "expires": "2026-11-11T13:10:51.000Z",
+      "maxAge": 1800,
+      "domain": "hsex.men",
+      "path": "/",
+      "hostOnly": true,
+      "creation": "2026-11-11T12:40:41.197Z",
+      "lastAccessed": "2026-11-11T12:40:41.197Z"
     }
   ]
 }
