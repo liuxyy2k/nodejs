@@ -337,6 +337,7 @@ import xz51 from "./spider/video/51xz.js";
 import pubjav from "./spider/video/pubjav.js";
 import chineseav from "./spider/video/chineseav.js";
 import madouai from "./spider/video/madouai.js";
+import baduyingyuan from "./spider/video/baduyingyuan.js";
 import rdd22 from "./spider/video/rdd22.js";
 import pornxx91 from "./spider/video/91pornxx.js";
 import chihan from "./spider/video/chihan.js";
@@ -388,7 +389,7 @@ export const getSpiders = async (server) => {
         wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, xhongyan, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv, bianfu,
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi, madouai, rdd22,
         awxVideo, r3e2o, xx01, xx9, badNew, po85, quanse, motv, bzsp005, oneapi, papashipin, bh5873, yiguoduan, baokuanpk, adtv, mrcx, shunvh, gg51, yunvxinjing,
-        ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, vilivili, mogu, xhy, xz51, hgyng, chihan,
+        ncxxx, jkly, huadu, ssp, isese, lyt, jptt, av591, hscka, yasetube, mitaoshipin, mitaoyuan, mitaofc2, mtw, jamtt, vilivili, mogu, xhy, xz51, hgyng, chihan, baduyingyuan,
         // ── APP ──
         tt, suiruixhs,
         // ── 音频 ──
