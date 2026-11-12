@@ -351,7 +351,13 @@ function playUrlsOf(d) {
 
 // ─── 路由 ─────────────────────────────────────────────────────────────────────
 async function init(inReq, _outResp) {
-   return {}
+    applyExt(inReq);
+    try {
+        await discoverHosts();
+    } catch {
+        /* 下次请求再发现 */
+    }
+    return {};
 }
 
 async function home(inReq, _outResp) {
@@ -385,6 +391,14 @@ async function home(inReq, _outResp) {
             classes.push({ type_id: 'm:' + m, type_name: '厂商·' + m });
             n++;
         }
+    }
+
+    let list = [];
+    try {
+        const r = await listByQuery('most_popular=true', 1, 12);
+        list = r.arr.map(toVod).filter(Boolean);
+    } catch {
+        /* 首页列表失败不影响分类 */
     }
 
     return { class: classes, filters: {} };
@@ -434,14 +448,21 @@ async function detail(inReq, _outResp) {
     const body = (inReq && inReq.body) || {};
     let id = String(body.id != null ? body.id : (body.ids != null ? body.ids : ''));
 
-    // 入参可能是纯 id / 完整 URL / "线路1$url"
-    if (id.includes('$$')) id = id.slice(id.lastIndexOf('$$') + 2);
-    else if (!/^https?:\/\//i.test(id) && id.includes('$')) id = id.slice(id.lastIndexOf('$') + 1);
-    id = id.trim();
+    // 入参可能是纯 id / 完整 URL / "正片$vodId|0"
+    if (id.includes('$$$')) id = id.split('$$$')[0];
+    if (!/^https?:\/\//i.test(id) && id.includes('$')) id = id.slice(id.lastIndexOf('$') + 1);
+    id = id.replace(/\|\d+$/, '').trim();
 
     // 直接给了 m3u8 的情况：没有详情，只回一个可播条目
     if (/^https?:\/\//i.test(id) && /\.m3u8(\?|$)/i.test(id)) {
-        return { list: [{ vod_id: id, vod_name: '直链', vod_play_from: '线路1', vod_play_url: '线路1$' + id }] };
+        return {
+            list: [{
+                vod_id: id,
+                vod_name: '直链',
+                vod_play_from: '正片',
+                vod_play_url: '正片$' + id,
+            }],
+        };
     }
 
     const d = await getDetail(id);
@@ -453,11 +474,12 @@ async function detail(inReq, _outResp) {
     const froms   = [];
     const urls    = [];
 
+    const vodKey = String(d._id || id);
     links.forEach((l, i) => {
-        const name = links.length > 1 ? l.name : '线路1';
+        const name = links.length > 1 ? l.name : '正片';
         const uniq = froms.includes(name) ? name + (i + 1) : name;
         froms.push(uniq);
-        urls.push(`${uniq}$${l.url}`);
+        urls.push(`${uniq}$${vodKey}|${i}`);
     });
 
     const actresses = Array.isArray(d.actress)
@@ -477,12 +499,12 @@ async function detail(inReq, _outResp) {
         vod_director: String(d.country || ''),        // 这个字段实际是厂商
         type_name:    tags.slice(0, 4).join(' / '),
         vod_pubdate:  String(d.share_date || '').slice(0, 10),
-        vod_play_from: froms.join('$$'),
-        vod_play_url:  urls.join('#'),
+        vod_play_from: froms.join('$$$'),
+        vod_play_url:  urls.join('$$$'),
     };
     if (tags.length) vod.vod_tag = tags.join(',');
 
-    return { list: [vod] };
+    return { list: [vod], parse: 0, jx: 0 };
 }
 
 async function play(inReq, _outResp) {
@@ -492,22 +514,29 @@ async function play(inReq, _outResp) {
 
     const header = { 'User-Agent': UA, 'Referer': site() + '/' };
 
-    // 入参：纯 id / 完整 URL / "线路名$url" / "线路名$$url"
-    if (id.includes('$$')) id = id.slice(id.lastIndexOf('$$') + 2);
-    else if (!/^https?:\/\//i.test(id) && id.includes('$')) id = id.slice(id.lastIndexOf('$') + 1);
+    // 入参：纯 id / 完整 URL / "线路名$vodId|n" / "正片$https://..."
+    if (id.includes('$$$')) id = id.split('$$$')[0];
+    if (!/^https?:\/\//i.test(id) && id.includes('$')) id = id.slice(id.lastIndexOf('$') + 1);
     id = id.trim();
+
+    let lineIdx = 0;
+    const lineM = id.match(/\|(\d+)$/);
+    if (lineM) {
+        lineIdx = Math.max(0, intOf(lineM[1], 0));
+        id = id.slice(0, -lineM[0].length);
+    }
 
     let m3u8 = '';
     if (/^https?:\/\//i.test(id)) {
-        m3u8 = id;                                   // 详情给的就是直链
-    } else {
-        const d = await getDetail(id);               // 纯 id → 实时取（CDN 域名轮换）
+        m3u8 = id;
+    } else if (isObjId(id)) {
+        const d = await getDetail(id);
         if (d) {
             const links = playUrlsOf(d);
-            m3u8 = links.length ? links[0].url : '';
+            m3u8 = (links[lineIdx] || links[0] || {}).url || '';
         }
     }
-    if (!m3u8) return { parse: 1, url: '' };
+    if (!m3u8) return { parse: 1, url: '', playUrl: '', jx: 0, header };
 
     const reqExt = body.ext || {};
     const mode = String(reqExt.proxy || EXT.proxy || DEFAULTS.proxy || 'direct').toLowerCase();
@@ -515,11 +544,13 @@ async function play(inReq, _outResp) {
 
     // direct：CDN 是公开 m3u8，播放器直连最省
     if (mode === 'direct' || !base) {
-        return { parse: 0, url: m3u8, header };
+        return { parse: 0, playUrl: '', url: m3u8, jx: 0, header };
     }
     return {
         parse: 0,
+        playUrl: '',
         url: `${base}/proxy/stream?u=${b64e(m3u8)}&m=${encodeURIComponent(mode)}`,
+        jx: 0,
         header,
     };
 }
@@ -571,8 +602,8 @@ async function debug(inReq, _outResp) {
 
     // 2) 分类
     try {
-        const ini = await init({ body: {} }, null);
-        out.cats = ini.class.length;
+        const ini = await home({ body: {} }, null);
+        out.cats = Array.isArray(ini.class) ? ini.class.length : 0;
     } catch (e) { out.cats = 'FAIL ' + e.message; }
 
     // 3) 列表
