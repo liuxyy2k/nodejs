@@ -41,8 +41,61 @@ const EXT = {
 const DEFAULTS = { ...EXT };
 
 const meta = { key: 'manko1', name: '🌸Manko1', type: 3 };
+const PORT = process.env.DEV_HTTP_PORT || 9988;
 
 const site = () => (EXT.site || 'https://manko.fun').replace(/\/+$/, '');
+
+/** Wasabi CDN 认嵌入页 Origin，不能只用 manko.fun */
+function streamReferer(item) {
+    const embed = item && item.wasabi_embed_url;
+    try {
+        if (embed) return `${new URL(embed).origin}/`;
+    } catch {
+        /* fallback */
+    }
+    return 'https://sadie-shop.site/';
+}
+
+function playHeaders(referer) {
+    let origin = 'https://sadie-shop.site';
+    try {
+        origin = new URL(referer || streamReferer()).origin;
+    } catch {
+        /* keep */
+    }
+    return {
+        'User-Agent': UA,
+        Referer: referer || `${origin}/`,
+        Origin: origin,
+    };
+}
+
+function localSpiderBase() {
+    return `http://127.0.0.1:${PORT}/spider/${meta.key}/${meta.type}`;
+}
+
+async function pickMediaPlaylist(masterUrl, referer) {
+    try {
+        const r = await axios.get(masterUrl, {
+            headers: { ...playHeaders(referer), 'Accept-Encoding': 'identity' },
+            timeout: EXT.timeout,
+            responseType: 'text',
+            validateStatus: () => true,
+            maxRedirects: 5,
+        });
+        const text = String(r.data || '');
+        if (r.status >= 400 || !text.includes('#EXTM3U')) return masterUrl;
+        if (/#EXTINF/i.test(text)) return masterUrl;
+        const variants = text
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('#'));
+        if (!variants.length) return masterUrl;
+        return new URL(variants[variants.length - 1], masterUrl).href;
+    } catch {
+        return masterUrl;
+    }
+}
 
 // 接口域名：首页注入 window.ip / window.ip2，硬编码这两个兜底
 const HOSTS = ['healertanker.com', 'alpharomeo.shop'];
@@ -512,7 +565,8 @@ async function play(inReq, _outResp) {
     const body = (inReq && inReq.body) || {};
     let id = String(body.id != null ? body.id : (body.ids != null ? body.ids : ''));
 
-    const header = { 'User-Agent': UA, 'Referer': site() + '/' };
+    let referer = 'https://sadie-shop.site/';
+    let detailItem = null;
 
     // 入参：纯 id / 完整 URL / "线路名$vodId|n" / "正片$https://..."
     if (id.includes('$$$')) id = id.split('$$$')[0];
@@ -530,28 +584,38 @@ async function play(inReq, _outResp) {
     if (/^https?:\/\//i.test(id)) {
         m3u8 = id;
     } else if (isObjId(id)) {
-        const d = await getDetail(id);
-        if (d) {
-            const links = playUrlsOf(d);
+        detailItem = await getDetail(id);
+        if (detailItem) {
+            referer = streamReferer(detailItem);
+            const links = playUrlsOf(detailItem);
             m3u8 = (links[lineIdx] || links[0] || {}).url || '';
         }
     }
-    if (!m3u8) return { parse: 1, url: '', playUrl: '', jx: 0, header };
+    if (!m3u8) return { parse: 1, url: '', playUrl: '', jx: 0, header: playHeaders(referer) };
+
+    m3u8 = await pickMediaPlaylist(m3u8, referer);
+    const header = playHeaders(referer);
 
     const reqExt = body.ext || {};
     const mode = String(reqExt.proxy || EXT.proxy || DEFAULTS.proxy || 'direct').toLowerCase();
-    const base = proxyBase(inReq);
+    const base = proxyBase(inReq) || localSpiderBase();
 
-    // direct：CDN 是公开 m3u8，播放器直连最省
-    if (mode === 'direct' || !base) {
+    // direct：把正确 Referer/Origin 交给播放器
+    if (mode === 'direct') {
         return { parse: 0, playUrl: '', url: m3u8, jx: 0, header };
     }
+
+    const qs = new URLSearchParams({
+        u: m3u8,
+        m: mode,
+        ref: referer,
+    });
     return {
         parse: 0,
         playUrl: '',
-        url: `${base}/proxy/stream?u=${b64e(m3u8)}&m=${encodeURIComponent(mode)}`,
+        url: `${base}/proxy/stream?${qs.toString()}`,
         jx: 0,
-        header,
+        header: { 'User-Agent': UA },
     };
 }
 
@@ -672,27 +736,63 @@ function isPrivateHost(host) {
         || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
 }
 
-function rewriteM3u8(body, baseUrl, proxyBaseUrl, mode) {
-    const origin = (() => { try { return new URL(baseUrl).origin; } catch (e) { return ''; } })();
+function rewriteM3u8(body, baseUrl, proxyBaseUrl, mode, referer) {
     const wrap = (u) => {
-        const abs = /^https?:\/\//i.test(u) ? u : (u.startsWith('/') ? origin + u : new URL(u, baseUrl).toString());
-        return `${proxyBaseUrl}/proxy/stream?u=${b64e(abs)}&m=${encodeURIComponent(mode)}`;
+        let abs = u;
+        try {
+            abs = /^https?:\/\//i.test(u) ? u : new URL(u, baseUrl).href;
+        } catch {
+            return u;
+        }
+        const qs = new URLSearchParams({ u: abs, m: mode, ref: referer || '' });
+        return `${proxyBaseUrl}/proxy/stream?${qs.toString()}`;
     };
-    return String(body).split('\n').map(line => {
+    return String(body)
+    .split(/\r?\n/)
+    .map((line) => {
         const t = line.trim();
         if (!t) return line;
         if (t.startsWith('#')) {
-            return line.replace(/URI="([^"]+)"/gi, (m0, u) => `URI="${wrap(u)}"`);
+            return line.replace(/URI="([^"]+)"/gi, (_m0, u) => `URI="${wrap(u)}"`);
         }
-        if (mode === 'all') return wrap(t);
-        return t;
-    }).join('\n');
+        // m3u8 模式也要代理子清单；分片在 all/m3u8 下都走代理（CDN 校验 Referer）
+        if (mode === 'all' || mode === 'm3u8') {
+            if (/^https?:\/\//i.test(t) || /\.(m3u8|txt|ts|m4s|mp4|aac)(\?|$)/i.test(t)) {
+                return wrap(t);
+            }
+        }
+        return line;
+    })
+    .join('\n');
+}
+
+function targetFromQuery(q) {
+    let raw = q.u || q.url || '';
+    if (Array.isArray(raw)) raw = raw[0];
+    raw = String(raw || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    try {
+        raw = decodeURIComponent(raw);
+    } catch {
+        /* keep */
+    }
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return b64d(raw);
 }
 
 async function proxyStream(req, reply) {
     const q = (req && req.query) || {};
-    const target = b64d(q.u);
+    const target = targetFromQuery(q);
     const mode = String(q.m || 'm3u8').toLowerCase();
+    let referer = q.ref;
+    if (Array.isArray(referer)) referer = referer[0];
+    referer = String(referer || 'https://sadie-shop.site/');
+    try {
+        referer = decodeURIComponent(referer);
+    } catch {
+        /* keep */
+    }
 
     if (!target || !/^https?:\/\//i.test(target)) {
         reply.code(400).send('bad target');
@@ -705,19 +805,21 @@ async function proxyStream(req, reply) {
         return;
     }
 
+    const upHeaders = {
+        ...playHeaders(referer),
+        'Accept-Encoding': 'identity',
+        ...(req.headers && req.headers.range ? { Range: req.headers.range } : {}),
+    };
+
     let up;
     try {
         up = await axios.get(target, {
-            headers: {
-                'User-Agent': UA,
-                'Referer':    site() + '/',
-                ...(req.headers && req.headers.range ? { Range: req.headers.range } : {}),
-            },
-            timeout:        Math.max(Number(EXT.timeout) || 15000, 25000),
-            responseType:   'arraybuffer',
+            headers: upHeaders,
+            timeout: Math.max(Number(EXT.timeout) || 15000, 25000),
+            responseType: 'arraybuffer',
             validateStatus: () => true,
-            maxRedirects:   5,
-            decompress:     false,
+            maxRedirects: 5,
+            decompress: false,
         });
     } catch (e) {
         reply.code(502).send('upstream error');
@@ -738,18 +840,24 @@ async function proxyStream(req, reply) {
     const isM3u8 = /^#EXTM3U/.test(buf.slice(0, 16).toString('utf8'));
 
     if (!isM3u8) {
+        const looksHtml = buf.length > 0 && (buf[0] === 0x3c || buf[0] === 0x7b);
+        if (buf.length > 0 && buf.length < 188 && looksHtml) {
+            reply.code(502).send('upstream not media');
+            return;
+        }
         reply.code(up.status);
-        if (up.headers['content-range'])  reply.header('content-range', up.headers['content-range']);
-        if (up.headers['accept-ranges'])  reply.header('accept-ranges', up.headers['accept-ranges']);
+        if (up.headers['content-range']) reply.header('content-range', up.headers['content-range']);
+        if (up.headers['accept-ranges']) reply.header('accept-ranges', up.headers['accept-ranges']);
         if (up.headers['content-length']) reply.header('content-length', up.headers['content-length']);
-        reply.header('content-type', ct || 'application/octet-stream');
+        const segCt = /\.ts(\?|$)/i.test(target) ? 'video/mp2t' : (ct || 'application/octet-stream');
+        reply.header('content-type', segCt);
         reply.header('access-control-allow-origin', '*');
         reply.send(buf);
         return;
     }
 
-    const base = proxyBase(req);
-    const text = rewriteM3u8(buf.toString('utf8'), target, base, mode);
+    const base = proxyBase(req) || localSpiderBase();
+    const text = rewriteM3u8(buf.toString('utf8'), target, base, mode, referer);
     reply.header('content-type', 'application/vnd.apple.mpegurl');
     reply.header('access-control-allow-origin', '*');
     reply.header('cache-control', 'no-cache');
@@ -763,7 +871,7 @@ function proxyBase(inReq) {
     const h = (inReq && inReq.headers) || {};
     let host = h['x-forwarded-host'] || h.host || h[':authority'] || '';
     if (host && host.includes(',')) host = host.split(',')[0].trim();
-    if (!host) return '';
+    if (!host) return localSpiderBase();
 
     let proto = String(h['x-forwarded-proto'] || '').split(',')[0].trim();
     if (!proto) proto = h['x-forwarded-ssl'] === 'on' ? 'https' : 'http';
