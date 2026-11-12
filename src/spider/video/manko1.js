@@ -351,6 +351,10 @@ function playUrlsOf(d) {
 
 // ─── 路由 ─────────────────────────────────────────────────────────────────────
 async function init(inReq, _outResp) {
+   return {}
+}
+
+async function home(inReq, _outResp) {
     applyExt(inReq);
 
     const classes = BASE_CATS.slice();
@@ -384,26 +388,6 @@ async function init(inReq, _outResp) {
     }
 
     return { class: classes, filters: {} };
-}
-
-async function home(inReq, _outResp) {
-    applyExt(inReq);
-    const size = Math.min(50, Number(EXT.pageSize) || 24);
-
-    const [hot, latest] = await Promise.all([
-        listByQuery('most_popular=true', 1, size).catch(() => ({ arr: [] })),
-        listByQuery('', 1, size).catch(() => ({ arr: [] })),
-    ]);
-
-    const seen = new Set();
-    const list = [];
-    for (const x of [...hot.arr, ...latest.arr]) {
-        const v = toVod(x);
-        if (!v || seen.has(v.vod_id)) continue;
-        seen.add(v.vod_id);
-        list.push(v);
-    }
-    return { list };
 }
 
 async function category(inReq, _outResp) {
