@@ -3,8 +3,9 @@
 //   列表: 首页 80 条/页, 翻页 /page/N/ (p1/p2/p3 互不重叠); 分类页 /porn/<tag>/ 单页
 //     50 条, 无翻页 (/?page=2 与 p1 完全相同、/page/2/ 与 /2 均 404, 不编造 p2)。
 //   分类: 站内侧栏 Categories 全表 65 个 + /porn/ 索引页多 1 个 dickdrainers, 共 66;
-//     走顶级分类 + filters 筛选卡片 (123AV 形态), 不平铺。卡片: a[href="/watch/<id>"],
-//     内含 img (cdn-img.ibhan2.top webp) 与标题文本 (常以番号开头, 如 FC2PPV-1051663)。
+//     顶级分类 18 个 (最新 + 17 个实测 50 条的标签分类, jav/japanese/japan、
+//     school/schoolgirl 首 5 条互不重叠、不是重复分类, 不删任何标签); 每个顶级下挂
+//     66 标签筛选卡片 (123AV/hohoj 形态, 不平铺)。
 //   搜索: 站内搜索框 JS 跳 /porn/<slug>/ (空格转 -、去非 alnum、小写); /?s= 恒回
 //     80 条随机内容 (同查询两次重叠 0、无意义查询也回 80 条), 不是搜索, 不用。
 //     /porn/ssni-229/ 实测标题 "Ssni 229 Xxx Download Videos", 50 条均含 229, 搜索可用。
@@ -13,9 +14,16 @@
 //   播放链 (全链实测通): 详情页 -> POST /hash-javheo {mix:"moviesiframe2", num:<id>}
 //     -> iframe https://javheo-com.ibhan2.top/iframe/v1/<hash>/<b64>
 //     -> 内含 /iframe/convert/v1/<hash>/<b64> (点击后才加载的第二层 iframe)
-//     -> Artplayer quality[] 直给 OK.ru mp4 三档 360p/480p/720p (720P 为默认档);
-//     720p Range 实测 206 video/mp4。签名 URL 含 expires/srcIp, play() 每次现解现取,
-//     不复用详情时地址。单片三档全列, 链路失败时详情留一条 正片 线由 play() 现解。
+//     -> Artplayer quality[] 直给 OK.ru mp4 四档 360p/480p/720p/1080p (720P 为默认档);
+//     四档 Range 实测全部 206 video/mp4 (Referer 不敏感, 无 UA 则 400, play 须带 UA)。
+//     签名 URL 含 expires/srcIp, play() 每次现解现取, 不复用详情时地址。
+//   播放全转圈定性 (2026-11-13): 直链本身没坏 (四档 curl 均 206), 正则没坏,
+//     断在耗时: 详情已跑完整条 4 步链 (VM 实测 16-27s), play() 又把同一条链重跑
+//     一遍 (上一轮 harness 实测 31-43s, hash POST 还曾两次超时 abort 致 720p 空 url),
+//     再叠字幕搜索最多 6s, 点播总耗时超 App 等待 -> 一直转圈。修法: 详情解析结果
+//     进内存缓存 (TTL 10 分钟, 签名有效期约 2 天), play() 命中缓存直接返回,
+//     缓存未命中才重解 (hash POST 失败重试一次); 档位一律按分辨率降序 (1080p 第一位)。
+//     缓存与字幕层同款模块级 Map, 依赖详情->点播同一蜘蛛实例 (字幕预热已依赖此点)。
 // 字幕: 接 sextb.js 定版字幕芯 (Layer A), 详情页地址为键登记片名、后台预热,
 //   play() 有命中才挂 subs。
 import req from '../../util/req.js';
@@ -25,6 +33,28 @@ const NAME = '🌸JavHeo';
 const HOST = 'https://javheo.com';
 const IFRAME_HOST = 'https://javheo-com.ibhan2.top';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1';
+
+// 顶级分类: 最新 + 17 个标签分类 (2026-11-13 各实测 /porn/<tag>/ 均 50 条)
+const CLASSES = [
+  { type_id: 'latest', type_name: '最新' },
+  { type_id: 'jav', type_name: 'JAV' },
+  { type_id: 'uncensored', type_name: '无码' },
+  { type_id: 'fc2', type_name: 'FC2' },
+  { type_id: 'japanese', type_name: '日本' },
+  { type_id: 'asian', type_name: '亚洲' },
+  { type_id: 'chinese', type_name: '中国' },
+  { type_id: 'teen-porn', type_name: '少女' },
+  { type_id: 'milf', type_name: '熟女' },
+  { type_id: 'big-tits', type_name: '巨乳' },
+  { type_id: 'schoolgirl', type_name: '校园女生' },
+  { type_id: 'housewife', type_name: '人妻' },
+  { type_id: 'massage', type_name: '按摩' },
+  { type_id: 'lesbian', type_name: '女同' },
+  { type_id: 'anal', type_name: '肛交' },
+  { type_id: 'creampie', type_name: '中出' },
+  { type_id: 'hentai', type_name: '动漫' },
+  { type_id: 'heyzo', type_name: 'Heyzo' },
+];
 
 // 标签全表 (侧栏 Categories 65 个 + /porn/ 索引页 dickdrainers, 2026-11-13 实录)
 const TAGS = [
@@ -96,11 +126,9 @@ const TAGS = [
   { n: 'woodmancastingx', v: 'woodmancastingx' },
 ];
 
-const FILTERS = {
-  latest: [
-    { key: 'sub', name: '标签', value: TAGS },
-  ],
-};
+// 筛选卡片: 每个顶级分类下挂全部 66 个标签 (子分类), 不平铺
+const FILTERS = {};
+for (const c of CLASSES) FILTERS[c.type_id] = [{ key: 'sub', name: '标签', value: TAGS }];
 
 function t(v) {
   return String(v == null ? '' : v).trim().replace(/\s+/g, ' ');
@@ -189,13 +217,31 @@ function normLabel(s) {
   return l;
 }
 
+function resNum(label) {
+  const m = String(label || '').match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// 播放链解析缓存: 详情已跑过链, 点播直接复用, 不重跑 4 步 (见文件头定性)。
+// TTL 10 分钟 (签名 URL 有效期约 2 天); 与字幕层同款模块级 Map。
+const RESOLVE_TTL = 10 * 60 * 1000;
+const resolveCache = new Map(); // watchId -> { ts, chain }
+
 // 播放链现解: POST hash-javheo -> iframe v1 -> convert 页 -> Artplayer quality[]
-// 返回 { qualities: [{ label, url }], defaultLabel, convertUrl }
+// 返回 { qualities: [{ label, url }] (分辨率降序), defaultLabel, convertUrl }
 async function resolvePlay(watchId, durl) {
   const empty = { qualities: [], defaultLabel: '', convertUrl: '' };
   if (!watchId) return empty;
-  const embedHtml = await postForm(HOST + '/hash-javheo',
-    { mix: 'moviesiframe2', num: watchId }, { 'Referer': durl }, 15000);
+  const cached = resolveCache.get(watchId);
+  if (cached && Date.now() - cached.ts < RESOLVE_TTL && cached.chain.qualities.length) {
+    return cached.chain;
+  }
+  // hash POST 曾在 VM 侧超时 abort 过一次 (上一轮 720p 空 url), 失败重试一次
+  let embedHtml = '';
+  for (let attempt = 0; attempt < 2 && !embedHtml; attempt++) {
+    embedHtml = await postForm(HOST + '/hash-javheo',
+      { mix: 'moviesiframe2', num: watchId }, { 'Referer': durl }, 15000);
+  }
   if (!embedHtml) return empty;
   const im = embedHtml.match(/<iframe[^>]+src="(https?:\/\/javheo-com\.ibhan2\.top\/iframe\/v1\/[^"]+)"/i);
   if (!im) return empty;
@@ -221,26 +267,43 @@ async function resolvePlay(watchId, durl) {
   }
   const dm = convHtml.match(/default:\s*true,\s*html:\s*'([^']+)'/);
   const defaultLabel = dm ? normLabel(dm[1]) : (qualities.length ? qualities[qualities.length - 1].label : '');
-  return { qualities, defaultLabel, convertUrl };
+  // 档位一律最高在前、依次递减 (只列 convert 页实给的档, 不编造)
+  qualities.sort((a, b) => resNum(b.label) - resNum(a.label));
+  const chain = { qualities, defaultLabel, convertUrl };
+  if (qualities.length) {
+    resolveCache.set(watchId, { ts: Date.now(), chain });
+    if (resolveCache.size > 200) resolveCache.delete(resolveCache.keys().next().value);
+  }
+  return chain;
 }
 
 async function home() {
   const html = await getHtml(HOST + '/');
-  return { class: [{ type_id: 'latest', type_name: '最新' }], filters: FILTERS, list: parseList(html).slice(0, 30) };
+  return { class: CLASSES, filters: FILTERS, list: parseList(html).slice(0, 30) };
+}
+
+async function tagPage(tag, page) {
+  // 标签分类页单页 50 条、无翻页: p>1 直接空
+  if (page > 1) return { page, pagecount: 1, limit: 50, total: 50, list: [] };
+  const html = await getHtml(HOST + '/porn/' + tag.v + '/');
+  const list = parseList(html);
+  return { page, pagecount: 1, limit: list.length || 50, total: list.length, list };
 }
 
 async function category(reqIn) {
   const body = reqIn?.body || {};
   const page = Math.max(1, parseInt(body.page, 10) || 1);
+  const id = String(body.id || 'latest');
   const extend = body.filters || body.extend || {};
   const sub = t(extend.sub || '');
+  // 筛选卡片值本身定路径 (与当前顶级无关, av77/123AV 同款)
   const tag = TAGS.find((x) => x.v === sub);
-  if (tag) {
-    // 分类页单页 50 条、无翻页: p>1 直接空
-    if (page > 1) return { page, pagecount: 1, limit: 50, total: 50, list: [] };
-    const html = await getHtml(HOST + '/porn/' + tag.v + '/');
-    const list = parseList(html);
-    return { page, pagecount: 1, limit: list.length || 50, total: list.length, list };
+  if (tag) return tagPage(tag, page);
+  // 顶级标签分类: /porn/<tag>/ 单页
+  const cat = CLASSES.find((c) => c.type_id === id && c.type_id !== 'latest');
+  if (cat) {
+    const ctag = TAGS.find((x) => x.v === cat.type_id);
+    if (ctag) return tagPage(ctag, page);
   }
   const url = page <= 1 ? HOST + '/' : HOST + '/page/' + page + '/';
   const html = await getHtml(url);
@@ -302,7 +365,7 @@ async function detail(reqIn) {
     if (im) pic = im[1];
   }
 
-  // 详情现解三档; 失败则留一条 正片 线, play() 里现解
+  // 详情现解档位 (降序, 1080p 在前); 失败则留一条 正片 线, play() 里现解
   let lines = [];
   const chain = await resolvePlay(watchId, durl);
   if (chain.qualities.length) {
@@ -332,13 +395,13 @@ async function play(reqIn) {
   const want = m[2];
   const durl = HOST + '/watch/' + watchId;
 
-  // 现解 (签名 URL 含 expires/srcIp, 不复用详情时地址)
+  // 现解 (签名 URL 含 expires/srcIp, 不复用详情时地址; 详情已解过则走缓存)
   const chain = await resolvePlay(watchId, durl);
   if (!chain.qualities.length) return { parse: 0, url: '' };
   let hit = null;
   if (want && want !== 'auto') hit = chain.qualities.filter((q) => q.label === want)[0];
-  if (!hit && chain.defaultLabel) hit = chain.qualities.filter((q) => q.label === chain.defaultLabel)[0];
-  if (!hit) hit = chain.qualities[chain.qualities.length - 1];
+  // 未点名档位 (正片线) 或档位失配时给最高档, 不给站方默认 720p
+  if (!hit) hit = chain.qualities[0];
   const subsP = subSearchAll(subNormKey(durl)).catch(() => []);
   return subAttach({
     parse: 0,

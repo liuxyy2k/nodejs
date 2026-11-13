@@ -22,13 +22,41 @@
 //   播放：站方 App 用 wasabi_embed_url（iframe 播放器，server1）为主线；
 //     播放器 JS 取 https://<embed host>/stream?id=<code> -> {media:
 //     {stream:<wasabi m3u8>, vtt}}；蜘蛛同款取 /stream 得直链 m3u8。
-//     注意：wasabi/missav 的 m3u8 直取在 VM 出口被 Cloudflare 403
-//     挑战页拦截（curl/node、双 UA、带/不带 Referer 均 403）；
-//     /stream 端点本身 VM 通（200）。VM 侧无法验分片，
-//     真机定性待用户（javrate 同款情形：VM 拦、手机通）。
-//     详情出线：Manko 原画（/stream 直链，单线——master 在 VM 侧
-//     取不到，分档 unverifiable，不硬编多档）+ MissAV 720p（URL 自带
-//     /720p/ 单档）+ Upload18（播放器页，parse:1 嗅探线）。
+//     断点坐实（2026-11-13 VM 实测，4 部 + 抽样 3 部）：wasabi 播单
+//     host（strongcalmforce 等）是 Cloudflare 前置、按 Referer 放行——
+//     Referer=embed host origin（sadie-shop.site）时 master/变体/首分片
+//     全 200，Referer=manko.fun 或无 Referer 时全 403。旧代码 play()
+//     一律传 Referer: manko.fun，手机端同样会被 403——这就是“所有内容
+//     都无法播放”的主因（不是 VM 出口问题）。修法：wasabi 腿的
+//     /stream 取链与 m3u8 返回头一律用 embed host origin 作 Referer。
+//     master 实测单变体 1280x720（7 部全是 BANDWIDTH=2816000，
+//     RESOLUTION=1280x720），故只出单档 720p，不编 1080p。
+//     MissAV 腿：surrit 全档位 VM 侧一律 CF 403（连数据里给定的 720p
+//     也 403；jina 中转同样 403），VM 无法逐档核实，故只出两档：
+//     自动（playlist.m3u8 主播单，与仓内 missav.js 同款构造，播放器
+//     自选最高可用档）+ 数据档（详情原给的 /1080p|720p|480p|360p/
+//     video.m3u8，逐部不同、标签按实测档位动态标，不写死 720p）；
+//     1080/480/360 不硬编（存在性 VM 侧无法证实）。MissAV 腿不带 Referer 头
+//     （与仓内 missav.js 一致：它裸返 m3u8 且用户真机确认可播）。
+//     7MMTV 腿（mmtv_m3u8，最新 24 部里 6 部有）：播单本身 200、
+//     分片须带 Referer: https://7mmtv.sx/ 才放行（manko.fun 必 404；
+//     2026-11-13 实测：6af5278f 首分片 7mmtv Referer 下 200/386KB，
+//     manko Referer 下 404）；部分条目分片已过期（SNOS-389 与
+//     5ff450… 两条目播单 200 但分片 404，任一 Referer 皆然），
+//     故 detail 里先验活（播单 200 + 首分片 200 才出线，验不出
+//     则保留），play 返回头用 7mmtv.sx。
+//     Upload18 腿：站方本身部分视频已无（upload18.org/play/index/
+//     <番号> 302 到 /404.html，标题 Page not found；SNOS-389 正常
+//     200），不是蜘蛛取错地址；detail 里先验活（5s 超时，验不出
+//     则保留），死的直接不出线。
+//   详情出线：Manko 720p（/stream 直链）+ MissAV 自动/数据档 +
+//     7MMTV（验活才出）+ Upload18（验活才出，播放器页 parse:1 嗅探）。
+// 分类呈现（用户 2026-11-13 01:59 定）：顶级分类 + 筛选卡片（123AV 款），
+//   子分类不平铺：最新 / 无码流出 / 无码破解 / 巨乳 / 大屁股 / 屁股 /
+//   中出 / 人妻 / 素人 / 最受欢迎 / 最高评分 / 有字幕 / 随机 /
+//   体裁（卡片）/ 厂商（卡片）。8 个热门体裁顶级化（2026-11-13 实测
+//   total：无码流出 192、无码破解 2746、巨乳 64092、大屁股 8587、
+//   屁股 10314、中出 88822、人妻 28277、素人 54906）。
 // 分类呈现（用户 2026-11-13 01:59 定）：顶级分类 + 筛选卡片（123AV 款），
 //   子分类不平铺：最新 / 最受欢迎 / 最高评分 / 有字幕 / 随机 /
 //   体裁（卡片）/ 厂商（卡片）。
@@ -45,7 +73,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const PAGE_SIZE = 24;
 
 // 体裁卡片：/common/list-genre 明文表 115 个，逐个实测 p1 后保留 103 个
-// （12 个 0 条已剔除：Chroma Key、Hairy、Hobby, Culture、Itching、
+// （12 个 0 条已剔除，2026-11-13 复查 11 个仍 0 条，No underwear 仅 2 条
+// 仍剔除：Chroma Key、Hairy、Hobby, Culture、Itching、
 // Male Adventure、No underwear、Pampering、Psychological thriller、
 // R-15、Suspense、Ultra-Huge Tit、Variety Show）。
 const GENRE_CARDS = [
@@ -202,6 +231,21 @@ function t(v) {
   return String(v == null ? '' : v).trim();
 }
 
+// 顶级化的热门体裁（用户 2026-11-13 点名：顶级分类太少，多加无码流出 /
+// 大屁股 / 巨乳一类；total 见文件头注释，均为站内实测有量）。
+const TOP_GENRES = [
+  { id: 'g_uncleak', name: '无码流出', genre: 'Uncensored Leak' },
+  { id: 'g_unccrack', name: '无码破解', genre: 'Uncensored Crack' },
+  { id: 'g_bigtits', name: '巨乳', genre: 'Big Tits' },
+  { id: 'g_hugebutt', name: '大屁股', genre: 'Huge Butt' },
+  { id: 'g_butt', name: '屁股', genre: 'Butt' },
+  { id: 'g_creampie', name: '中出', genre: 'Creampie' },
+  { id: 'g_mature', name: '人妻', genre: 'Mature Woman' },
+  { id: 'g_amateur', name: '素人', genre: 'Amateur' },
+];
+const TOP_GENRE_MAP = {};
+for (const g of TOP_GENRES) TOP_GENRE_MAP[g.id] = g.genre;
+
 // xn 解码（原样抄自 manko.fun /dist/build.js 的 xn 函数；
 // vn 即 Buffer；字母表 91 字符的 base91 变体）。
 function xn(e) {
@@ -284,16 +328,18 @@ async function init() {
 }
 
 async function home() {
+  const classes = [{ type_id: 'new', type_name: '最新' }];
+  for (const g of TOP_GENRES) classes.push({ type_id: g.id, type_name: g.name });
+  classes.push(
+    { type_id: 'popular', type_name: '最受欢迎' },
+    { type_id: 'top_rated', type_name: '最高评分' },
+    { type_id: 'subtitle', type_name: '有字幕' },
+    { type_id: 'random', type_name: '随机' },
+    { type_id: 'genres', type_name: '体裁' },
+    { type_id: 'makers', type_name: '厂商' },
+  );
   return {
-    class: [
-      { type_id: 'new', type_name: '最新' },
-      { type_id: 'popular', type_name: '最受欢迎' },
-      { type_id: 'top_rated', type_name: '最高评分' },
-      { type_id: 'subtitle', type_name: '有字幕' },
-      { type_id: 'random', type_name: '随机' },
-      { type_id: 'genres', type_name: '体裁' },
-      { type_id: 'makers', type_name: '厂商' },
-    ],
+    class: classes,
     filters: {
       genres: [{ key: 'sub', name: '体裁', value: GENRE_CARDS }],
       makers: [{ key: 'sub', name: '厂商', value: MAKER_CARDS }],
@@ -309,6 +355,7 @@ async function category(reqIn) {
   const sub = String(extend.sub || '');
   let path = '';
   if (id === 'new') path = searchUrl(page, '');
+  else if (TOP_GENRE_MAP[id]) path = searchUrl(page, '&genre=' + encodeURIComponent(TOP_GENRE_MAP[id]));
   else if (id === 'popular') path = searchUrl(page, '&most_popular=true');
   else if (id === 'top_rated') path = searchUrl(page, '&top_rated=true');
   else if (id === 'subtitle') path = searchUrl(page, '&subtitle_link=true');
@@ -341,25 +388,83 @@ function overviewOf(d) {
 
 // embed 播放器 /stream 取直链：wasabi_embed_url 形如
 // https://<host>/e/<code>?poster=... -> GET https://<host>/stream?id=<code>
+// 关键：/stream 与后续 m3u8 都按 Referer 放行，Referer 必须是 embed host
+// origin（实测：sadie-shop.site 作 Referer 时 200，manko.fun/无 Referer
+// 时 CF 403）；/stream 本身对 manko.fun Referer 也通，但统一用 embed
+// origin 最贴近站方播放器行为。
 async function resolveWasabiStream(embedUrl) {
-  if (!embedUrl) return '';
+  if (!embedUrl) return { stream: '', embedOrigin: '' };
   const m = String(embedUrl).match(/^(https?:\/\/[^\/]+)\/e\/([A-Za-z0-9]+)/);
-  if (!m) return '';
+  if (!m) return { stream: '', embedOrigin: '' };
+  const embedOrigin = m[1];
   const streamApi = m[1] + '/stream?id=' + m[2];
   try {
     const r = await req.get(streamApi, {
-      headers: { 'User-Agent': UA, 'Referer': SITE + '/' },
+      headers: { 'User-Agent': UA, 'Referer': embedOrigin + '/' },
       timeout: 15000,
       responseType: 'text',
       transformResponse: [(d) => d],
     });
     const data = r && r.data;
     const txt = typeof data === 'string' ? data : (data ? JSON.stringify(data) : '');
-    if (!txt) return '';
+    if (!txt) return { stream: '', embedOrigin };
     const j = JSON.parse(txt);
-    return t(j && j.media && j.media.stream);
+    return { stream: t(j && j.media && j.media.stream), embedOrigin };
   } catch (e) {
-    return '';
+    return { stream: '', embedOrigin };
+  }
+}
+
+// 7MMTV 播单验活：播单 200 且含 #EXTM3U、首分片 200 才算活；
+// 其余情况（超时/异常/播单非 200/无清单标记）一律按活处理，
+// 不因本站抖动藏线。分片须带 Referer: https://7mmtv.sx/。
+async function mmtvAlive(m3u8Url) {
+  try {
+    const r = await req.get(m3u8Url, {
+      headers: { 'User-Agent': UA, 'Referer': 'https://7mmtv.sx/' },
+      timeout: 5000,
+      responseType: 'text',
+      transformResponse: [(d) => d],
+      validateStatus: () => true,
+      maxRedirects: 5,
+    });
+    const txt = typeof r.data === 'string' ? r.data : '';
+    if (r.status !== 200 || txt.indexOf('#EXTM3U') < 0) return true;
+    const seg = txt.split('\n').map((s) => s.trim()).find((s) => /^https?:/.test(s) && !/\.m3u8/i.test(s));
+    if (!seg) return true;
+    const sr = await req.get(seg, {
+      headers: { 'User-Agent': UA, 'Referer': 'https://7mmtv.sx/' },
+      timeout: 5000,
+      responseType: 'text',
+      transformResponse: [(d) => d],
+      validateStatus: () => true,
+      maxRedirects: 5,
+    });
+    return sr.status === 200;
+  } catch (e) {
+    return true;
+  }
+}
+
+// Upload18 播放器页验活：站方本身部分视频已下架（302 到 /404.html，
+// 标题 Page not found）；活页标题是番号。5s 超时，验不出（超时/异常/
+// 非 200 非 404）一律按活处理，不因本站抖动藏线。
+async function u18Alive(playerUrl) {
+  try {
+    const r = await req.get(playerUrl, {
+      headers: { 'User-Agent': UA, 'Referer': SITE + '/' },
+      timeout: 5000,
+      responseType: 'text',
+      transformResponse: [(d) => d],
+      validateStatus: () => true,
+      maxRedirects: 5,
+    });
+    const txt = typeof r.data === 'string' ? r.data : '';
+    if (txt.indexOf('<title>Page not found</title>') >= 0) return false;
+    if (r.status === 200 && txt) return true;
+    return true; // 非 404 的异常状态不断言死，保留线
+  } catch (e) {
+    return true;
   }
 }
 
@@ -375,20 +480,40 @@ async function detail(reqIn) {
   const pic = t(d.cover_image) || '';
   const from = [];
   const urls = [];
-  // 分组 1：Manko 原画（/stream 直链；无 embed 时退 wasabi_url_1 直链）
+  // 分组 1：Manko 720p（/stream 直链；master 实测单变体 1280x720，
+  // 无 embed 时退 wasabi_url_1 直链，同用 embed host Referer）。
   if (d.wasabi_embed_url || d.wasabi_url_1) {
     from.push(NAME);
-    urls.push('原画$manko:' + id + ':wasabi');
+    urls.push('720p$manko:' + id + ':wasabi');
   }
-  // 分组 2：MissAV 720p（surrit /720p/video.m3u8 单档）
+  // 分组 2：MissAV 自动 + 数据档。档位取自详情数据原给的地址
+  // （/1080p/、/720p/ 等逐部不同，写死 720p 会标错——MUDR-405
+  // 数据里就是 1080p）；自动是同 uuid 的 playlist.m3u8 主播单
+  // （仓内 missav.js 同款构造），播放器自选最高可用档；
+  // 其他档不硬编（VM 侧 surrit 全档位皆 CF 403，逐档存在性无法证实）。
   if (d.missav_video) {
     from.push('MissAV');
-    urls.push('720p$manko:' + id + ':missav');
+    const mv = t(d.missav_video);
+    const resM = mv.match(/\/(1080p|720p|480p|360p)\/video\.m3u8$/i);
+    const resLabel = resM ? resM[1] : '720p';
+    const auto = resM ? mv.replace(/\/\d+p\/video\.m3u8$/i, '/playlist.m3u8') : '';
+    urls.push((auto ? '自动$manko:' + id + ':missav-auto' : '') + (auto ? '#' : '') + resLabel + '$manko:' + id + ':missav');
   }
-  // 分组 3：Upload18（播放器页，parse:1 嗅探线）
+  // 分组 3：7MMTV（mmtv_m3u8 直链；分片须带 7mmtv.sx Referer，
+  // 部分条目分片已过期，先验活，死的直接不出线，验不出则保留）。
+  if (d.mmtv_m3u8) {
+    if (await mmtvAlive(t(d.mmtv_m3u8))) {
+      from.push('7MMTV');
+      urls.push('播放$manko:' + id + ':mmtv');
+    }
+  }
+  // 分组 4：Upload18（播放器页，parse:1 嗅探线；站方已下架的先验活，
+  // 死的直接不出线，验不出则保留）。
   if (Array.isArray(d.upload18_player) && d.upload18_player[0]) {
-    from.push('Upload18');
-    urls.push('播放$manko:' + id + ':u18');
+    if (await u18Alive(t(d.upload18_player[0]))) {
+      from.push('Upload18');
+      urls.push('播放$manko:' + id + ':u18');
+    }
   }
   const vod = {
     vod_id: 'manko:' + id,
@@ -411,7 +536,7 @@ async function play(reqIn) {
   let id = String(Array.isArray(body.id) ? body.id[0] : body.id || '');
   if (!id) return { parse: 0, url: '' };
   if (id.indexOf('$') >= 0) id = id.split('$').pop().trim();
-  const m = id.match(/^manko:([^:]+):(wasabi|missav|u18)$/);
+  const m = id.match(/^manko:([^:]+):(wasabi|missav|missav-auto|mmtv|u18)$/);
   if (!m) {
     // 裸 m3u8 直链直接返。
     if (/\.m3u8(\?|$)/i.test(id)) {
@@ -426,15 +551,30 @@ async function play(reqIn) {
   const d = await apiDetail(vid);
   if (!d) return { parse: 0, url: '' };
   if (leg === 'wasabi') {
-    let stream = await resolveWasabiStream(d.wasabi_embed_url);
+    // Referer 必须是 embed host origin（见文件头：manko.fun 必 403）。
+    const res = await resolveWasabiStream(d.wasabi_embed_url);
+    let stream = res.stream;
     if (!stream) stream = t(d.wasabi_url_1);
     if (!stream) return { parse: 0, url: '' };
-    return subAttach({ parse: 0, url: stream, header: { 'User-Agent': UA, 'Referer': SITE + '/' } }, subsP);
+    const ref = res.embedOrigin ? res.embedOrigin + '/' : SITE + '/';
+    return subAttach({ parse: 0, url: stream, header: { 'User-Agent': UA, 'Referer': ref } }, subsP);
   }
-  if (leg === 'missav') {
-    const u = t(d.missav_video);
+  if (leg === 'missav' || leg === 'missav-auto') {
+    // 不带 Referer 头（与仓内 missav.js 一致：裸返 m3u8，真机可播）。
+    const mv = t(d.missav_video);
+    if (!mv) return { parse: 0, url: '' };
+    let u = mv;
+    if (leg === 'missav-auto') {
+      if (!/\/\d+p\/video\.m3u8$/i.test(mv)) return { parse: 0, url: '' };
+      u = mv.replace(/\/\d+p\/video\.m3u8$/i, '/playlist.m3u8');
+    }
+    return subAttach({ parse: 0, url: u }, subsP);
+  }
+  if (leg === 'mmtv') {
+    const u = t(d.mmtv_m3u8);
     if (!u) return { parse: 0, url: '' };
-    return subAttach({ parse: 0, url: u, header: { 'User-Agent': UA, 'Referer': SITE + '/' } }, subsP);
+    // 分片只认 Referer: https://7mmtv.sx/（见文件头）。
+    return subAttach({ parse: 0, url: u, header: { 'User-Agent': UA, 'Referer': 'https://7mmtv.sx/' } }, subsP);
   }
   // u18：Upload18 播放器页，交播放器嗅探。
   const u = Array.isArray(d.upload18_player) ? t(d.upload18_player[0]) : '';
