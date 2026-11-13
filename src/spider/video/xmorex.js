@@ -286,6 +286,7 @@ async function detail(inReq) {
 
 async function play(inReq) {
   return {
+    parse: 0,
     url: inReq.body.id,
     header: {
       'User-Agent': UA,
