@@ -2,18 +2,21 @@ import req from '../../util/req.js';
 import * as cheerio from 'cheerio';
 
 const KEY = 'py_missav_xptv';
-const NAME = '🌸Miss·XP';
+const NAME = '🌸MissAV';
 // 源文件(XPTV)里的 site 是 https://missav.ai，但实测该域名不通(超时)，
 // 用户此前已确认可用域名为 missav.fans，此处使用可用域名
 const HOST = 'https://missav.fans';
+// HTML 抓取走 missav-fetch Worker（绕设备侧 CF 指纹拦截），未部署时回落直连
+const MISSAV_FETCH = 'https://missav-fetch.li768435813.workers.dev';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)';
 
 // 源文件 appConfig.tabs 映射 (31 个分类)
 const CLASSES = [
-  { type_id: 'dm265/cn/chinese-subtitle', type_name: '中文字幕' },
-  { type_id: 'dm513/cn/new', type_name: '最近更新' },
   { type_id: 'dm509/cn/release', type_name: '新作上市' },
   { type_id: 'dm561/cn/uncensored-leak', type_name: '无码流出' },
+  { type_id: 'dm265/cn/chinese-subtitle', type_name: '中文字幕' },
+  { type_id: 'cn/genres/%E5%B7%A8%E4%B9%B3', type_name: '巨乳' },
+  { type_id: 'cn/genres/%E5%A4%A7%E5%B1%81%E8%82%A1', type_name: '大屁股' },
   { type_id: 'dm2091/cn/genres/VR', type_name: 'VR' },
   { type_id: 'dm242/cn/today-hot', type_name: '今日热门' },
   { type_id: 'dm168/cn/weekly-hot', type_name: '本週热门' },
@@ -40,8 +43,6 @@ const CLASSES = [
   { type_id: 'dm34/cn/madou', type_name: '麻豆传媒' },
   { type_id: 'dm17/cn/twav', type_name: 'TWAV AV' },
   { type_id: 'dm15/cn/furuke', type_name: 'Furuke AV' },
-  { type_id: 'cn/censored', type_name: '有码' },
-  { type_id: 'cn/uncensored', type_name: '无码' },
 ];
 
 const M3U8_PREFIXES = [
@@ -156,6 +157,12 @@ function headers(referer) {
 }
 
 async function getHtml(url, referer) {
+  // 先走 Worker 腿（绕设备侧 CF 指纹拦截）；Worker 未部署或返回无效时回落直连
+  try {
+    const { data } = await req.get(MISSAV_FETCH + '/?u=' + encodeURIComponent(url), { timeout: 20000 });
+    const s = String(data || '');
+    if (s && !s.includes('Just a moment...') && (s.includes('thumbnail') || s.includes('og:title'))) return s;
+  } catch (e) {}
   try {
     const { data } = await req.get(url, { headers: headers(referer), timeout: 20000 });
     return String(data || '');
@@ -290,8 +297,8 @@ async function home() {
 }
 
 async function homeVod() {
-  // XPTV 源文件无首页推荐,用"最近更新"第一页做首页推荐
-  const { list } = await getCards(JSON.stringify({ id: 'dm513/cn/new', page: 1 }));
+  // 首页推荐改用"新作上市"第一页（2026-11-02 查实：新作上市与最近更新第 1、2 页内容连顺序全同，最近更新分类已删）
+  const { list } = await getCards(JSON.stringify({ id: 'dm509/cn/release', page: 1 }));
   return { list: (list || []).slice(0, 20) };
 }
 
@@ -552,6 +559,16 @@ function subMatchOf(durl, ctx) {
 // 语言判定: rank 越小越优先 (简中 > 繁中 > 双语 > 英文 > 其他)
 function subLangOf(name, langs) {
   const s = (String(name || '') + ' ' + String(langs || '')).toLowerCase();
+  // 尾码优先 (2026-11-07)：SubtitleCat 文件形如 "<标题>-<语码>.srt"，尾码才是文件实际语言；标题里的"简体中文"是原字幕名，不能覆盖尾码。
+  const tail = String(name || '').match(/[-_.]([a-z]{2,3})\.(?:srt|vtt|ass|ssa)$/i);
+  if (tail) {
+    const c = tail[1].toLowerCase();
+    if (c === 'zh' || c === 'chs' || c === 'cn' || c === 'hans') return { tag: '简中', rank: 0 };
+    if (c === 'cht' || c === 'tw' || c === 'hant') return { tag: '繁中', rank: 1 };
+    if (c === 'en' || c === 'eng') return { tag: '英文', rank: 3 };
+    if (c === 'ja' || c === 'jpn' || c === 'jp') return { tag: '日文', rank: 4 };
+    if (/^(fr|fre|de|ger|es|spa|it|ita|pt|por|ru|rus|nl|dut|sv|swe|da|dan|fi|fin|no|nor|pl|pol|cs|cze|sk|slo|hu|hun|ro|rum|bg|bul|uk|ukr|el|gre|tr|tur|ar|ara|he|heb|hi|hin|id|ind|ms|may|vi|vie|th|tha|km|khm|ko|kor|ak|af|afr|sq|alb|eu|baq|ca|cat|gl|glg|cy|wel|ga|gle|gd|gla|br|bre|co|cos|eo|epo|et|est|lv|lav|lt|lit|mt|mlt|sl|slv|mk|mac|sr|srp|hr|hrv|bs|bos|am|amh|so|som|sw|swa|yo|yor|ig|ibo|ha|hau|zu|zul|xh|xho|st|sot|sn|sna|ka|geo|hy|arm|az|aze|kk|kaz|uz|uzb|mn|mon|ky|kir|tg|tgk|tk|tuk|ti|tir|fa|per|ur|urd|bn|ben|ta|tam|te|tel|ml|mal|mr|mar|pa|pan|gu|guj|kn|kan|as|asm|or|ori|sa|san|ne|nep|si|sin|my|bur|lo|lao)$/.test(c)) return { tag: '', rank: 5 };
+  }
   if (/简体|简中|chs|zh[-_. ]?cn|zh[-_. ]?hans/.test(s)) return { tag: '简中', rank: 0 };
   if (/繁体|繁中|cht|zh[-_. ]?tw|zh[-_. ]?hk|zh[-_. ]?hant/.test(s)) return { tag: '繁中', rank: 1 };
   if (/双语|中英|中日|bilingual/.test(s)) return { tag: '双语', rank: 2 };
@@ -678,7 +695,7 @@ async function subSlotOracle(keys, src, tier, ctx, match, ocache, bag) {
   const finalItems = items.filter((it) => subRelevant(it, ctx, match));
   for (const it of finalItems) {
     const lang = subLangOf(it.name, it.langs);
-    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match) });
+    bag.push({ src, tier, name: subDispName(it.name, ctx.code), url: it.url, fmt: it.fmt, lang: lang.tag, langRank: lang.rank, score: subScoreItem(it.norm, ctx, match), dur: it.norm.duration });
   }
 }
 
@@ -714,20 +731,45 @@ async function subFromSubtitleCat(ctx, match, bag) {
 
 // 合并: 档位 -> 语言 -> 分数; 按 URL 去重 (同条归先到高档位);
 // 全局上限 10、单槽软上限 8 (给 SubtitleCat 留位)。
+// 时长后缀（2026-11-02）：oracle 给毫秒（>100000 视为毫秒除 1000），
+// 秒级原值直接用；无时长不显示、不编造。
+// 去重键用秒（2026-11-02 名字+时长口径）：毫秒值 >100000 除 1000；
+// 无时长记 nodur（沿用名字去重）；同名同时长才算重复。
+function subDurSec(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  return s > 0 ? s : 0;
+}
+function subDurStr(v) {
+  let s = Number(v) || 0;
+  if (s > 100000) s = Math.floor(s / 1000);
+  if (s <= 0) return '';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  const ss = String(sec).padStart(2, '0');
+  return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+}
 function subMerge(items) {
   const sorted = items.slice().sort((a, b) =>
     (a.tier - b.tier) || (a.langRank - b.langRank) || (b.score - a.score) || String(a.name).localeCompare(String(b.name)));
   const seenUrl = new Set();
+  const seenName = new Set();
   const perTier = {};
   const out = [];
   for (const it of sorted) {
     if (out.length >= 10) break;
     if (seenUrl.has(it.url)) continue;
+    const nameKey = (it.lang || '') + '|' + it.name.toLowerCase().replace(/\.(srt|vtt|ass|ssa)$/i, '') + '|' + (subDurSec(it.dur) || 'nodur');
+    if (seenName.has(nameKey)) continue;
     if ((perTier[it.tier] || 0) >= 8) continue;
     seenUrl.add(it.url);
+    seenName.add(nameKey);
     perTier[it.tier] = (perTier[it.tier] || 0) + 1;
     const cleanName = it.name.replace(/\.(srt|vtt|ass|ssa)$/i, '').slice(0, 60);
-    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName, url: it.url, format: it.fmt });
+    const dur = subDurStr(it.dur);
+    out.push({ name: it.src + '·' + (it.lang ? it.lang + '·' : '') + cleanName + (dur ? '·' + dur : ''), url: it.url, format: it.fmt });
   }
   return out;
 }

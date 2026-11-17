@@ -323,6 +323,62 @@ function isStreamtape(h) {
   return h === 'streamtape.com';
 }
 
+// HLS 全链探活（2026-11-17 修：op-1042218 HG 线 master 死链致播放器转圈后失败）：
+// master 须 200 + #EXTM3U 开头；若为 master 播单（含 #EXT-X-STREAM-INF），再探第一条
+// variant（相对地址按 master 解析），同样 200 + #EXTM3U 才算活。媒体播单（含 #EXTINF）
+// 无 variant，直接算活。单次 6s 上限，axios 与原生 fetch 各试一次，绝不抛错。
+async function probeHlsText(url, referer) {
+  try {
+    const r = await req.get(url, { headers: headers(referer), timeout: 6000, transformResponse: [(d) => d], validateStatus: () => true });
+    if (r && r.status === 200 && r.data) {
+      const s = String(r.data);
+      if (s.indexOf('#EXTM3U') === 0) return s;
+    }
+  } catch (e) {}
+  // 原生 fetch 无超时，须用 Promise.race 兜底 6s，否则死链会挂住、被 resolveAll 的 20s
+  // 超时截成 sniff（op-1042218 HG master 的 fetch 曾挂 60s 才回 504）。
+  try {
+    if (typeof fetch === 'function') {
+      const r = await Promise.race([
+        (async () => {
+          const res = await fetch(url, { headers: headers(referer) });
+          if (!res || !res.ok) return null;
+          const t = await res.text();
+          return (t && t.indexOf('#EXTM3U') === 0) ? t : null;
+        })(),
+        new Promise((res) => setTimeout(() => res(null), 6000)),
+      ]);
+      if (r) return r;
+    }
+  } catch (e) {}
+  return '';
+}
+function firstVariantUri(masterText, masterUrl) {
+  const lines = String(masterText || '').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i].trim();
+    if (ln.indexOf('#EXT-X-STREAM-INF') === 0) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const u = lines[j].trim();
+        if (!u) continue;
+        if (u.charAt(0) === '#') break;
+        try { return new URL(u, masterUrl).toString(); } catch (e) { return u; }
+      }
+      return '';
+    }
+  }
+  return '';
+}
+async function probeHlsChain(masterUrl, referer) {
+  const m = await probeHlsText(masterUrl, referer);
+  if (!m) return false;
+  if (m.indexOf('#EXTINF') >= 0) return true;
+  const v = firstVariantUri(m, masterUrl);
+  if (!v) return true;
+  const vt = await probeHlsText(v, referer);
+  return !!vt;
+}
+
 async function resolveHg(embed) {
   const f = await fetchEmbed(embed, embed);
   if (f.status === 404) return 'DEAD';
@@ -338,11 +394,22 @@ async function resolveHg(embed) {
     const hls2 = (up.match(/"hls2"\s*:\s*"([^"]+)"/) || [])[1] || '';
     const hls3 = (up.match(/"hls3"\s*:\s*"([^"]+)"/) || [])[1] || '';
     const hls4 = (up.match(/"hls4"\s*:\s*"([^"]+)"/) || [])[1] || '';
-    // hls2 为签名 master（VM 裸取 200），首选；hls4 相对路径且 VM 403，放最后
-    if (hls2) return hls2;
-    if (hls3) return hls3;
+    // hls2 为签名 master（VM 裸取 200），首选；hls4 相对路径且 VM 403，放最后。
+    // 2026-11-17 修：解出的 master 须先探活（master + variant 全链），死链直接判 DEAD，
+    // 不把死地址交给播放器（op-1042218 HG 线 master 超时/504，播放器转圈后“加载视频失败”）。
+    if (hls2) {
+      if (await probeHlsChain(hls2, embed)) return hls2;
+      return 'DEAD';
+    }
+    if (hls3) {
+      if (await probeHlsChain(hls3, embed)) return hls3;
+      return 'DEAD';
+    }
     if (hls4) {
-      try { return new URL(hls4, embed).toString(); } catch (e) { return hls4; }
+      let u = hls4;
+      try { u = new URL(hls4, embed).toString(); } catch (e) {}
+      if (await probeHlsChain(u, embed)) return u;
+      return 'DEAD';
     }
   }
   return '';
@@ -811,7 +878,9 @@ async function play(reqIn) {
       attachSubs(res, durl);
       return res;
     }
-    // 现解失败（超时/抛错/死线/解不出）：回详情时旧直链让播放器再试一次
+    // 现解失败（超时/抛错/死线/解不出）：回详情时旧直链让播放器再试一次。
+    // 2026-11-17 修：旧直链是 .m3u8 时须先探活，死链不交播放器（op-1042218 HG 旧 master
+    // 已死，现解判 DEAD 后兜底又把它原样交出，播放器照样转圈失败）。探活失败则落到嗅探。
     if (oldUrl && isDirectMedia(oldUrl)) {
       let playUrl = oldUrl;
       // ST 旧地址也是 get_video：同样跟 302 拿最终直链
@@ -820,6 +889,11 @@ async function play(reqIn) {
           const followed = await followRedirect(oldUrl, embed);
           if (followed) playUrl = followed;
         } catch (e) {}
+      }
+      if (playUrl.indexOf('.m3u8') >= 0) {
+        let ok = false;
+        try { ok = await probeHlsChain(playUrl, embed); } catch (e) {}
+        if (!ok) return { parse: 1, url: embed };
       }
       const res = {
         parse: 0,
