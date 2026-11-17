@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import req from '../../util/req.js';
 
-const siteUrl = 'https://hsex.men';
+const siteUrl = 'https://91lol.im';
 const cateUrl = siteUrl + '/';
 const detailUrl = siteUrl + '/video-';
 const searchUrl = siteUrl + '/search.htm?search=';
