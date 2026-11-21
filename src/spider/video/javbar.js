@@ -447,7 +447,7 @@ async function home() {
     { type_id: 'engsub', type_name: 'Engsub / 英字' },
     { type_id: 'virtual', type_name: 'VR / 虚拟' },
   ];
-  return { class: classes, list };
+  return { class: classes, filters: {}};
 }
 
 async function category(inReq) {
