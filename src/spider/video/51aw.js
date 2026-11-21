@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import crypto from 'crypto';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-const site = 'https://begin.wrdkuvc.xyz';
+const site = 'https://alcohol.etnmsmze.cc';
 
 const PORT   = process.env.DEV_HTTP_PORT || 9988;
 
