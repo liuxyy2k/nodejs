@@ -354,6 +354,8 @@ import ikisoda from "./spider/video/ikisoda.js";
 import updvd from "./spider/video/updvd.js";
 import sons from "./spider/video/sons.js";
 import javbar from "./spider/video/javbar.js";
+import nine1hub from "./spider/video/91hub.js";
+import ninesp from "./spider/video/ninesp.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -396,7 +398,7 @@ export const getSpiders = async (server) => {
         cg51, xigua51, cg57, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
         jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua, hguaw,
          // ── 91 系列 ──
-        spx91, video91, sp91, sp91com, pron91, porna91, pinse, rb91, nine1tanhua, av123dsp, theporny, xiaohuangniao, pornxx91, nine1pornpp,
+        spx91, video91, sp91, sp91com, pron91, porna91, pinse, rb91, nine1tanhua, av123dsp, theporny, xiaohuangniao, pornxx91, nine1pornpp, nine1hub, ninesp,
         // ── 国产 / 中文 ──
         wanwuai, pektino, honeypeach, seqinghub, haose, rou, avple, onlyfans18, xhongyan, porncvd, lubosp,  madou, doll, xjsp, jiujiu, xingba, miyun, hudie18, porntv, bianfu,
         wanwu, luanlunba, maomi66, gckgg, vVideos, xqxq, x887717, xyjc, aqx, uumb, uua, x3av, xcpd, ayyc, zsrenqi, bmm3, zcxh, dys18, uuzhibo, qiezi, madouai, rdd22,
