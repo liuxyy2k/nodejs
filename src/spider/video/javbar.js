@@ -440,11 +440,14 @@ async function init() {
 }
 
 async function home() {
-  const html = await getHtml(SITE + '/', SITE + '/');
-  const $ = load(html);
-  // 首页四个 tray，每个 10 条，合并去重
-  const list = parseList($);
-  return { class: [{ type_id: 'home', type_name: '推荐' }], list };
+  const classes = [
+    { type_id: 'home', type_name: '推荐' },
+    { type_id: 'censored', type_name: 'モザあり / 有码' },
+    { type_id: 'uncensored', type_name: '無修正 / 无码' },
+    { type_id: 'engsub', type_name: 'Engsub / 英字' },
+    { type_id: 'virtual', type_name: 'VR / 虚拟' },
+  ];
+  return { class: classes, list };
 }
 
 async function category(inReq) {
