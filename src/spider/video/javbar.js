@@ -314,34 +314,51 @@ async function resolveStream(embed) {
  * 列表 / 详情解析
  * ------------------------------------------------------------------ */
 
+function pushVodItem(list, seen, href, $ctx) {
+  if (!/\/videos\/[a-z0-9]+\/\d+(?:\.html)?/i.test(href)) return;
+  const id = abs(href.split('?')[0]);
+  if (!id || seen.has(id)) return;
+  seen.add(id);
+  const img = $ctx.find('img').first();
+  const name = (
+    $ctx.find('.tray-item-title').first().text() ||
+    $ctx.find('.film-title, .title').first().text() ||
+    img.attr('alt') ||
+    ''
+  ).trim();
+  const date = ($ctx.find('.tray-film-views').first().text() || $ctx.find('.date').first().text() || '').trim();
+  const quality = ($ctx.find('.tray-item-quality').first().text() || '').trim();
+  const remarks = [quality, date].filter(Boolean).join(' ');
+  list.push({
+    vod_id: id,
+    vod_name: name || '(无标题)',
+    vod_pic: abs(img.attr('src') || img.attr('data-src') || img.attr('data-original') || img.attr('data-lazy-src') || ''),
+    vod_remarks: remarks,
+    vod_content: '',
+  });
+}
+
 function parseList($) {
   const list = [];
   const seen = new Set();
   $('.tray-item').each((i, el) => {
     const $el = $(el);
     const a = $el.find('a[href*="/videos/"]').first();
-    const href = a.attr('href') || '';
-    if (!/\/videos\/[a-z]+\/\d+\.html/.test(href)) return;
-    const id = abs(href);
-    if (seen.has(id)) return;
-    seen.add(id);
-    const img = $el.find('img.tray-item-thumbnail').first();
-    const name = ($el.find('.tray-item-title').first().text() || img.attr('alt') || '').trim();
-    const date = $el.find('.tray-film-views').first().text().trim();
-    const quality = $el.find('.tray-item-quality').first().text().trim();
-    const remarks = [quality, date].filter(Boolean).join(' ');
-    list.push({
-      vod_id: id,
-      vod_name: name || '(无标题)',
-      vod_pic: abs(img.attr('src') || img.attr('data-src') || img.attr('data-original') || ''),
-      vod_remarks: remarks,
-      vod_content: '',
-    });
+    pushVodItem(list, seen, a.attr('href') || '', $el);
   });
+  if (!list.length) {
+    $('a[href*="/videos/"]').each((i, el) => {
+      const $a = $(el);
+      pushVodItem(list, seen, $a.attr('href') || '', $a.closest('.tray-item, .film-box, li, article').length ? $a.closest('.tray-item, .film-box, li, article') : $a.parent());
+    });
+  }
   return list;
 }
 
 function listUrl(kind, key, page) {
+  if (kind === 'home') {
+    return page <= 1 ? `${SITE}/` : `${SITE}/page/${page}.html`;
+  }
   if (kind === 'cate') {
     const slug = key;
     return page <= 1 ? `${SITE}/category/${slug}.html` : `${SITE}/category/${slug}-${page}.html`;
@@ -442,25 +459,26 @@ async function init() {
 async function home() {
   const classes = [
     { type_id: 'home', type_name: '推荐' },
-    { type_id: 'censored', type_name: 'モザあり / 有码' },
-    { type_id: 'uncensored', type_name: '無修正 / 无码' },
-    { type_id: 'engsub', type_name: 'Engsub / 英字' },
-    { type_id: 'virtual', type_name: 'VR / 虚拟' },
+    ...CATEGORIES.map((c) => ({ type_id: c.id, type_name: c.name })),
+    { type_id: 'popular', type_name: '人気 / 热门' },
   ];
-  return { class: classes, filters: {}};
+  try {
+    const data = await fetchList('home', '', 1);
+    return { class: classes, filters: {}, list: data.list };
+  } catch {
+    return { class: classes, filters: {}, list: [] };
+  }
 }
 
 async function category(inReq) {
-  const tid = String(inReq.body.tid || 'home');
-  let page = parseInt(inReq.body.page, 10) || 1;
+  const body = inReq.body || {};
+  const tid = String(body.id ?? body.tid ?? body.type_id ?? 'home');
+  let page = parseInt(body.page ?? body.pg, 10) || 1;
   if (page < 1) page = 1;
-  if (tid === 'home') {
-    const res = await home();
-    return { ...res, page: 1, pagecount: 1, limit: PAGE_SIZE, total: res.list.length };
-  }
+  if (tid === 'home') return fetchList('home', '', page);
   if (tid === 'popular') return fetchList('pop', '', page);
   const cate = CATEGORIES.find((c) => c.id === tid);
-  if (!cate) return { page: 1, pagecount: 1, limit: PAGE_SIZE, total: 0, list: [] };
+  if (!cate) return { page, pagecount: page, limit: PAGE_SIZE, total: 0, list: [] };
   return fetchList('cate', cate.id, page);
 }
 
