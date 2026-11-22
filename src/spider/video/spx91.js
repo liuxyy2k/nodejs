@@ -227,7 +227,7 @@ async function detail(inReq) {
         list: [
             {
                 vod_id: page,
-                vod_name: name.replace(/\s*\|\s*91视频\s*$/, '') || '91视频',
+                vod_name: name,
                 vod_pic: rawPic,
                 vod_play_from: '91视频',
                 vod_play_url: `播放$${data.data.streams.hevc}`,
@@ -238,7 +238,7 @@ async function detail(inReq) {
 
 async function play(inReq) {
     const id = inReq.body.id;
-    return { parse: 0, jx: 0, url: id, header: { 'User-Agent': UA, 'Referer': site + '/' } };
+    return { parse: 0, url: id, header: { 'User-Agent': UA, 'Referer': SITE + '/' } };
 }
 
 async function imgProxy(inReq, reply) {
