@@ -90,8 +90,7 @@ async function home(_inReq, _outResp) {
 async function category(inReq, _outResp) {
     const tid = inReq.body.id;
     const page = parseInt(inReq.body.page) || 1;
-
-    const html = await request(`${site}/${tid}/${page}/`);
+    const html = await request(`${site}${tid}${page}/`);
     const $ = load(html);
     const list = await parseVods($);
 
