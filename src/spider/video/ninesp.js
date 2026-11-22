@@ -170,6 +170,27 @@ async function fetchPath(path, refererPath = '/') {
  * 列表
  * ------------------------------------------------------------------ */
 
+function pushCard(list, seen, $el, href, $) {
+  const id = (String(href).match(/\/videos\/(\d+)/) || [])[1] || '';
+  if (!id || seen.has(id)) return;
+  seen.add(id);
+  const img = $el.find('img').first();
+  const name = ($el.find('h3').first().text() || $el.find('.title').first().text() || img.attr('alt') || '').trim();
+  const duration = ($el.find('i.duration, .duration').first().text() || '').trim();
+  const tagTexts = [];
+  $el.find('.card-tags a, .tags a').each((j, e) => {
+    const t = $(e).text().trim();
+    if (t) tagTexts.push(t);
+  });
+  list.push({
+    vod_id: id,
+    vod_name: name || '(无标题)',
+    vod_pic: abs(img.attr('src') || img.attr('data-src') || img.attr('data-original') || img.attr('data-lazy-src') || ''),
+    vod_remarks: duration,
+    vod_content: tagTexts.slice(0, 8).join(' '),
+  });
+}
+
 function parseList($) {
   const list = [];
   const seen = new Set();
@@ -177,22 +198,17 @@ function parseList($) {
     const $el = $(el);
     const href =
       $el.find('a.card-poster-link').attr('href') || $el.find('a.card-title-link').attr('href') || '';
-    const id = (String(href).match(/\/videos\/(\d+)/) || [])[1] || '';
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    const img = $el.find('img').first();
-    const name = ($el.find('h3').first().text() || img.attr('alt') || '').trim();
-    const duration = $el.find('i.duration').first().text().trim();
-    const $tags = $el.find('.card-tags a');
-    const tags = $tags.map((j, e) => $(e).text().trim()).get().filter(Boolean);
-    list.push({
-      vod_id: id,
-      vod_name: name || '(无标题)',
-      vod_pic: abs(img.attr('src') || img.attr('data-src') || img.attr('data-original') || ''),
-      vod_remarks: duration,
-      vod_content: tags.slice(0, 8).join(' '),
-    });
+    pushCard(list, seen, $el, href, $);
   });
+  if (!list.length) {
+    $('a[href*="/videos/"]').each((i, el) => {
+      const $a = $(el);
+      const href = $a.attr('href') || '';
+      if (!/\/videos\/\d+/.test(href)) return;
+      const $ctx = $a.closest('article.card, .card, li, article');
+      pushCard(list, seen, $ctx.length ? $ctx : $a.parent(), href, $);
+    });
+  }
   return list;
 }
 
@@ -206,6 +222,7 @@ function hasNext($) {
 
 function listPath(kind, key, page) {
   const p = page > 1 ? `page=${page}` : '';
+  if (kind === 'home') return p ? `/?${p}` : '/';
   if (kind === 'sort') return `/videos/sort/${key}${p ? '?' + p : ''}`;
   if (kind === 'cate') return `/videos/category/${key}${p ? '?' + p : ''}`;
   if (kind === 'tag') return `/videos/tag/${encodeURIComponent(key)}${p ? '?' + p : ''}`;
@@ -293,6 +310,24 @@ function detailFields($) {
 
 const TYPE_NAME = new Map(CATEGORIES.map((c) => [c.id, c.name]));
 
+function homeClasses() {
+  return [
+    { type_id: 'home', type_name: '推荐' },
+    { type_id: 'latest', type_name: '最新更新' },
+    { type_id: 'monthly', type_name: '本月最热' },
+    ...CATEGORIES.map((c) => ({ type_id: c.id, type_name: c.name })),
+  ];
+}
+
+function resolveCateId(tid) {
+  if (TYPE_NAME.has(tid)) return tid;
+  const lower = String(tid).toLowerCase();
+  for (const c of CATEGORIES) {
+    if (c.id.toLowerCase() === lower) return c.id;
+  }
+  return '';
+}
+
 /* ------------------------------------------------------------------ *
  * 播放：iframe 页 /player/{id} 里的 resolve 接口吐 HLS 清单地址
  * ------------------------------------------------------------------ */
@@ -343,25 +378,30 @@ async function init() {
 }
 
 async function home() {
-  const { html } = await fetchPath('/', '/');
-  const $ = load(html);
-  const list = parseList($);
-  return { class: [{ type_id: 'home', type_name: '推荐' }], list, page: 1, pagecount: 1, limit: PAGE_SIZE, total: list.length };
+  const classes = homeClasses();
+  try {
+    const data = await fetchList('home', '', 1);
+    return { class: classes, filters: {}, list: data.list, page: 1, pagecount: data.pagecount, limit: PAGE_SIZE, total: 0 };
+  } catch {
+    return { class: classes, filters: {}, list: [] };
+  }
 }
 
 async function category(inReq) {
-  const tid = String(inReq.body.tid || 'home').trim();
-  let page = parseInt(inReq.body.page, 10) || 1;
+  const body = inReq.body || {};
+  const tid = String(body.id ?? body.tid ?? body.type_id ?? 'home').trim();
+  let page = parseInt(body.page ?? body.pg, 10) || 1;
   if (page < 1) page = 1;
-  if (tid === 'home') return home();
+  if (tid === 'home') return fetchList('home', '', page);
   if (tid === 'latest') return fetchList('sort', 'renew', page);
   if (tid === 'monthly') return fetchList('sort', 'month_hot', page);
   if (tid.startsWith('tag:')) return fetchList('tag', tid.slice(4), page);
   if (tid.startsWith('search:')) return fetchList('search', tid.slice(7), page);
-  if (!TYPE_NAME.has(tid)) {
-    return { page: 1, pagecount: 1, limit: PAGE_SIZE, total: 0, list: [] };
+  const cateId = resolveCateId(tid);
+  if (!cateId) {
+    return { page, pagecount: page, limit: PAGE_SIZE, total: 0, list: [] };
   }
-  return fetchList('cate', tid, page);
+  return fetchList('cate', cateId, page);
 }
 
 async function detail(inReq) {
