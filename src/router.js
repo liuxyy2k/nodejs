@@ -356,6 +356,7 @@ import sons from "./spider/video/sons.js";
 import javbar from "./spider/video/javbar.js";
 import nine1hub from "./spider/video/91hub.js";
 import ninesp from "./spider/video/ninesp.js";
+import hl51 from "./spider/video/51hl.js";
 import liveSource from "./spider/video/liveSource.js";
 import mogg from "./spider/video/mogg.js";
 import leijing from "./spider/video/leijing.js";
@@ -395,7 +396,7 @@ export const getSpiders = async (server) => {
         baoporn, auditporn, ipornbase, t66yy, cableav, pronlulu,
         ppporn, dnaav, xm, march, lxtv5, huoporn, rou233, fangsung, ero, tojav, javgg, hornjav, mythav, pubjav, rip17, chineseav, xmorex, openload, ikisoda, sons, 
         // ── 吃瓜 / 爆料 ──
-        cg51, xigua51, cg57, aw51, bl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
+        cg51, xigua51, cg57, aw51, bl51, hl51, sp51, ds51, cg91, cg911, dsj911, cg007, chig17, xzcg, cgw, baogua, hlcg, porncgw, bgcg, dycg, cg1024, cg84, baoliao, mdgw, mrds, mrdld, mdbdy,  
         jrkl, hl, hlbdy, hl17, hl18, hl818, cgbk, kb911, ds91, kdw91, hjsqn, bagua, hguaw,
          // ── 91 系列 ──
         spx91, video91, sp91, sp91com, pron91, porna91, pinse, rb91, nine1tanhua, av123dsp, theporny, xiaohuangniao, pornxx91, nine1pornpp, nine1hub, ninesp,
