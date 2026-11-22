@@ -4,6 +4,10 @@ import { load } from 'cheerio';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const site = 'https://www.hguaw.com';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 async function request(reqUrl, headers = {}) {
     const resp = await axios.get(reqUrl, {
         headers: { 'User-Agent': UA, Referer: `${site}/`, ...headers },
@@ -34,11 +38,6 @@ function parseVods($) {
 
         const $img = $el.find('picture img').first();
         let pic = $img.attr('data-original-src') || $img.attr('src') || '';
-        // src 可能是占位图，优先 webp 源
-        if (!pic || pic.includes('placeholders')) {
-            const srcset = $el.find('picture source').attr('srcset') || '';
-            pic = srcset.split(',')[0].trim().split(/\s+/)[0] || pic;
-        }
 
         const date = $el.find('time.card-date').text().trim();
         const hit = url.match(/\/archives\/(\d+)\//);
@@ -48,7 +47,7 @@ function parseVods($) {
         videos.push({
             vod_id: id,
             vod_name: name,
-            vod_pic: pic,
+            vod_pic: site + pic,
             vod_remarks: date,
         });
     });
