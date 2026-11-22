@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { load } from 'cheerio';
 import req from '../../util/req.js';
+import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 // 改成你本地代理的端口
 const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
@@ -11,9 +12,9 @@ const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
  * 播放页动态脚本里的 m3u8，分片 AES-128
  */
 
+const PORT   = process.env.DEV_HTTP_PORT || 9988;
+
 const SITE = 'https://91spx.com';
-const AES_KEY = Buffer.from('f5d965df75336270');
-const AES_IV = Buffer.from('97b60394abc2fbe1');
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
@@ -41,6 +42,19 @@ function headers(referer) {
         Referer: referer || `${SITE}/`,
         Accept: 'text/html,application/xhtml+xml,application/json,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    };
+}
+
+function pageHeaders(referer, extra = {}) {
+    return {
+        'User-Agent': UA,
+        Referer: referer || `${SITE}/`,
+        Origin: SITE,
+        Accept: '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...extra,
     };
 }
 
@@ -76,20 +90,6 @@ function parseExt(extend) {
     return typeof extend === 'object' ? extend : {};
 }
 
-function unpackPacked(code) {
-    const text = String(code || '');
-    const start = text.indexOf('eval(function(p,a,c,k,e,d)');
-    if (start < 0) return '';
-    const end = text.indexOf(".split('|'),0,{}))", start);
-    if (end < 0) return '';
-    const expr = text.slice(start, end + ".split('|'),0,{}))".length);
-    try {
-        return String(eval(expr.replace(/^eval/, '')));
-    } catch {
-        return '';
-    }
-}
-
 function buildListUrl(tid, page, sort) {
     const id = String(tid || 'sort/renew').replace(/^\/+|\/+$/g, '');
     let path = 'sort/renew';
@@ -99,70 +99,46 @@ function buildListUrl(tid, page, sort) {
     return page > 1 ? `${base}${page}/` : base;
 }
 
-function requestOrigin(inReq) {
-    const proto = String(inReq?.headers?.['x-forwarded-proto'] || 'http').split(',')[0].trim();
-    const host = inReq?.headers?.['x-forwarded-host'] || inReq?.headers?.host || '127.0.0.1';
-    return `${proto}://${host}`;
+function e64(s) {
+    try { return Buffer.from(s || '').toString('base64'); } catch { return ''; }
 }
 
-function coverOf(inReq, raw, id) {
-    const src = absUrl(raw);
-    if (src && !src.includes('poster_loading') && allowedPic(src)) {
-        const prefix = inReq?.server?.prefix || '/spider/spx91/3';
-        return `${requestOrigin(inReq)}${prefix}/img?u=${encodeURIComponent(src)}`;
-    }
-    return id ? `${SITE}/videos/webp/${id}.webp` : '';
+function d64(s) {
+    try { return Buffer.from(s || '', 'base64').toString('utf-8'); } catch { return ''; }
 }
 
-function allowedPic(url) {
-    try {
-        const host = new URL(url).hostname.toLowerCase();
-        return host === '91spx.com' || host.endsWith('.91spx.com') || host.endsWith('wirqed.cn') || host.endsWith('eisees.com');
-    } catch {
-        return false;
-    }
+function proxyImgUrl(raw) {
+    return `http://127.0.0.1:${PORT}/spider/spx91/3/img?url=${encodeURIComponent(e64(raw))}`;
 }
 
-function decryptImage(buf) {
-    if (!buf.length || buf.length % 16 !== 0) return buf;
-    try {
-        const decipher = crypto.createDecipheriv('aes-128-cbc', AES_KEY, AES_IV);
-        decipher.setAutoPadding(false);
-        let out = Buffer.concat([decipher.update(buf), decipher.final()]);
-        let end = out.length;
-        while (end > 0 && out[end - 1] === 0) end--;
-        return out.subarray(0, end);
-    } catch {
-        return buf;
-    }
+function aesDecrypt(buf) {
+    const key      = Buffer.from('f5d965df75336270');
+    const iv       = Buffer.from('97b60394abc2fbe1');
+    const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+    return Buffer.concat([decipher.update(buf), decipher.final()]);
 }
 
-function imageMime(buf) {
-    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
-    if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
-    if (buf.length >= 6 && buf.subarray(0, 4).toString() === 'GIF8') return 'image/gif';
-    if (buf.length >= 12 && buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP') return 'image/webp';
-    return '';
+async function csrfToken(url) {
+    await req.loadCookies();
+    const cookie = await req.getCookieJar().getCookieString(url);
+    const m = String(cookie || '').match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
 }
+
+
 
 function parseList(html, inReq) {
     const $ = load(html || '');
     const list = [];
-    const seen = new Set();
     $('.video-item').each((_, el) => {
-        const card = $(el);
-        const href = absUrl(card.find('a[href*="/videos/"]').first().attr('href'));
-        const idm = href.match(/\/videos\/(\d+)\/?/);
-        if (!idm || seen.has(idm[1])) return;
-        seen.add(idm[1]);
-        const img = card.find('img').first();
-        const name = card.find('h2, h3').first().text().replace(/\s+/g, ' ').trim();
-        if (!name) return;
-        const dur = card.find('.poster .rounded-large').first().text().replace(/\s+/g, ' ').trim();
+        const href = $(el).find('a').first().attr('href');
+        const name = $(el).find('h2').text().replace(/\s+/g, ' ').trim();
+        const img = $(el).find('img').first().attr('data-src');
+        const dur = $(el).find('.poster .rounded-large').first().text().replace(/\s+/g, ' ').trim();
         list.push({
             vod_id: href,
             vod_name: name,
-            vod_pic: coverOf(inReq, img.attr('data-src'), idm[1]),
+            vod_pic: proxyImgUrl(img),
             vod_remarks: dur,
         });
     });
@@ -201,21 +177,6 @@ function filterMap(classes) {
     return filters;
 }
 
-async function extractPlayUrl(pageUrl) {
-    const html = await fetchText(pageUrl);
-    if (!html) return '';
-    const boot = unpackPacked(html);
-    const hash = boot.match(/\/videos\/player\/([a-f0-9]{16,})\//)?.[1];
-    if (!hash) {
-        const direct = html.match(/https?:\/\/[^'"\s]+\.m3u8[^'"\s]*/);
-        return direct ? direct[0] : '';
-    }
-    const slot = Math.floor(Date.now() / 1000 / 2100);
-    const cfg = unpackPacked(await fetchText(`${SITE}/videos/player/${hash}/${slot}.js`));
-    const media = cfg.match(/https?:\/\/[^'"\s]+\.m3u8[^'"\s]*/);
-    return media ? media[0] : '';
-}
-
 async function init() {
     return {};
 }
@@ -250,67 +211,63 @@ async function detail(inReq) {
     const page = raw.startsWith('http') ? raw : absUrl(raw.startsWith('/') ? raw : `/videos/${raw}/`);
     const html = await fetchText(page);
     const $ = load(html);
-    const name = $('h1').first().text().replace(/\s+/g, ' ').trim() || $('meta[property="og:title"]').attr('content') || '';
-    const idm = page.match(/\/videos\/(\d+)/);
+    const name = $('meta[property="og:title"]').attr('content') || '';
     const rawPic = $('meta[property="og:image"]').attr('content') || $('video#player').attr('poster') || '';
-    const pic = coverOf(inReq, rawPic, idm?.[1]);
+    const url = inReq.body.id;
+    const id = url.match(/\/videos\/(\d+)/)?.[1];
+    const playUrl = `https://91spx.com/videos/${id}/playback`;
+    const resp = await req.post(playUrl, {}, {
+        headers: pageHeaders(url, {
+            'X-Requested-With': 'XMLHttpRequest',
+        }),
+        timeout: 20000,
+    });
+    const data = resp.data || {};
     return {
         list: [
             {
                 vod_id: page,
                 vod_name: name.replace(/\s*\|\s*91视频\s*$/, '') || '91视频',
-                vod_pic: pic,
+                vod_pic: rawPic,
                 vod_play_from: '91视频',
-                vod_play_url: `播放$${page}`,
+                vod_play_url: `播放$${data.data.streams.hevc}`,
             },
         ],
     };
 }
 
 async function play(inReq) {
-    const header = { 'User-Agent': UA, Referer: `${SITE}/` };
-    let url = String(inReq.body.id || '').trim();
-    if (url.includes('$')) url = url.split('$').pop().trim();
-    if (/\.m3u8(\?|$)/i.test(url)) return { parse: 0, jx: 0, url, header };
-    if (!url) return { parse: 0, jx: 0, url: '', header };
-    const page = url.startsWith('http') ? url : absUrl(url);
-    const media = await extractPlayUrl(page);
-    if (!media) return { parse: 0, jx: 0, url: '', header };
-    return { parse: 0, jx: 0, url: media, header };
+    const id = inReq.body.id;
+    return { parse: 0, jx: 0, url: id, header: { 'User-Agent': UA, 'Referer': site + '/' } };
 }
 
-async function img(inReq, reply) {
-    const target = String(inReq.query.u || '').trim();
-    if (!allowedPic(target)) {
-        reply.code(403);
-        return 'forbidden';
-    }
-    let resp;
+async function imgProxy(inReq, reply) {
     try {
-        resp = await req.get(target, {
-            headers: headers(`${SITE}/`),
+        let raw = d64(inReq.query.url);
+        const match = raw.match(/loadBannerDirect\('([^']*)'/);
+        if (match) raw = match[1];
+        if (!raw) return reply.code(404).send('');
+
+        const resp = await axios.get(raw, {
+            headers: {
+                'User-Agent': UA,
+                'Referer':    `${SITE}/`,
+                'Origin':     SITE,
+            },
             responseType: 'arraybuffer',
-            timeout: 20000,
-            validateStatus: () => true,
+            timeout:      10000,
         });
-    } catch {
-        reply.code(502);
-        return 'image failed';
+
+        const decrypted = aesDecrypt(Buffer.from(resp.data));
+        let   ct        = 'image/jpeg';
+        if (decrypted[0] === 0x89 && decrypted[1] === 0x50) ct = 'image/png';
+        else if (decrypted.slice(0, 4).toString() === 'GIF8')  ct = 'image/gif';
+
+        reply.header('Content-Type', ct).send(decrypted);
+    } catch (e) {
+        console.error('imgProxy error:', e.message);
+        reply.code(500).send('');
     }
-    const raw = Buffer.isBuffer(resp.data) ? resp.data : Buffer.from(resp.data || []);
-    if (resp.status >= 400 || raw.length < 16) {
-        reply.code(502);
-        return 'image failed';
-    }
-    const plain = imageMime(raw) ? raw : decryptImage(raw);
-    const mime = imageMime(plain);
-    if (!mime) {
-        reply.code(502);
-        return 'image failed';
-    }
-    reply.header('Content-Type', mime);
-    reply.header('Cache-Control', 'public, max-age=86400');
-    return reply.send(plain);
 }
 
 async function search(inReq) {
@@ -342,6 +299,6 @@ export default {
         fastify.post('/detail', detail);
         fastify.post('/play', play);
         fastify.post('/search', search);
-        fastify.get('/img', img);
+        fastify.get('/img', imgProxy);
     },
 };
