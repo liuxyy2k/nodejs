@@ -1,350 +1,300 @@
+import axios from 'axios';
 import { load } from 'cheerio';
-import req from '../../util/req.js';
 
-/**
- * Javtiful · javtiful.com
- * 播放：页面内 watch-config → POST playback 换 sources（短时效 token URL）
- */
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const site = 'https://javtiful.com';
 
-const SITE = 'https://javtiful.com';
-const UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+/* ------------------------------------------------------------------
+ * 站点已改版：页面里不再直出 m3u8/mp4，播放链路变成三步
+ *   1) GET  /video/{id}                      → 页面内 <script id="watch-config"> 带
+ *                                              playback.endpoint 和一次性 ticket
+ *   2) POST /video/{id}/playback  (body ticket=xxx，必须 XHR 头)
+ *        → {"success":true,"sources":[{"src":"/media/video/{id}/720p?expires=..&signature=.."}]}
+ *   3) GET  {site}{src}                      → 302 到 Cloudflare R2 预签名 mp4（1 小时有效）
+ * 所以旧的「正则抓 m3u8」写法必然拿不到地址，必须按上面顺序换票。
+ * ------------------------------------------------------------------ */
 
-const FIXED = [
-    { type_id: 'videos', type_name: '最新' },
-    { type_id: 'foryou', type_name: '为你推荐' },
-    { type_id: 'censored', type_name: '有码' },
-    { type_id: 'uncensored', type_name: '无码' },
-    { type_id: 'reducing-mosaic', type_name: '减码' },
-    { type_id: 'videos?sort=popular_week', type_name: '本周热门' },
-];
-
-function headers(referer) {
-    return {
-        'User-Agent': UA,
-        Referer: referer || `${SITE}/zh/main`,
-        Accept: 'text/html,application/xhtml+xml,application/json,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    };
-}
-
-async function fetchText(url) {
-    const resp = await req.get(url, {
-        headers: headers(url),
-        timeout: 25000,
-        responseType: 'text',
-        validateStatus: () => true,
-    });
-    if (resp.status >= 400) return '';
-    return typeof resp.data === 'string' ? resp.data : String(resp.data || '');
-}
-
-function absUrl(href, base = SITE) {
-    if (!href) return '';
-    try {
-        return new URL(href, base).href;
-    } catch {
-        return '';
+async function request(reqUrl, headers = {}, retry = 2) {
+    let lastErr;
+    for (let i = 0; i <= retry; i++) {
+        try {
+            const resp = await axios.get(reqUrl, {
+                headers: { 'User-Agent': UA, Referer: site + '/', ...headers },
+                timeout: 25000,
+                responseType: 'text',
+                transformResponse: [(d) => d],
+                maxRedirects: 5,
+            });
+            return resp.data;
+        } catch (e) {
+            lastErr = e;
+            const code = e && e.response ? e.response.status : 0;
+            if (code >= 400 && code < 500) break;
+            await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        }
     }
+    throw lastErr;
 }
 
-function cleanName(text) {
-    return String(text || '')
-        .replace(/\s+/g, ' ')
-        .replace(/\s*\|\s*Javtiful\s*$/i, '')
-        .trim();
+function absUrl(u) {
+    const s = String(u || '').trim();
+    if (!s) return '';
+    if (s.startsWith('//')) return 'https:' + s;
+    if (s.startsWith('http')) return s;
+    if (s.startsWith('/')) return site + s;
+    return site + '/' + s;
 }
 
-function buildListUrl(tid, page) {
-    let id = String(tid || 'videos').trim();
-    if (!id || id === 'latest' || id === 'home') id = 'videos';
-    const url = new URL(id.startsWith('http') ? id : id.startsWith('/') ? id : `/zh/${id}`, SITE);
-    if (page > 1) url.searchParams.set('page', String(page));
-    return url.href;
-}
+/** 列表卡片：article.video-card */
+function parseVods($) {
+    const videos = [];
+    const seen = {};
+    $('.video-card').each((_, element) => {
+        const thumb = $(element).find('a.video-card__thumbnail').first();
+        const href = thumb.attr('href') || $(element).find('a.video-card__title').attr('href') || '';
+        const idMatch = href.match(/\/video\/(\d+)/);
+        if (!idMatch) return;
+        const id = idMatch[1];
+        if (seen[id]) return;
+        seen[id] = 1;
 
-function picOf(img) {
-    const raw = img.attr('data-front-lazy-src') || img.attr('data-src') || img.attr('src') || '';
-    if (!raw || raw.includes('placeholder')) return '';
-    return absUrl(raw);
-}
+        const titleEl = $(element).find('.video-card__title').first();
+        const name = (titleEl.attr('title') || titleEl.text() || '').trim();
+        if (!name) return;
 
-function parseList(html) {
-    const $ = load(html || '');
-    const list = [];
-    const seen = new Set();
-    $('article.video-card, article.front-video-card').each((_, el) => {
-        const card = $(el);
-        const a = card.find('a.video-card__thumbnail, a.front-video-thumb').first();
-        const href = absUrl(a.attr('href') || card.find('a[href*="/video/"]').first().attr('href'));
-        if (!href || !/\/video\//.test(href) || seen.has(href)) return;
-        seen.add(href);
-        const quality = card.find('.video-card__details strong, .front-quality-tag').first().text().trim();
-        const details = card.find('.video-card__details').first().text().replace(quality, '').trim();
-        const dur = card.find('.front-duration-tag').first().text().trim() || details;
-        list.push({
-            vod_id: href,
-            vod_name: cleanName(card.find('a.video-card__title, a.front-video-title').first().text()),
-            vod_pic: picOf(card.find('img').first()),
-            vod_remarks: [quality, dur].filter(Boolean).join(' '),
+        const img = $(element).find('img').first();
+        const pic = img.attr('data-front-lazy-src') || img.attr('src') || '';
+
+        // "FHD02:16:24" → 02:16:24
+        const detailText = $(element).find('.video-card__details').text().trim();
+        const durMatch = detailText.match(/\d{1,2}:\d{2}(?::\d{2})?/);
+
+        videos.push({
+            vod_id: id,
+            vod_name: name,
+            vod_pic: absUrl(pic),
+            vod_remarks: durMatch ? durMatch[0] : '',
         });
     });
-    return list;
+    return videos;
 }
 
-function parsePageCount(html, page) {
-    const $ = load(html || '');
-    let max = page;
-    $('a.pagination__link, a.front-pagination-link').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const m = href.match(/[?&]page=(\d+)/);
-        if (m) max = Math.max(max, parseInt(m[1], 10));
-        const text = $(el).text();
-        if (text.includes('下一页') && href && href !== '#') max = Math.max(max, page + 1);
+function maxPage($) {
+    let max = 0;
+    $('a').each((_, el) => {
+        const m = ($(el).attr('href') || '').match(/[?&]page=(\d+)/);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > max) max = n;
+        }
     });
     return max;
 }
 
-function parseCategories(html) {
-    const $ = load(html || '');
-    const list = [];
-    const seen = new Set();
-    $('a.category-card, a.front-collection-card-link').each((_, el) => {
-        const href = $(el).attr('href') || '';
-        const m = href.match(/\/zh\/category\/([^/?#]+)/i) || href.match(/\/category\/([^/?#]+)/i);
-        if (!m) return;
-        const slug = decodeURIComponent(m[1]);
-        const key = slug.toLowerCase();
-        if (seen.has(key)) return;
-        seen.add(key);
-        let name = $(el).find('.front-collection-title').text().trim();
-        if (!name) {
-            name = $(el).text().replace(/\s+/g, ' ').trim().replace(/^[\d,.]+\s*个视频\s*/i, '').trim();
-        }
-        if (!name) return;
-        list.push({ type_id: `category/${slug}`, type_name: name });
-    });
-    return list;
-}
-
-function normalizeSources(rawList) {
-    return (rawList || [])
-        .map((item) => ({
-            url: String(item?.src || item?.url || '').trim(),
-            size: parseInt(item?.size, 10) || 0,
-        }))
-        .filter((item) => /^https?:\/\//i.test(item.url))
-        .sort((a, b) => b.size - a.size);
-}
-
-function extractSources(html) {
-    const text = String(html || '');
-    const block = text.match(/"playerSources"\s*:\s*(\[[\s\S]*?\])/);
-    if (block) {
-        try {
-            const list = normalizeSources(JSON.parse(block[1]));
-            if (list.length) return list;
-        } catch {
-            /* fall through */
-        }
-    }
-    const $ = load(text);
-    const list = [];
-    $('video#front-player source, video source').each((_, el) => {
-        const url = ($(el).attr('src') || '').trim();
-        if (!/^https?:\/\//i.test(url)) return;
-        list.push({ url, size: parseInt($(el).attr('size'), 10) || 0 });
-    });
-    return list.sort((a, b) => b.size - a.size);
-}
-
-async function fetchSourcesViaWatchConfig(html, pageUrl) {
-    const cfgMatch = String(html || '').match(
-        /<script id="watch-config" type="application\/json">\s*([\s\S]*?)<\/script>/i,
-    );
-    if (!cfgMatch) return [];
-    let cfg;
+/** 分类：/categories 的 a.category-card */
+async function getClasses() {
+    const classes = [
+        { type_id: 'new', type_name: '最新更新' },
+        { type_id: 'popular', type_name: '本周热门' },
+    ];
     try {
-        cfg = JSON.parse(cfgMatch[1]);
-    } catch {
-        return [];
+        const html = await request(site + '/categories');
+        const $ = load(html);
+        $('a.category-card').each((_, el) => {
+            const href = $(el).attr('href') || '';
+            const m = href.match(/\/category\/([a-z0-9-]+)/i);
+            const name = $(el).find('.category-card__name').text().trim()
+                || $(el).find('img').attr('alt') || '';
+            if (!m || !name) return;
+            classes.push({ type_id: 'cat:' + m[1], type_name: name });
+        });
+    } catch (e) {
+        // 分类失败时保留两个基础入口
     }
-    const endpoint = String(cfg?.playback?.endpoint || '').trim();
-    const ticket = String(cfg?.playback?.ticket || '').trim();
-    if (!endpoint || !ticket) return [];
+    return classes;
+}
 
-    const resp = await req.post(`${SITE}${endpoint}`, `ticket=${encodeURIComponent(ticket)}`, {
+/** 从详情页 JSON 里取 playback 配置 */
+function readWatchConfig(html) {
+    const m = String(html).match(/<script id="watch-config" type="application\/json">([\s\S]*?)<\/script>/);
+    if (!m) return null;
+    try {
+        const cfg = JSON.parse(m[1].trim());
+        if (!cfg || !cfg.playback || !cfg.playback.endpoint) return null;
+        return {
+            endpoint: cfg.playback.endpoint,
+            ticket: cfg.playback.ticket || '',
+            poster: cfg.videoPoster || '',
+            title: cfg.videoTitle || '',
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+/** POST 换票，返回按清晰度排序的播放源 */
+async function fetchSources(cfg) {
+    const resp = await axios.post(absUrl(cfg.endpoint), 'ticket=' + encodeURIComponent(cfg.ticket), {
         headers: {
-            ...headers(pageUrl),
-            Accept: 'application/json',
+            'User-Agent': UA,
+            Referer: site + '/',
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            Accept: 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
         },
-        timeout: 25000,
-        validateStatus: () => true,
+        timeout: 20000,
+        responseType: 'text',
+        transformResponse: [(d) => d],
     });
-    const data = resp.data && typeof resp.data === 'object' ? resp.data : {};
-    return normalizeSources(data.sources);
-}
-
-async function resolveSources(pageUrl) {
-    const html = await fetchText(pageUrl);
-    if (!html) return { sources: [], pageUrl, html: '' };
-    let sources = await fetchSourcesViaWatchConfig(html, pageUrl);
-    if (!sources.length) sources = extractSources(html);
-    if (!sources.length && /\/embed\//i.test(pageUrl)) {
-        sources = await fetchSourcesViaWatchConfig(html, pageUrl);
+    const data = typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
+    if (!data || !data.success || !Array.isArray(data.sources) || !data.sources.length) {
+        throw new Error('playback: no source');
     }
-    return { sources, pageUrl, html };
+    return data.sources
+        .filter((s) => s && s.src)
+        .sort((a, b) => (Number(b.size) || 0) - (Number(a.size) || 0));
 }
 
-function pageUrlFromId(raw) {
-    let id = String(raw || '').trim();
-    if (id.includes('$')) id = id.split('$').pop().trim();
-    if (!id) return '';
-    if (/^https?:\/\//i.test(id)) return id;
-    if (id.includes('/video/') || id.includes('/embed/')) {
-        return absUrl(id.startsWith('/') ? id : `/zh/${id.replace(/^\/?zh\//, '')}`);
-    }
-    return absUrl(`/zh/video/${id}`);
-}
-
-function isDirectMedia(url) {
-    const u = String(url || '');
-    if (!/^https?:\/\//i.test(u)) return false;
-    return /\.(mp4|m3u8)(\?|$)/i.test(u) || /fast-stream|\/stream\//i.test(u);
-}
-
-async function init() {
+async function init(_inReq, _outResp) {
     return {};
 }
 
-async function home() {
-    const [catHtml, listHtml] = await Promise.all([
-        fetchText(`${SITE}/zh/categories`),
-        fetchText(`${SITE}/zh/videos`),
-    ]);
-    return {
-        class: [...FIXED, ...parseCategories(catHtml)],
-        list: parseList(listHtml).slice(0, 24),
-        filters: {},
-    };
+async function home(_inReq, _outResp) {
+    const classes = await getClasses();
+    const $ = load(await request(site + '/'));
+    return { class: classes, list: parseVods($), filters: {} };
 }
 
-async function category(inReq) {
-    const page = Math.max(parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1, 1);
-    const tid = inReq.body.tid ?? inReq.body.id ?? 'videos';
-    const html = await fetchText(buildListUrl(tid, page));
-    const list = parseList(html);
-    return {
-        list,
-        page,
-        pagecount: parsePageCount(html, page),
-        limit: list.length || 24,
-        total: list.length ? 9999 : 0,
-    };
+async function category(inReq, _outResp) {
+    const tid = String(inReq.body.id || 'new');
+    const page = parseInt(inReq.body.page) || 1;
+
+    let url;
+    if (tid.indexOf('cat:') === 0) {
+        url = `${site}/category/${encodeURIComponent(tid.slice(4))}?page=${page}`;
+    } else if (tid === 'popular') {
+        url = `${site}/videos?sort=popular_week&page=${page}`;
+    } else {
+        url = `${site}/videos?page=${page}`;
+    }
+
+    const $ = load(await request(url));
+    const list = parseVods($);
+
+    let pagecount = maxPage($);
+    if (!pagecount || pagecount < page) pagecount = list.length > 0 ? page + 1 : page;
+
+    return { page, pagecount, list };
 }
 
-async function detail(inReq) {
-    let raw = String(Array.isArray(inReq.body.id) ? inReq.body.id[0] : inReq.body.id || '').trim();
-    const page = pageUrlFromId(raw) || absUrl(raw.startsWith('/') ? raw : `/zh/video/${raw}`);
-    const { sources } = await resolveSources(page);
-    const html = await fetchText(page);
+async function detail(inReq, _outResp) {
+    const id = String(inReq.body.id || '').replace(/[^\d]/g, '');
+    const html = await request(`${site}/video/${id}`);
     const $ = load(html);
-    const name = cleanName($('h1').first().text() || $('meta[property="og:title"]').attr('content'));
-    const pic = absUrl($('meta[property="og:image"]').attr('content') || $('video#front-player').attr('poster'));
-    const from = [];
-    const urls = [];
-    sources.forEach((item) => {
-        from.push(item.size ? `${item.size}P` : '播放');
-        urls.push(`正片$${item.url}`);
+    const cfg = readWatchConfig(html);
+
+    const name = ($('h1').first().text().trim()
+        || (cfg && cfg.title) || '').replace(/\s+/g, ' ').trim();
+
+    let pic = '';
+    const og = $('meta[property="og:image"]').attr('content');
+    if (og) pic = absUrl(og);
+    else if (cfg && cfg.poster) pic = absUrl(cfg.poster);
+    else pic = absUrl($('video#front-player').attr('poster') || '');
+
+    const crumbs = [];
+    $('.breadcrumb a, .breadcrumbs a, nav[aria-label="Breadcrumb"] a').each((_, el) => {
+        const t = $(el).text().trim();
+        if (t) crumbs.push(t);
     });
-    if (!from.length) {
-        from.push('播放');
-        urls.push(`正片$${page}`);
-    }
+    const typeName = crumbs.length > 1 ? crumbs[crumbs.length - 1] : '';
+
+    const tags = [];
+    $('a[href^="/tag/"], a[href^="/actress/"]').each((_, el) => {
+        const t = $(el).text().trim();
+        if (t && t.length <= 40 && tags.indexOf(t) < 0) tags.push(t);
+    });
+
+    // 只传 id：签名地址 1 小时就失效，交给 play 实时换
     return {
-        list: [
-            {
-                vod_id: page,
-                vod_name: name || 'Javtiful',
-                vod_pic: pic,
-                vod_play_from: from.join('$$$'),
-                vod_play_url: urls.join('$$$'),
-            },
-        ],
+        list: [{
+            vod_id: id,
+            vod_name: name,
+            vod_pic: pic,
+            vod_year: (name.match(/\b(20\d{2})\b/) || [])[1] || '',
+            vod_area: 'JP',
+            vod_remarks: '',
+            type_name: typeName,
+            vod_content: name,
+            vod_play_from: 'Javtiful',
+            vod_play_url: `正片$${id}`,
+            vod_tag: tags.slice(0, 8).join(','),
+        }],
     };
 }
 
-async function play(inReq) {
-    let url = String(inReq.body.id || '').trim();
-    if (url.includes('$')) url = url.split('$').pop().trim();
+async function play(inReq, _outResp) {
+    const id = String(inReq.body.id || '').replace(/[^\d]/g, '');
+    const header = { 'User-Agent': UA, Referer: site + '/' };
 
-    const pageUrl = pageUrlFromId(url) || (isDirectMedia(url) ? `${SITE}/` : '');
-    const referer = pageUrl && !isDirectMedia(url) ? pageUrl : `${SITE}/`;
+    try {
+        const html = await request(`${site}/video/${id}`);
+        const cfg = readWatchConfig(html);
+        if (!cfg) throw new Error('watch-config missing');
 
-    if (isDirectMedia(url)) {
-        return {
-            parse: 0,
-            jx: 0,
-            url,
-            header: { 'User-Agent': UA, Referer: referer },
-        };
+        const sources = await fetchSources(cfg);
+        const best = sources[0];
+        return { parse: 0, url: absUrl(best.src), header };
+    } catch (e) {
+        // 兜底：直接命中站点媒体路由（无签名时通常 403，仅作最后尝试）
+        return { parse: 0, url: `${site}/media/video/${id}/720p`, header };
     }
-
-    if (!pageUrl) {
-        return { parse: 0, jx: 0, url: '', header: { 'User-Agent': UA, Referer: `${SITE}/` } };
-    }
-
-    const { sources } = await resolveSources(pageUrl);
-    const playUrl = sources[0]?.url || '';
-    return {
-        parse: 0,
-        jx: 0,
-        url: playUrl,
-        header: { 'User-Agent': UA, Referer: pageUrl },
-    };
 }
 
-async function search(inReq) {
-    const key = String(inReq.body.wd || inReq.body.key || '').trim();
-    const page = Math.max(parseInt(inReq.body.page || inReq.body.pg || 1, 10) || 1, 1);
-    if (!key) return { list: [], page: 1, pagecount: 1, limit: 24, total: 0 };
-    const url = new URL(`${SITE}/zh/search`);
-    url.searchParams.set('q', key);
-    if (page > 1) url.searchParams.set('page', String(page));
-    const html = await fetchText(url.href);
-    const list = parseList(html);
-    return {
-        list,
-        page,
-        pagecount: parsePageCount(html, page),
-        limit: list.length || 24,
-        total: list.length ? 9999 : 0,
-    };
+async function search(inReq, _outResp) {
+    const wd = inReq.body.wd || inReq.body.key || '';
+    const $ = load(await request(`${site}/search?q=${encodeURIComponent(wd)}`));
+    return { list: parseVods($) };
 }
 
+/* ------------------------------------------------------------------
+ * 媒体中转：R2 预签名直链一般不校验 Referer，但个别播放器/网络环境
+ * 会因跳转或防盗链失败，这里留一个 /proxy 兜底。
+ * 用法：/proxy?url=<encodeURIComponent(直链)>&referer=<可选>
+ * ------------------------------------------------------------------ */
 async function proxyHandler(inReq, reply) {
     const target = decodeURIComponent(String(inReq.query.url || '').trim());
-    const referer = decodeURIComponent(String(inReq.query.referer || `${SITE}/`).trim());
-    if (!/^https?:\/\//i.test(target)) return reply.code(404).type('text/plain').send('');
+    const referer = decodeURIComponent(String(inReq.query.referer || (site + '/')).trim());
+    if (!/^https?:\/\//i.test(target)) {
+        return reply.code(404).type('text/plain').send('');
+    }
+
+    const headers = { 'User-Agent': UA, Referer: referer, Accept: '*/*' };
+    if (inReq.headers.range) headers.Range = inReq.headers.range;
+
     try {
-        const r = await req.get(target, {
-            headers: { 'User-Agent': UA, Referer: referer, Accept: '*/*', Range: inReq.headers.range || '' },
+        const r = await axios.get(target, {
+            headers,
             responseType: 'arraybuffer',
             timeout: 60000,
+            maxRedirects: 5,
             validateStatus: () => true,
         });
-        if (r.status >= 400) return reply.code(r.status).type('text/plain').send('');
+        if (r.status >= 400) {
+            return reply.code(r.status).type('text/plain').send('');
+        }
+
         const ct = r.headers['content-type'] || 'application/octet-stream';
         if (r.headers['content-range']) reply.header('Content-Range', r.headers['content-range']);
         if (r.headers['accept-ranges']) reply.header('Accept-Ranges', r.headers['accept-ranges']);
+        if (r.headers['content-length']) reply.header('Content-Length', r.headers['content-length']);
+
         return reply
             .header('Access-Control-Allow-Origin', '*')
             .type(ct)
             .code(r.status === 206 ? 206 : 200)
             .send(Buffer.from(r.data));
-    } catch {
+    } catch (e) {
         return reply.code(502).type('text/plain').send('');
     }
 }
