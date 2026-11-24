@@ -308,7 +308,6 @@ import javguru from "./spider/video/javguru.js";
 import yunvxinjing from "./spider/video/yunvxinjing.js";
 import hudieyingyuan from "./spider/video/hudieyingyuan.js";
 import javmobile from "./spider/video/javmobile.js";
-import missavXptv from "./spider/video/missav-xptv.js";
 import javhdtoday from "./spider/video/javhdtoday.js";
 import javideo from "./spider/video/javideo.js";
 import twenty4Jav from "./spider/video/24Jav.js";
@@ -387,7 +386,7 @@ export const getSpiders = async (server) => {
         // ── 直播 ──
         liveSource, dy, dszby, bilibili, livescj, xmlive, pandaLive, chatur, stripol, sinparty, myfreecams, cms4, xnxxLive, oxax, vlives, sbjh, 
         // ── JAV / 日系 AV ──
-        miss, missav, missavXptv, thisavfull, dsys, sevenmmtv, javverse, javdone, javcc, javbar, javfeed, javportals, javhey, javtubs, javheo, jasex, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavblog, supjavold, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
+        miss, missav, thisavfull, dsys, sevenmmtv, javverse, javdone, javcc, javbar, javfeed, javportals, javhey, javtubs, javheo, jasex, javdoneNew, javlus, javguru, javsiri, jur18, javneon, javmobile, javideo, javhdtoday, javhdporn, twenty4Jav, av01, av01media, ziziflix, sextb, d26cc, omgjav, javmine, javmix, javtsunami, getav, airav, javquick, juicyav, jable, jableNew, supjav, supjavblog, supjavold, supjavPy, av123, javrate, bestjavporn, javxu, wumaVc, avporner,
         fcjav, javleak, javsaga, javmit, javtiful, avjoy, av321, javsb, memojav, popjav, javdirect, missav02, missavt, jav,
         javdino, javgogogo, javhd, javhdicu, jav36, jav91wm, javday, manko, javmenu, javxx, javbunny, javfree, javfreest, goodav, ndmt, tinyav,
         dogav, msavx, hubff, xojav, ovo, kanav, avdb, av77, av18, avtoday, avbebe, taiav, lissav, njavtv,
