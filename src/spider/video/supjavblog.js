@@ -189,7 +189,7 @@ async function detail(inReq, _outResp) {
     const key = toSlug(embed) || id;
 
     // 播放地址不在这里定死：token 带过期时间和请求方网段，交给 play() 现取
-    const playUrl = `第1集$$${key}`;
+    const playUrl = `第1集$${key}`;
 
     return {
         list: [{

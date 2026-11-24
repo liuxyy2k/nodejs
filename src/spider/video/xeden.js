@@ -311,7 +311,7 @@ async function category(inReq, _outResp) {
 }
 
 async function detail(inReq, _outResp) {
-    const id = toSlug(inReq.body.id);
+    const id = inReq.body.id;
     if (!id) throw new Error('缺少视频 id');
 
     let data;
@@ -347,14 +347,31 @@ async function detail(inReq, _outResp) {
             vod_remarks: video.duration || '',
             vod_content: pieces.filter(Boolean).join('\n'),
             vod_play_from: 'XEDEN',
-            // 播放地址不在这里定死：清单 token 有时效、还绑请求方网段，交给 play() 现取
-            vod_play_url: `第1集$$${video.slug || id}`,
+            // 单集：集名$slug（只用 1 个 $；$$$ 才是多线路分隔）
+            vod_play_url: `正片$${video.slug || id}`,
         }],
     };
 }
 
+function playInputId(body) {
+    const b = body || {};
+    let raw = b.id ?? b.url ?? b.play ?? b.vod_id ?? '';
+    if (Array.isArray(raw)) raw = raw[0];
+    raw = String(raw ?? '').trim();
+    if (!raw) return '';
+    // 兼容旧版误写的 第1集$$slug
+    if (raw.includes('$$$')) raw = raw.split('$$$').pop() || '';
+    if (raw.includes('$$')) raw = raw.split('$$').pop() || '';
+    if (raw.includes('$') && !/^https?:\/\//i.test(raw)) {
+        raw = raw.slice(raw.lastIndexOf('$') + 1);
+    }
+    return raw.trim();
+}
+
 async function play(inReq, _outResp) {
-    const result = await resolvePlayUrl(inReq.body.id);
+    const id = playInputId(inReq && inReq.body);
+    if (!id) throw new Error('缺少视频 id（请检查 vod_play_url 是否为 正片$slug）');
+    const result = await resolvePlayUrl(id);
     return {
         parse: result.parse || 0,
         url: result.url,
