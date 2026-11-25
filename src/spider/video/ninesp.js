@@ -350,7 +350,7 @@ async function resolvePlay(id) {
       if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
       const data = JSON.parse(res.text);
       if (!data || !data.ok || !data.url) throw new Error('resolve rejected');
-      const playUrl = b + data.url;
+      const playUrl = data.url;
       activeBase = idx;
       playCache.set(id, { url: playUrl, exp: Date.now() + PLAY_TTL });
       return playUrl;
