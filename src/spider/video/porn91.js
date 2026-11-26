@@ -1,4 +1,6 @@
-// 91porn (https://a91porn.com) -> CatPawOpen spider
+// 91porn (https://v91porn.com) -> CatPawOpen spider
+// 2026-11-26：站方域名迁移 a91porn.com → v91porn.com（301），旧域名解析不到内容；
+//   HOST 与列表正则已改指 v91porn.com。封面/m3u8 host 为 m3u8.91porngua.com。
 // 国产自拍/网黄视频站, 服务端渲染 HTML, 无登录墙
 // 详情页播放器 div 的 data-src 即 m3u8 直链, 无需二次请求
 // 单档 (AES-128 媒体清单, 无多码率变体), 只出一条播放线, 不编造清晰度
@@ -8,7 +10,7 @@ import req from '../../util/req.js';
 
 const KEY = 'py_a91porn';
 const NAME = '🎞️91porn';
-const HOST = 'https://a91porn.com';
+const HOST = 'https://v91porn.com';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 // 分类: 12 个排序 + 热门前 92 个标签 (全部 792 个标签平铺太乱, 只取前 92)
@@ -177,12 +179,12 @@ function listUrl(cat, page) {
   return page > 1 ? base + 'page/' + page : base;
 }
 
-/** 解析列表: <a class="p91-tilelink" href="https://a91porn.com/{id}"> 内含 img(og.jpg)/alt/h3 标题/p91-tlen 时长 */
+/** 解析列表: <a class="p91-tilelink" href="https://v91porn.com/{id}"> 内含 img(og.jpg)/alt/h3 标题/p91-tlen 时长 */
 function parseList(html) {
   const out = [];
   const seen = new Set();
   if (!html) return out;
-  const re = /<a class="p91-tilelink"[^>]*href="https?:\/\/a91porn\.com\/(\d+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const re = /<a class="p91-tilelink"[^>]*href="https?:\/\/v91porn\.com\/(\d+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let m;
   while ((m = re.exec(html)) !== null) {
     const id = m[1];
@@ -274,7 +276,7 @@ async function detail(reqIn) {
   const body = reqIn?.body || {};
   const raw = Array.isArray(body.id) ? body.id[0] : body.id;
   const s = String(raw || '');
-  const vid = (s.match(/a91porn\.com\/(\d+)/) || s.match(/(\d+)/) || [])[1] || s;
+  const vid = (s.match(/v91porn\.com\/(\d+)/) || s.match(/(\d+)/) || [])[1] || s;
   if (!vid) return { list: [] };
 
   const pageUrl = HOST + '/' + vid;
