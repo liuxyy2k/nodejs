@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
+import { HttpsProxyAgent } from 'https-proxy-agent';
+// 改成你本地代理的端口
+const agent = new HttpsProxyAgent('http://127.0.0.1:7897');
+
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const site = 'https://www.52papa.tv';
 const playerHost = 'https://video1.yocoolnet.in';
@@ -24,7 +28,7 @@ async function request(reqUrl, headers = {}) {
                 'Accept-Language': 'zh-CN,zh;q=0.9,zh-TW;q=0.8,en;q=0.7',
                 'Referer': site + '/',
                 ...headers,
-            },
+            }
         });
         return resp.data;
     } catch (e) {
@@ -285,7 +289,7 @@ async function detail(inReq, _outResp) {
 
 async function play(inReq, _outResp) {
     const input = String(inReq.body.id || '').trim();
-    const header = { 'User-Agent': UA, 'Referer': site + '/', 'Origin': playerHost };
+    const header = { 'User-Agent': UA, 'Referer': playerHost + '/', 'Origin': playerHost };
 
     if (/\.m3u8/i.test(input)) {
         return { parse: 0, url: absUrl(input), header };

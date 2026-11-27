@@ -153,6 +153,33 @@
       "hostOnly": true,
       "creation": "2026-11-11T12:40:41.197Z",
       "lastAccessed": "2026-11-11T12:40:41.197Z"
+    },
+    {
+      "key": "XSRF-TOKEN",
+      "value": "eyJpdiI6Ik53RktBaWU0ZHdkTktBZXUreC9MaVE9PSIsInZhbHVlIjoiZk5yWGk1OUJmaUNPSCt1QVdNRVcrVFlUTGZmRExPS0lqak95dnphVkJiYUdBVzdqMVphTUdYYmRocW8vTU9URzkzRmlTMGREUVE4Z3dJWE8xVnBvMGpsZ21OWG5GOFpPWm0wTlpsbTlPclg1ZzNUdzcwd0VucHlaN1lGckdGdUIiLCJtYWMiOiI0MGNmNmUyYTA4YTc5ZWJjYzcwNGFlYjAyNjg4NjQyOTNiNGQwOTNmNDUxMDUwNjI5ZDE3ODIzYWNkZTJlMDc2IiwidGFnIjoiIn0%3D",
+      "expires": "2026-11-27T13:23:37.000Z",
+      "maxAge": 7200,
+      "domain": "seeav-2026115.ms9889.xyz",
+      "path": "/",
+      "secure": true,
+      "hostOnly": true,
+      "creation": "2026-11-27T11:23:31.945Z",
+      "lastAccessed": "2026-11-27T11:23:40.247Z",
+      "sameSite": "lax"
+    },
+    {
+      "key": "x-session",
+      "value": "eyJpdiI6Im1lcmY0c2F6dWl0NEVuYVV5dzFoeUE9PSIsInZhbHVlIjoiM2V0d1MvT1UraFhWN09uT1MrUWkzTy82bC9kUmRjSmFuQkpNbDdKRDBtMVQ1OVZFbG93b05mQkZZY3kxa1lGV09VTGZpMkdVLzBscnAxa3EwbEM4T3dTVUFLQUtVakRsUmFUZDc5dDBodElTWC9leWV6dlRaM281ZU9iMzVoUCsiLCJtYWMiOiI5Y2Q5YjBiYjJjY2U1OTYwYzdkYzBlYzhlZDNhOTI2NjA4NGRlMjgxMjBiNWRlMDc4MTRmNDg1ZjY5MjZhNTNjIiwidGFnIjoiIn0%3D",
+      "expires": "2026-11-27T13:23:37.000Z",
+      "maxAge": 7200,
+      "domain": "seeav-2026115.ms9889.xyz",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "hostOnly": true,
+      "creation": "2026-11-27T11:23:31.945Z",
+      "lastAccessed": "2026-11-27T11:23:40.247Z",
+      "sameSite": "lax"
     }
   ]
 }
