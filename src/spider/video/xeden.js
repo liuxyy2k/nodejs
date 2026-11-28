@@ -4,34 +4,89 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const site = 'https://xeden.net';
 const apiBase = `${site}/api`;
 
-// 列表分页每页条数（站点自己也是 24）
+// 列表每页条数（站点自己也是 24）
 const PAGE_SIZE = 24;
 // 站点默认只吐最近 100 条，带上 days 才是全库；这个值够大就行
 const ALL_DAYS = 3650;
 
 const SORTS = ['latest', 'newest', 'trending', 'most_viewed', 'ranked', 'top_rated'];
 
+// ─────────────────────────── 请求头 ───────────────────────────
+
+const CLIENT_HINTS = {
+    'sec-ch-ua': '"Chromium";v="120", "Not:A-Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+};
+
 const HTML_HEADERS = {
+    'User-Agent': UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
 };
 
-// 播放域名（helvid.com）前面挂着防护：缺 sec-fetch-* / sec-ch-ua 直接 403，
-// 并且签名里带 d=chromium，UA 换成 ExoPlayer 那种会 404，所以这几个头必须原样带上
-const PLAY_HEADER = {
+// 播放页（upload18.to/play/index/<slug>）现在挂了 Cloudflare 防护：
+// 只带 UA + Referer 会直接吃 403「Just a moment」，必须把浏览器的
+// sec-fetch-* / sec-ch-ua 指纹头一起带上才放行。这里按 iframe 内嵌场景给一版，
+// 再备一版 document 场景，被挑战就换一套重试。
+const PLAY_PAGE_HEADERS = {
     'User-Agent': UA,
-    'Referer': 'https://upload18.org/',
-    'Accept': '*/*',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'cross-site',
-    'sec-ch-ua': '"Chromium";v="120", "Not:A-Brand";v="99"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    // 分片不带 Origin 会被拦成 403，播放器一般不会自己带，所以这里补上
-    'Origin': site,
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'iframe',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'cross-site',
+    'Sec-Fetch-User': '?1',
+    ...CLIENT_HINTS,
 };
+
+const PLAY_PAGE_HEADERS_ALT = {
+    ...PLAY_PAGE_HEADERS,
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+};
+delete PLAY_PAGE_HEADERS_ALT['Sec-Fetch-User'];
+
+const PLAY_PAGE_HEADERS_MIN = {
+    'User-Agent': UA,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Sec-Fetch-Dest': 'iframe',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'cross-site',
+    ...CLIENT_HINTS,
+};
+
+// 分片/清单侧的请求头：照真实浏览器加载 m3u8 的样子拼（Origin + Referer 都指向播放页所在站）
+// 旧版写死了 Referer: upload18.org、Origin: xeden.net，跟实际加载方对不上，容易吃 403。
+function streamHeader(playPageUrl) {
+    let origin = 'https://upload18.to';
+    try {
+        origin = new URL(playPageUrl).origin;
+    } catch (e) {
+        // 用默认值
+    }
+    return {
+        'User-Agent': UA,
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': playPageUrl || `${origin}/`,
+        'Origin': origin,
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        ...CLIENT_HINTS,
+    };
+}
+
+function isChallenge(html) {
+    if (!html) return true;
+    return /<title>\s*(Just a moment|Attention Required)/i.test(html)
+        || /you have been blocked/i.test(html)
+        || /cf_chl_opt|__cf_chl_|cf-browser-verification/i.test(html);
+}
 
 // ─────────────────────────── 站点接口 token ───────────────────────────
 // 站点所有 /api 数据接口都要 X-Eden-Token，token 从 /api/_token 现取，有效期 30 分钟
@@ -102,23 +157,38 @@ async function requestJson(path, params = {}, retry = true) {
     return resp.data || {};
 }
 
-async function requestHtml(reqUrl, headers = {}) {
-    const resp = await axios.get(reqUrl, {
-        headers: { 'User-Agent': UA, ...HTML_HEADERS, ...headers },
-        timeout: 20000,
-        maxRedirects: 3,
-        validateStatus: (status) => status >= 200 && status < 400,
-    });
-    const html = resp.data;
-    if (typeof html !== 'string') return '';
-    if (/<title>\s*Just a moment|<title>\s*Attention Required/i.test(html)) {
-        throw new Error('播放页被 Cloudflare 挑战：往 cookie.json 里补一份 cf_clearance');
+// 播放页可能被 CF 挑战，这里轮着换几套指纹头重试
+async function requestPlayPage(reqUrl, referer = '') {
+    const variants = [PLAY_PAGE_HEADERS, PLAY_PAGE_HEADERS_ALT, PLAY_PAGE_HEADERS_MIN];
+    let lastError = null;
+
+    for (let i = 0; i < variants.length; i += 1) {
+        const headers = { ...variants[i] };
+        // 第一轮带 Referer（真从站里点进 iframe 的样子），之后摘掉再试，两种都放过
+        if (i === 0 && referer) headers.Referer = referer;
+        try {
+            const resp = await axios.get(reqUrl, {
+                headers,
+                timeout: 20000,
+                maxRedirects: 3,
+                validateStatus: (status) => status >= 200 && status < 500,
+            });
+            const html = typeof resp.data === 'string' ? resp.data : '';
+            if (resp.status === 200 && html && !isChallenge(html)) {
+                return html;
+            }
+            lastError = new Error(`播放页返回 ${resp.status}`);
+        } catch (e) {
+            lastError = e;
+        }
     }
-    return html;
+
+    throw new Error(
+        `播放页被站点防护拦截（${lastError ? lastError.message : '未知原因'}）`,
+    );
 }
 
 // ─────────────────────────── 字段处理 ───────────────────────────
-
 function toSlug(raw) {
     if (!raw) return '';
     const str = String(raw).trim().split('#')[0];
@@ -181,72 +251,137 @@ function typeOfId(tid) {
 
 // ─────────────────────────── 播放解析 ───────────────────────────
 
+function unescapeUrl(u) {
+    if (!u) return '';
+    return String(u)
+        .replace(/\\u0026/gi, '&')
+        .replace(/\\u003d/gi, '=')
+        .replace(/\\\//g, '/')
+        .replace(/&amp;/g, '&')
+        .replace(/^['"]|['"]$/g, '')
+        .trim();
+}
+
+function pickFromPlayerConfig(html) {
+    // 真清单在 window.PLAYER_CONFIG 里（JSON），字段：m3u8 / alternate720 / workerDomains
+    const matched = html.match(/(?:window\.)?PLAYER_CONFIG\s*=\s*(\{[\s\S]*?\})\s*;\s*(?:\n|<\/script>|$)/)
+        || html.match(/(?:window\.)?PLAYER_CONFIG\s*=\s*(\{[\s\S]*?\})\s*;/);
+    if (matched) {
+        let cfg = null;
+        try {
+            cfg = JSON.parse(matched[1]);
+        } catch (e) {
+            cfg = null;
+        }
+        // 注意：清单地址的路径是 base64 编过的（.../m/L3YvT1ZFT1BQSUUt...），
+        // 整串里根本不含 ".m3u8" 字样，所以只能按“是不是一条 http(s) 地址”来判断，
+        // 千万别拿后缀去筛，会一条都命中不了。
+        if (cfg) {
+            const list = [cfg.m3u8, cfg.alternate720, cfg.alternate, cfg.source, cfg.url, cfg.file];
+            for (const item of list) {
+                if (item && typeof item === 'string') {
+                    const candidate = unescapeUrl(item);
+                    if (/^https?:\/\//i.test(candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+    }
+
+    // 兜底 1：JSON 里直接躺着的播放字段（同样不看后缀）
+    const byField = html.match(/"(?:m3u8|alternate720|hls|playlist)"\s*:\s*"([^"]+)"/i);
+    if (byField) {
+        const candidate = unescapeUrl(byField[1]);
+        if (/^https?:\/\//i.test(candidate)) return candidate;
+    }
+
+    // 兜底 2：页面上裸出现的地址——带 .m3u8 的，或播放域名的 /m/ 清单路径
+    const withExt = html.match(/https?:\/\/[^"'\s\\<>]+\.m3u8[^"'\s\\<>]*/i);
+    if (withExt) return unescapeUrl(withExt[0]);
+
+    const byHost = html.match(/https?:\/\/[^"'\s\\<>]*helvid\.com\/m\/[^"'\s\\<>]+/i);
+    if (byHost) return unescapeUrl(byHost[0]);
+
+    return '';
+}
+
 async function resolveEmbed(embedUrl) {
     const url = String(embedUrl || '').trim();
-    if (!url) return '';
+    if (!url) return { url: '', header: HTML_HEADERS };
 
     // 站点部分片源用的是 avdbapi 的播放页，清单地址直接写在 ?s= 里
     const byParam = url.match(/[?&]s=([^&]+)/);
     if (byParam) {
         const target = decodeURIComponent(byParam[1]);
-        if (/\.m3u8/i.test(target)) return target;
+        if (/\.m3u8/i.test(target)) {
+            return { url: target, header: streamHeader(url) };
+        }
     }
 
     // 主站播放页是 upload18.to / upload18.org，真清单在 window.PLAYER_CONFIG 里
-    const html = await requestHtml(url, { Referer: `${site}/` });
-    if (/Page not found/i.test(html) && !/PLAYER_CONFIG/.test(html)) {
+    const html = await requestPlayPage(url, `${site}/`);
+    if (/Page not found|404 Not Found/i.test(html) && !/PLAYER_CONFIG/.test(html)) {
         throw new Error('播放页 404，该片源在站方已经失效');
     }
-    const match = html.match(/window\.PLAYER_CONFIG\s*=\s*(\{[\s\S]*?\});/);
-    if (match) {
-        let cfg = null;
-        try {
-            cfg = JSON.parse(match[1]);
-        } catch (e) {
-            cfg = null;
-        }
-        if (cfg && (cfg.m3u8 || cfg.alternate720)) {
-            return cfg.m3u8 || cfg.alternate720;
-        }
+
+    const playlist = pickFromPlayerConfig(html);
+    if (playlist) {
+        return { url: playlist, header: streamHeader(url) };
     }
 
-    // 兜底：页面里直接出现清单地址
-    const direct = html.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
-    if (direct) return direct[0];
-
-    return '';
+    return { url: '', header: HTML_HEADERS };
 }
 
 async function resolvePlayUrl(raw) {
     const str = String(raw || '').trim();
     if (!str) throw new Error('缺少视频 id');
 
+    // 客户端直接把清单地址丢进来
     if (/^https?:\/\/[^\s]+\.m3u8/i.test(str)) {
-        return { url: str, header: PLAY_HEADER };
+        return { url: str, header: streamHeader('https://upload18.to/') };
     }
 
     // 客户端直接把播放页地址丢进来
     if (/^https?:\/\//i.test(str) && !/xeden\.net/i.test(str)) {
-        const resolved = await resolveEmbed(str);
-        if (resolved) return { url: resolved, header: PLAY_HEADER };
+        let resolved = { url: '', header: HTML_HEADERS };
+        try {
+            resolved = await resolveEmbed(str);
+        } catch (e) {
+            resolved = { url: '', header: HTML_HEADERS };
+        }
+        if (resolved.url) {
+            return { url: resolved.url, header: resolved.header };
+        }
+        // 实在解不出来就把播放页交出去，让客户端自己嗅探，别直接黑屏
         return { url: str, header: HTML_HEADERS, parse: 1 };
     }
 
     const slug = toSlug(str);
     if (!slug) throw new Error('缺少视频 id');
 
-    // 每次播放现取：清单 token 有时效、还绑请求方网段，不能缓存
+    // 每次播放现取：清单 token 有时效（约 1 小时）且绑请求方网段，不能缓存
     const data = await requestJson(`/videos/${encodeURIComponent(slug)}/stream`, {}, false);
     const direct = decodeEmbed(data.streamUrl);
-    if (direct) return { url: direct, header: PLAY_HEADER };
+    if (direct && /^https?:\/\//i.test(direct)) {
+        return { url: direct, header: streamHeader('https://upload18.to/') };
+    }
 
     const embed = decodeEmbed(data.embedUrl);
     if (!embed) throw new Error('该片源没有给出播放地址');
 
-    const resolved = await resolveEmbed(embed);
-    if (resolved) return { url: resolved, header: PLAY_HEADER };
+    // 播放页被防护挡掉时不抛错，退回播放页地址交给客户端嗅探
+    let resolved = { url: '', header: HTML_HEADERS };
+    try {
+        resolved = await resolveEmbed(embed);
+    } catch (e) {
+        resolved = { url: '', header: HTML_HEADERS };
+    }
+    if (resolved.url) {
+        return { url: resolved.url, header: resolved.header };
+    }
 
-    // 实在解不出来就把播放页交出去，让客户端自己嗅探，别直接黑屏
+    // 解不出清单就把播放页交出去，让客户端嗅探
     return { url: embed, header: HTML_HEADERS, parse: 1 };
 }
 
@@ -355,9 +490,9 @@ async function detail(inReq, _outResp) {
 
 function playInputId(body) {
     const b = body || {};
-    let raw = b.id ?? b.url ?? b.play ?? b.vod_id ?? '';
+    let raw = b.id !== undefined ? b.id : (b.url !== undefined ? b.url : (b.play !== undefined ? b.play : (b.vod_id !== undefined ? b.vod_id : '')));
     if (Array.isArray(raw)) raw = raw[0];
-    raw = String(raw ?? '').trim();
+    raw = String(raw === undefined || raw === null ? '' : raw).trim();
     if (!raw) return '';
     // 兼容旧版误写的 第1集$$slug
     if (raw.includes('$$$')) raw = raw.split('$$$').pop() || '';
@@ -375,7 +510,7 @@ async function play(inReq, _outResp) {
     return {
         parse: result.parse || 0,
         url: result.url,
-        header: result.header,
+        header: result.header || {},
     };
 }
 
